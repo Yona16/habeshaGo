@@ -87,16 +87,16 @@ function seedData() {
       }
     ],
     merchants: [
-      { id: "merchant-1", owner_user_id: "merchant-user-1", country_id: "ET", city_id: "bole", currency: "ETB", language: "am", timezone: "Africa/Addis_Ababa", name: "Addis Chefs", category: "restaurant", women_owned: true, verified: true, status: "open", commission_rate: 0.12, rating: 4.7, address_note: "Blue gate next to Medhanealem Church" },
-      { id: "merchant-2", owner_user_id: "merchant-user-1", country_id: "ET", city_id: "bole", currency: "ETB", language: "en", timezone: "Africa/Addis_Ababa", name: "Bole Fresh Grocery", category: "grocery", women_owned: false, verified: true, status: "open", commission_rate: 0.08, rating: 4.5, address_note: "Friendship area" },
-      { id: "merchant-3", owner_user_id: "merchant-user-1", country_id: "ET", city_id: "bole", currency: "ETB", language: "am", timezone: "Africa/Addis_Ababa", name: "Almaz Injera House", category: "marketplace", women_owned: true, verified: false, status: "open", commission_rate: 0.07, rating: 4.4, address_note: "Woreda 03, yellow door near school" }
+      { id: "merchant-1", owner_user_id: "merchant-user-1", country_id: "ET", city_id: "bole", currency: "ETB", language: "am", timezone: "Africa/Addis_Ababa", name: "Addis Chefs", category: "restaurant", women_owned: true, verified: true, status: "open", commission_rate: 0.12, rating: 4.7, address_note: "Blue gate next to Medhanealem Church", contact_phone: "+251911111111", manager_name: "Mimi Alemu", opening_hours: "Mon-Sun 8:00 AM - 10:00 PM", prep_time_minutes: 18, delivery_radius_km: 4, payout_schedule: "weekly", trust_score: 92, verification_status: "verified", support_notes: "High demand lunch merchant. Confirm kitfo spice level before dispatch." },
+      { id: "merchant-2", owner_user_id: "merchant-user-1", country_id: "ET", city_id: "bole", currency: "ETB", language: "en", timezone: "Africa/Addis_Ababa", name: "Bole Fresh Grocery", category: "grocery", women_owned: false, verified: true, status: "open", commission_rate: 0.08, rating: 4.5, address_note: "Friendship area", contact_phone: "+251922222222", manager_name: "Dawit Bekele", opening_hours: "Mon-Sat 7:00 AM - 9:00 PM", prep_time_minutes: 12, delivery_radius_km: 3, payout_schedule: "weekly", trust_score: 89, verification_status: "verified", support_notes: "Grocery substitutions allowed after customer confirmation." },
+      { id: "merchant-3", owner_user_id: "merchant-user-1", country_id: "ET", city_id: "bole", currency: "ETB", language: "am", timezone: "Africa/Addis_Ababa", name: "Almaz Injera House", category: "marketplace", women_owned: true, verified: false, status: "open", commission_rate: 0.07, rating: 4.4, address_note: "Woreda 03, yellow door near school", contact_phone: "+251933333333", manager_name: "Almaz Tesfaye", opening_hours: "Mon-Fri 6:00 AM - 7:00 PM", prep_time_minutes: 25, delivery_radius_km: 2, payout_schedule: "weekly", trust_score: 81, verification_status: "pending", support_notes: "Home-based seller; verify quantity before accepting bulk orders." }
     ],
     products: [
-      { id: "product-1", merchant_id: "merchant-1", country_id: "ET", city_id: "bole", currency: "ETB", language: "am", timezone: "Africa/Addis_Ababa", name: "Kitfo", category: "food", price: 350, available: true },
-      { id: "product-2", merchant_id: "merchant-1", country_id: "ET", city_id: "bole", currency: "ETB", language: "am", timezone: "Africa/Addis_Ababa", name: "Shiro", category: "food", price: 220, available: true },
-      { id: "product-3", merchant_id: "merchant-2", country_id: "ET", city_id: "bole", currency: "ETB", language: "en", timezone: "Africa/Addis_Ababa", name: "Fresh Injera Pack", category: "grocery", price: 120, available: true },
-      { id: "product-4", merchant_id: "merchant-2", country_id: "ET", city_id: "bole", currency: "ETB", language: "en", timezone: "Africa/Addis_Ababa", name: "Family Vegetable Box", category: "grocery", price: 480, available: true },
-      { id: "product-5", merchant_id: "merchant-3", country_id: "ET", city_id: "bole", currency: "ETB", language: "am", timezone: "Africa/Addis_Ababa", name: "Teff Injera Bundle", category: "marketplace", price: 180, available: true }
+      { id: "product-1", merchant_id: "merchant-1", country_id: "ET", city_id: "bole", currency: "ETB", language: "am", timezone: "Africa/Addis_Ababa", name: "Kitfo", category: "food", price: 350, available: true, description: "Minced lean beef with mitmita, ayib, and kocho.", prep_time_minutes: 18, dietary_tags: ["spicy", "beef"], stock_quantity: 24, popular: true },
+      { id: "product-2", merchant_id: "merchant-1", country_id: "ET", city_id: "bole", currency: "ETB", language: "am", timezone: "Africa/Addis_Ababa", name: "Shiro", category: "food", price: 220, available: true, description: "Slow-cooked chickpea stew with injera.", prep_time_minutes: 14, dietary_tags: ["vegetarian"], stock_quantity: 30, popular: true },
+      { id: "product-3", merchant_id: "merchant-2", country_id: "ET", city_id: "bole", currency: "ETB", language: "en", timezone: "Africa/Addis_Ababa", name: "Fresh Injera Pack", category: "grocery", price: 120, available: true, description: "Pack of fresh injera for family meals.", prep_time_minutes: 6, dietary_tags: ["teff"], stock_quantity: 60, popular: false },
+      { id: "product-4", merchant_id: "merchant-2", country_id: "ET", city_id: "bole", currency: "ETB", language: "en", timezone: "Africa/Addis_Ababa", name: "Family Vegetable Box", category: "grocery", price: 480, available: true, description: "Tomato, onion, potato, carrot, and greens.", prep_time_minutes: 10, dietary_tags: ["family", "fresh"], stock_quantity: 15, popular: true },
+      { id: "product-5", merchant_id: "merchant-3", country_id: "ET", city_id: "bole", currency: "ETB", language: "am", timezone: "Africa/Addis_Ababa", name: "Teff Injera Bundle", category: "marketplace", price: 180, available: true, description: "Home-made teff injera bundle from verified home seller.", prep_time_minutes: 25, dietary_tags: ["home-made", "teff"], stock_quantity: 12, popular: false }
     ],
     drivers: [
       {
@@ -128,6 +128,11 @@ function seedData() {
     orders: [],
     dispatch_requests: [],
     menu_requests: [],
+    trust_verifications: [
+      { id: "trust-merchant-1", entity_type: "merchant", entity_id: "merchant-1", status: "verified", score: 92, note: "Business phone and address confirmed." },
+      { id: "trust-driver-1", entity_type: "driver", entity_id: "driver-1", status: "verified", score: 98, note: "License and safety training checked." },
+      { id: "trust-address-1", entity_type: "address", entity_id: "customer-1", status: "verified", score: 86, note: "Landmark confirmed near Medhanealem Church." }
+    ],
     wallet_transactions: [],
     payment_transactions: [],
     sms_messages: [],
@@ -175,6 +180,7 @@ function loadStore() {
     seeded.map_quotes = parsed.map_quotes || [];
     seeded.support_tickets = parsed.support_tickets || [];
     seeded.audit_logs = parsed.audit_logs || [];
+    seeded.trust_verifications = parsed.trust_verifications || seedData().trust_verifications;
     fs.writeFileSync(dataFile, JSON.stringify(seeded, null, 2));
     return seeded;
   }
@@ -187,7 +193,33 @@ function loadStore() {
   parsed.compliance_reviews = parsed.compliance_reviews || seedData().compliance_reviews;
   parsed.support_tickets = parsed.support_tickets || [];
   parsed.audit_logs = parsed.audit_logs || [];
+  parsed.trust_verifications = parsed.trust_verifications || seedData().trust_verifications;
+  normalizeDetails(parsed);
   return parsed;
+}
+
+function normalizeDetails(data) {
+  const seeded = seedData();
+  for (const merchant of data.merchants || []) {
+    const fallback = seeded.merchants.find((item) => item.id === merchant.id) || {};
+    merchant.contact_phone = merchant.contact_phone || fallback.contact_phone || "";
+    merchant.manager_name = merchant.manager_name || fallback.manager_name || "Store Manager";
+    merchant.opening_hours = merchant.opening_hours || fallback.opening_hours || "Hours not set";
+    merchant.prep_time_minutes = merchant.prep_time_minutes || fallback.prep_time_minutes || 20;
+    merchant.delivery_radius_km = merchant.delivery_radius_km || fallback.delivery_radius_km || 3;
+    merchant.payout_schedule = merchant.payout_schedule || fallback.payout_schedule || "weekly";
+    merchant.trust_score = merchant.trust_score || fallback.trust_score || 75;
+    merchant.verification_status = merchant.verification_status || fallback.verification_status || (merchant.verified ? "verified" : "pending");
+    merchant.support_notes = merchant.support_notes || fallback.support_notes || "No support notes yet.";
+  }
+  for (const product of data.products || []) {
+    const fallback = seeded.products.find((item) => item.id === product.id) || {};
+    product.description = product.description || fallback.description || `${product.name} from a local merchant.`;
+    product.prep_time_minutes = product.prep_time_minutes || fallback.prep_time_minutes || 15;
+    product.dietary_tags = product.dietary_tags || fallback.dietary_tags || [];
+    product.stock_quantity = product.stock_quantity ?? fallback.stock_quantity ?? 10;
+    product.popular = product.popular ?? fallback.popular ?? false;
+  }
 }
 
 let store = loadStore();
@@ -234,6 +266,29 @@ function send(res, status, payload, headers = {}) {
 
 function sendError(res, status, message, details) {
   send(res, status, { error: message, details });
+}
+
+function enrichOrder(order) {
+  const merchant = store.merchants.find((item) => item.id === order.merchant_id);
+  const driver = store.drivers.find((item) => item.id === order.driver_id);
+  const driverUser = driver ? store.users.find((item) => item.id === driver.user_id) : null;
+  const customerUser = store.users.find((item) => item.id === order.customer_user_id);
+  const payments = store.payment_transactions.filter((item) => item.order_id === order.id);
+  const sms = store.sms_messages.filter((item) => item.order_id === order.id);
+  const dispatch = store.dispatch_requests.find((item) => item.order_id === order.id) || null;
+  return {
+    ...order,
+    merchant_name: merchant ? merchant.name : "Unknown merchant",
+    merchant_phone: merchant ? merchant.contact_phone : "",
+    customer_name: customerUser ? customerUser.name : "",
+    customer_phone: customerUser ? customerUser.phone : "",
+    driver_name: driverUser ? driverUser.name : "",
+    driver_phone: driverUser ? driverUser.phone : "",
+    driver_vehicle: driver ? `${driver.vehicle_type || ""} ${driver.vehicle_plate || ""}`.trim() : "",
+    payment_detail: payments[payments.length - 1] || null,
+    sms_count: sms.length,
+    dispatch_request: dispatch
+  };
 }
 
 function readBody(req) {
@@ -557,6 +612,15 @@ async function handleApi(req, res, url) {
     return send(res, 200, { merchants });
   }
 
+  const merchantDetailMatch = url.pathname.match(/^\/api\/[^/]+\/v1\/merchants\/([^/]+)$/);
+  if (req.method === "GET" && merchantDetailMatch) {
+    const merchant = store.merchants.find((item) => item.id === merchantDetailMatch[1] && item.country_id === countryId);
+    if (!merchant) return sendError(res, 404, "Merchant not found");
+    const products = store.products.filter((item) => item.merchant_id === merchant.id);
+    const trust = store.trust_verifications.filter((item) => item.entity_type === "merchant" && item.entity_id === merchant.id);
+    return send(res, 200, { merchant, products, trust });
+  }
+
   const merchantProductsMatch = url.pathname.match(/^\/api\/[^/]+\/v1\/merchants\/([^/]+)\/products$/);
   if (req.method === "GET" && merchantProductsMatch) {
     const products = store.products.filter((product) => product.merchant_id === merchantProductsMatch[1] && product.country_id === countryId);
@@ -769,7 +833,7 @@ async function handleApi(req, res, url) {
       }
       return true;
     });
-    return send(res, 200, { orders });
+    return send(res, 200, { orders: orders.map(enrichOrder) });
   }
 
   const requestDriverMatch = url.pathname.match(/^\/api\/[^/]+\/v1\/orders\/([^/]+)\/request-driver$/);
@@ -810,7 +874,7 @@ async function handleApi(req, res, url) {
     const user = requireUser(req, res, ["customer", "admin"]);
     if (!user) return;
     const orders = store.orders.filter((order) => user.role === "admin" || order.customer_user_id === user.id);
-    return send(res, 200, { orders });
+    return send(res, 200, { orders: orders.map(enrichOrder) });
   }
 
   const orderStatusMatch = url.pathname.match(/^\/api\/[^/]+\/v1\/orders\/([^/]+)\/status$/);
@@ -923,12 +987,25 @@ async function handleApi(req, res, url) {
   if (url.pathname.includes("/admin/")) {
     const user = requireUser(req, res, ["admin"]);
     if (!user) return;
-    if (req.method === "GET" && url.pathname.endsWith("/admin/orders")) return send(res, 200, { orders: store.orders.filter((order) => order.country_id === countryId) });
+    if (req.method === "GET" && url.pathname.endsWith("/admin/orders")) return send(res, 200, { orders: store.orders.filter((order) => order.country_id === countryId).map(enrichOrder) });
     if (req.method === "GET" && url.pathname.endsWith("/admin/merchants")) return send(res, 200, { merchants: store.merchants.filter((merchant) => merchant.country_id === countryId) });
     if (req.method === "GET" && url.pathname.endsWith("/admin/drivers")) return send(res, 200, { drivers: store.drivers.filter((driver) => driver.country_id === countryId) });
     if (req.method === "GET" && url.pathname.endsWith("/admin/wallet-transactions")) return send(res, 200, { transactions: store.wallet_transactions.filter((tx) => tx.country_id === countryId) });
     if (req.method === "GET" && url.pathname.endsWith("/admin/payment-transactions")) return send(res, 200, { transactions: store.payment_transactions.filter((tx) => tx.country_id === countryId) });
     if (req.method === "GET" && url.pathname.endsWith("/admin/sms-messages")) return send(res, 200, { messages: store.sms_messages.filter((message) => message.country_id === countryId) });
+    if (req.method === "GET" && url.pathname.endsWith("/admin/trust-verifications")) return send(res, 200, { verifications: store.trust_verifications });
+    if (req.method === "GET" && url.pathname.endsWith("/admin/details")) {
+      return send(res, 200, {
+        countries: store.countries,
+        cities: store.cities.filter((city) => city.country_id === countryId),
+        merchants: store.merchants.filter((merchant) => merchant.country_id === countryId),
+        products: store.products.filter((product) => product.country_id === countryId),
+        drivers: store.drivers.filter((driver) => driver.country_id === countryId),
+        customers: store.customers.filter((customer) => customer.country_id === countryId),
+        compliance_reviews: store.compliance_reviews,
+        trust_verifications: store.trust_verifications
+      });
+    }
     if (req.method === "GET" && url.pathname.endsWith("/admin/reports")) {
       const orders = store.orders.filter((order) => order.country_id === countryId);
       return send(res, 200, {

@@ -162,6 +162,20 @@ function detail(label, value) {
   return `<div class="detail"><span>${label}</span><strong>${value || "Not set"}</strong></div>`;
 }
 
+function renderMerchantDetails() {
+  $("#merchantDetails").innerHTML = state.merchants.map((merchant) => [
+    detail("Merchant", merchant.name),
+    detail("Manager", merchant.manager_name),
+    detail("Phone", merchant.contact_phone),
+    detail("Hours", merchant.opening_hours),
+    detail("Prep time", `${merchant.prep_time_minutes || 20} min`),
+    detail("Radius", `${merchant.delivery_radius_km || 3} km`),
+    detail("Trust score", merchant.trust_score),
+    detail("Verification", merchant.verification_status),
+    detail("Notes", merchant.support_notes)
+  ].join("")).join("");
+}
+
 async function loadProfiles() {
   if (!state.token) {
     $("#customerProfile").innerHTML = "";
@@ -170,7 +184,7 @@ async function loadProfiles() {
   }
   try {
     const data = await api(`/api/${state.country}/v1/profile/details`);
-    const { user, customer, driver } = data.profile;
+    const { user, customer, driver, merchant } = data.profile;
     $("#customerProfile").innerHTML = customer ? [
       detail("Customer", user.name),
       detail("Phone", user.phone),
@@ -191,9 +205,19 @@ async function loadProfiles() {
       detail("Training", driver.training_status),
       detail("Safety score", driver.safety_score)
     ].join("") : "";
+    $("#merchantProfile").innerHTML = merchant ? [
+      detail("Merchant", merchant.name),
+      detail("Manager", merchant.manager_name),
+      detail("Phone", merchant.contact_phone),
+      detail("Hours", merchant.opening_hours),
+      detail("Trust score", merchant.trust_score),
+      detail("Payout schedule", merchant.payout_schedule),
+      detail("Support notes", merchant.support_notes)
+    ].join("") : "";
   } catch {
     $("#customerProfile").innerHTML = "";
     $("#driverProfile").innerHTML = "";
+    $("#merchantProfile").innerHTML = "";
   }
 }
 
@@ -211,13 +235,19 @@ function renderMerchants() {
         </div>
         ${products.map((product) => `
           <div class="product">
-            <span>${product.name}<br><small>${money(product.price, product.currency)}</small></span>
+            <span>
+              ${product.name}<br>
+              <small>${product.description || ""}</small><br>
+              <small>${money(product.price, product.currency)} - ${product.prep_time_minutes || 15} min - stock ${product.stock_quantity ?? "n/a"}${product.popular ? " - popular" : ""}</small><br>
+              <small>${(product.dietary_tags || []).join(", ")}</small>
+            </span>
             <button data-add="${product.id}">Add</button>
           </div>
         `).join("")}
       </article>
     `;
   }).join("");
+  renderMerchantDetails();
 
   document.querySelectorAll("[data-add]").forEach((button) => {
     button.addEventListener("click", () => addToCart(button.dataset.add));
@@ -330,9 +360,13 @@ async function loadOrders() {
   const cols = [
     { label: "Order", render: (o) => o.id.slice(0, 8) },
     { label: "Status", key: "status" },
+    { label: "Merchant", key: "merchant_name" },
+    { label: "Customer", render: (o) => `${o.customer_name || ""}<br><small>${o.customer_phone || ""}</small>` },
+    { label: "Driver", render: (o) => o.driver_name ? `${o.driver_name}<br><small>${o.driver_vehicle}</small>` : "Not assigned" },
     { label: "Total", render: (o) => money(o.total, o.currency) },
-    { label: "Safety", key: "safety_mode" },
-    { label: "Address", key: "address_note" }
+    { label: "Payment", render: (o) => o.payment_detail ? `${o.payment_detail.provider}<br><small>${o.payment_detail.status}</small>` : (o.payment_status || "pending") },
+    { label: "Timeline", render: (o) => (o.status_history || []).map((h) => h.status).join(" -> ") },
+    { label: "Address", render: (o) => `${o.address_note}<br><small>${o.map_quote ? `${o.map_quote.distance_km} km / ${o.map_quote.eta_minutes} min` : ""}</small>` }
   ];
   $("#customerOrders").innerHTML = table(orders, cols);
   $("#merchantOrders").innerHTML = table(orders, cols, (o) => merchantActions(o));
@@ -433,14 +467,18 @@ async function loadAdmin() {
     $("#paymentsPanel").innerHTML = "<div class='card'>Login as admin.</div>";
     $("#smsPanel").innerHTML = "<div class='card'>Login as admin.</div>";
     $("#compliancePanel").innerHTML = "";
+    $("#adminDetails").innerHTML = "";
+    $("#trustPanel").innerHTML = "<div class='card'>Login as admin.</div>";
     return;
   }
-  const [reports, flags, payments, sms, compliance] = await Promise.all([
+  const [reports, flags, payments, sms, compliance, details, trust] = await Promise.all([
     api(`/api/${state.country}/v1/admin/reports`),
     api(`/api/${state.country}/v1/feature-flags`),
     api(`/api/${state.country}/v1/admin/payment-transactions`),
     api(`/api/${state.country}/v1/admin/sms-messages`),
-    api(`/api/${state.country}/v1/compliance/reviews`)
+    api(`/api/${state.country}/v1/compliance/reviews`),
+    api(`/api/${state.country}/v1/admin/details`),
+    api(`/api/${state.country}/v1/admin/trust-verifications`)
   ]);
   $("#adminReports").innerHTML = [
     ["Orders", reports.orders_total],
@@ -482,6 +520,22 @@ async function loadAdmin() {
       ${review.legal_hold ? '<span class="badge">Legal hold</span>' : '<span class="badge">Local demo allowed</span>'}
     </article>
   `).join("");
+  $("#adminDetails").innerHTML = [
+    detail("Countries", details.countries.length),
+    detail("Cities", details.cities.length),
+    detail("Merchants", details.merchants.length),
+    detail("Products", details.products.length),
+    detail("Drivers", details.drivers.length),
+    detail("Customers", details.customers.length),
+    detail("Compliance reviews", details.compliance_reviews.length),
+    detail("Trust checks", details.trust_verifications.length)
+  ].join("");
+  $("#trustPanel").innerHTML = table(trust.verifications, [
+    { label: "Entity", render: (v) => `${v.entity_type}<br><small>${v.entity_id}</small>` },
+    { label: "Status", key: "status" },
+    { label: "Score", key: "score" },
+    { label: "Note", key: "note" }
+  ]);
 }
 
 async function loadMetrics() {
