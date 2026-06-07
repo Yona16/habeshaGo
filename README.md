@@ -23,7 +23,27 @@ cd outputs/habeshago/backend
 node src/demoServer.js
 ```
 
-This exposes a lightweight runnable subset for `/health`, countries, cities, merchants, merchant products, demo login, order creation, and feature flags.
+Then open:
+
+```text
+http://localhost:4000
+```
+
+This exposes a local browser MVP for customer ordering, merchant order flow, driver flow, admin reporting, dummy payments, simulated SMS logs, map/ETA quotes, wallet adjustment, feature flags, and legal/compliance gates.
+
+The local server persists test data to:
+
+```text
+backend/data/local-store.json
+```
+
+## Local Simulation Boundaries
+
+- Dummy payments record provider/status only. No real money moves.
+- SMS messages are logged with `SIMULATED_SMS`; no SMS is sent.
+- Map estimates use sample coordinates and distance math, not Google Maps billing/API calls.
+- Legal-hold features remain blocked in feature flags and compliance reviews.
+- This is suitable for local product testing, demos, and engineering iteration, not real customer launch.
 
 Full Express API:
 

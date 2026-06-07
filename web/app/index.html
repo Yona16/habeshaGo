@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>HabeshaGo Local MVP</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <h1>HabeshaGo</h1>
+        <p>East Africa delivery, commerce, wallet, safety, and trust platform</p>
+      </div>
+      <div class="session">
+        <span id="sessionLabel">Not signed in</span>
+        <button id="logoutBtn" class="ghost" hidden>Logout</button>
+      </div>
+    </header>
+
+    <main>
+      <section class="panel login-panel">
+        <div>
+          <h2>Local Test Login</h2>
+          <p>Use one of the demo accounts to test customer, merchant, driver, or admin flows.</p>
+        </div>
+        <form id="loginForm" class="login-form">
+          <label>
+            Account
+            <select id="accountSelect">
+              <option value="customer@habeshago.local|Customer123!">Customer</option>
+              <option value="merchant@habeshago.local|Merchant123!">Merchant</option>
+              <option value="driver@habeshago.local|Driver123!">Driver</option>
+              <option value="admin@habeshago.local|Admin123!">Admin</option>
+            </select>
+          </label>
+          <button type="submit">Login</button>
+        </form>
+      </section>
+
+      <section class="status-grid" id="metrics"></section>
+
+      <section class="workspace">
+        <nav class="tabs" aria-label="Application areas">
+          <button class="tab active" data-view="customer">Customer</button>
+          <button class="tab" data-view="merchant">Merchant</button>
+          <button class="tab" data-view="driver">Driver</button>
+          <button class="tab" data-view="admin">Admin</button>
+        </nav>
+
+        <section class="view active" id="customer">
+          <div class="section-head">
+            <h2>Customer App</h2>
+            <div class="controls">
+              <label class="check"><input id="communityDelivery" type="checkbox" /> Community delivery</label>
+              <select id="safetyMode">
+                <option value="standard">Standard</option>
+                <option value="senior">Senior mode</option>
+                <option value="night">Night safety</option>
+                <option value="family">Family-safe</option>
+              </select>
+            </div>
+          </div>
+          <div class="catalog-layout">
+            <div>
+              <h3>Merchants</h3>
+              <div id="merchantList" class="cards"></div>
+            </div>
+            <div>
+              <h3>Cart</h3>
+              <div id="cartList" class="cart"></div>
+              <div class="map-box">
+                <h3>Sample Map Quote</h3>
+                <div class="coords">
+                  <label>Latitude <input id="destLat" type="number" step="0.0001" value="8.9970" /></label>
+                  <label>Longitude <input id="destLng" type="number" step="0.0001" value="38.7860" /></label>
+                </div>
+                <button id="quoteMapBtn" class="secondary">Get ETA/Fee</button>
+                <div id="mapQuote"></div>
+              </div>
+              <label>
+                Landmark address note
+                <input id="addressNote" value="Blue gate next to Medhanealem Church" />
+              </label>
+              <button id="placeOrderBtn">Place Order</button>
+            </div>
+          </div>
+          <h3>My Orders</h3>
+          <div id="customerOrders" class="table-wrap"></div>
+        </section>
+
+        <section class="view" id="merchant">
+          <div class="section-head">
+            <h2>Merchant Portal</h2>
+            <button data-refresh>Refresh</button>
+          </div>
+          <div id="merchantOrders" class="table-wrap"></div>
+        </section>
+
+        <section class="view" id="driver">
+          <div class="section-head">
+            <h2>Driver App</h2>
+            <button data-refresh>Refresh</button>
+          </div>
+          <div id="driverPanel" class="cards"></div>
+          <div id="driverOrders" class="table-wrap"></div>
+        </section>
+
+        <section class="view" id="admin">
+          <div class="section-head">
+            <h2>Admin Dashboard</h2>
+            <button data-refresh>Refresh</button>
+          </div>
+          <div id="adminReports" class="status-grid"></div>
+          <div class="admin-actions">
+            <label>
+              Wallet adjustment amount
+              <input id="walletAmount" type="number" value="50" />
+            </label>
+            <button id="adjustWalletBtn">Adjust Demo Customer Wallet</button>
+            <button id="sendSmsBtn" class="secondary">Log Sample SMS</button>
+          </div>
+          <h3>Dummy Payments</h3>
+          <div id="paymentsPanel" class="table-wrap"></div>
+          <h3>SMS Logs</h3>
+          <div id="smsPanel" class="table-wrap"></div>
+          <h3>Legal Compliance Gates</h3>
+          <div id="compliancePanel" class="cards"></div>
+          <h3>Feature Flags</h3>
+          <div id="featureFlags" class="flags"></div>
+          <h3>All Orders</h3>
+          <div id="adminOrders" class="table-wrap"></div>
+        </section>
+      </section>
+
+      <section class="panel">
+        <h2>Production Readiness Tracker</h2>
+        <div class="readiness">
+          <div><strong>Local MVP</strong><span>Runnable and testable</span></div>
+          <div><strong>Persistent data</strong><span>JSON-backed for local testing</span></div>
+          <div><strong>Production database</strong><span>Schema ready, API integration still needed</span></div>
+          <div><strong>Payments/SMS/Maps</strong><span>Provider integrations still needed</span></div>
+        </div>
+      </section>
+    </main>
+
+    <div id="toast" role="status"></div>
+    <script src="/app.js"></script>
+  </body>
+</html>

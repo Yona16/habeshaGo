@@ -14,3 +14,4 @@ pubspec.lock
 Dockerfile.local
 *.sqlite
 *.db
+backend/data/local-store.json
