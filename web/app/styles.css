@@ -98,6 +98,61 @@ label { display: grid; gap: 6px; color: var(--muted); font-size: 13px; }
   align-items: end;
 }
 
+.auth-card {
+  width: min(100%, 620px);
+  display: grid;
+  gap: 12px;
+}
+
+.auth-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.auth-tab {
+  background: #e9eef1;
+  color: var(--ink);
+}
+
+.auth-tab.active {
+  background: var(--green);
+  color: white;
+}
+
+.auth-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(160px, 1fr));
+  gap: 10px;
+  align-items: end;
+}
+
+.auth-form button {
+  align-self: end;
+}
+
+.demo-buttons {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.demo-buttons button {
+  background: var(--blue);
+}
+
+body[data-auth-mode="login"] .signup-only {
+  display: none;
+}
+
+body[data-auth-role="merchant"] .merchant-only {
+  display: grid;
+}
+
+body:not([data-auth-role="merchant"]) .merchant-only {
+  display: none;
+}
+
 .status-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
@@ -291,6 +346,6 @@ th { color: var(--muted); font-size: 12px; text-transform: uppercase; }
 
 @media (max-width: 760px) {
   .topbar, .login-panel, .section-head { align-items: stretch; flex-direction: column; }
-  .login-form, .catalog-layout, .coords { grid-template-columns: 1fr; }
+  .login-form, .auth-form, .demo-buttons, .catalog-layout, .coords { grid-template-columns: 1fr; }
   .tabs { overflow-x: auto; }
 }

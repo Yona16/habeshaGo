@@ -9,6 +9,12 @@ const state = {
 
 const $ = (selector) => document.querySelector(selector);
 const money = (amount, currency = "ETB") => `${Number(amount || 0).toLocaleString()} ${currency}`;
+const demoAccounts = {
+  customer: { email: "customer@habeshago.local", password: "Customer123!" },
+  merchant: { email: "merchant@habeshago.local", password: "Merchant123!" },
+  driver: { email: "driver@habeshago.local", password: "Driver123!" },
+  admin: { email: "admin@habeshago.local", password: "Admin123!" }
+};
 
 async function api(path, options = {}) {
   const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
@@ -65,16 +71,75 @@ function renderSession() {
   $("#logoutBtn").hidden = !state.user;
 }
 
+function setAuthMode(mode) {
+  document.body.dataset.authMode = mode;
+  document.querySelectorAll(".auth-tab").forEach((button) => button.classList.toggle("active", button.dataset.authMode === mode));
+  $("#authSubmit").textContent = mode === "signup" ? "Create account" : "Login";
+}
+
+function setRole(role) {
+  document.body.dataset.authRole = role;
+  $("#authRole").value = role;
+  const demo = demoAccounts[role];
+  if (demo && document.body.dataset.authMode !== "signup") {
+    $("#authEmail").value = demo.email;
+    $("#authPassword").value = demo.password;
+  }
+  if (role === "driver") $("#authName").value = "Local Driver";
+  if (role === "merchant") $("#authName").value = "Local Merchant";
+  if (role === "admin") $("#authName").value = "Local Admin";
+  if (role === "customer") $("#authName").value = "Local Customer";
+}
+
+function activateRoleTab(role) {
+  const view = role === "customer" ? "customer" : role;
+  const tabButton = document.querySelector(`[data-view="${view}"]`);
+  if (!tabButton) return;
+  document.querySelectorAll(".tab, .view").forEach((el) => el.classList.remove("active"));
+  tabButton.classList.add("active");
+  $(`#${view}`).classList.add("active");
+}
+
 async function login(event) {
   event.preventDefault();
-  const [email, password] = $("#accountSelect").value.split("|");
+  const email = $("#authEmail").value.trim().toLowerCase();
+  const password = $("#authPassword").value;
   const data = await api(`/api/${state.country}/v1/auth/login`, {
     method: "POST",
     body: JSON.stringify({ email, password })
   });
   setSession(data.token, data.user);
   toast(`Logged in as ${data.user.role}`);
+  activateRoleTab(data.user.role);
   await refreshAll();
+}
+
+async function register(event) {
+  event.preventDefault();
+  const role = $("#authRole").value;
+  const payload = {
+    role,
+    name: $("#authName").value,
+    email: $("#authEmail").value.trim().toLowerCase(),
+    phone: $("#authPhone").value,
+    password: $("#authPassword").value,
+    business_name: $("#authBusiness").value,
+    city_id: "bole",
+    language: "en"
+  };
+  const data = await api(`/api/${state.country}/v1/auth/register`, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+  setSession(data.token, data.user);
+  toast(`Created ${data.user.role} account`);
+  activateRoleTab(data.user.role);
+  await refreshAll();
+}
+
+async function submitAuth(event) {
+  if (document.body.dataset.authMode === "signup") return register(event);
+  return login(event);
 }
 
 async function loadCatalog() {
@@ -445,7 +510,19 @@ document.querySelectorAll(".tab").forEach((button) => {
   });
 });
 
-$("#loginForm").addEventListener("submit", (event) => login(event).catch((error) => toast(error.message)));
+document.body.dataset.authMode = "login";
+document.body.dataset.authRole = "customer";
+document.querySelectorAll(".auth-tab").forEach((button) => {
+  button.addEventListener("click", () => setAuthMode(button.dataset.authMode));
+});
+$("#authRole").addEventListener("change", () => setRole($("#authRole").value));
+document.querySelectorAll("[data-demo]").forEach((button) => {
+  button.addEventListener("click", () => {
+    setAuthMode("login");
+    setRole(button.dataset.demo);
+  });
+});
+$("#authForm").addEventListener("submit", (event) => submitAuth(event).catch((error) => toast(error.message)));
 $("#logoutBtn").addEventListener("click", () => { clearSession(); refreshAll(); });
 $("#placeOrderBtn").addEventListener("click", () => placeOrder().catch((error) => toast(error.message)));
 $("#menuRequestBtn").addEventListener("click", () => sendMenuRequest().catch((error) => toast(error.message)));
@@ -455,5 +532,7 @@ $("#quoteMapBtn").addEventListener("click", () => quoteMap().catch((error) => to
 document.querySelectorAll("[data-refresh]").forEach((button) => button.addEventListener("click", () => refreshAll().catch((error) => toast(error.message))));
 
 renderSession();
+setAuthMode("login");
+setRole("customer");
 connectEvents();
 refreshAll().catch((error) => toast(error.message));

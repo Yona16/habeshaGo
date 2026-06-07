@@ -21,21 +21,53 @@
     <main>
       <section class="panel login-panel">
         <div>
-          <h2>Local Test Login</h2>
-          <p>Use one of the demo accounts to test customer, merchant, driver, or admin flows.</p>
+          <h2>Signup And Login</h2>
+          <p>Create a local Customer, Driver, Merchant, or Admin account, or use a demo account to test quickly.</p>
         </div>
-        <form id="loginForm" class="login-form">
-          <label>
-            Account
-            <select id="accountSelect">
-              <option value="customer@habeshago.local|Customer123!">Customer</option>
-              <option value="merchant@habeshago.local|Merchant123!">Merchant</option>
-              <option value="driver@habeshago.local|Driver123!">Driver</option>
-              <option value="admin@habeshago.local|Admin123!">Admin</option>
-            </select>
-          </label>
-          <button type="submit">Login</button>
-        </form>
+        <div class="auth-card">
+          <div class="auth-tabs" role="tablist" aria-label="Auth mode">
+            <button class="auth-tab active" data-auth-mode="login" type="button">Login</button>
+            <button class="auth-tab" data-auth-mode="signup" type="button">Signup</button>
+          </div>
+          <form id="authForm" class="auth-form">
+            <label>
+              Role
+              <select id="authRole">
+                <option value="customer">Customer</option>
+                <option value="driver">Driver</option>
+                <option value="merchant">Merchant</option>
+                <option value="admin">Admin</option>
+              </select>
+            </label>
+            <label class="signup-only">
+              Full name
+              <input id="authName" value="Local Test User" />
+            </label>
+            <label>
+              Email
+              <input id="authEmail" type="email" value="customer@habeshago.local" />
+            </label>
+            <label class="signup-only">
+              Phone
+              <input id="authPhone" value="+251911000100" />
+            </label>
+            <label>
+              Password
+              <input id="authPassword" type="password" value="Customer123!" />
+            </label>
+            <label class="signup-only merchant-only">
+              Business name
+              <input id="authBusiness" value="Bole Local Kitchen" />
+            </label>
+            <button id="authSubmit" type="submit">Login</button>
+          </form>
+          <div class="demo-buttons" aria-label="Demo logins">
+            <button type="button" data-demo="customer">Demo Customer</button>
+            <button type="button" data-demo="merchant">Demo Merchant</button>
+            <button type="button" data-demo="driver">Demo Driver</button>
+            <button type="button" data-demo="admin">Demo Admin</button>
+          </div>
+        </div>
       </section>
 
       <section class="status-grid" id="metrics"></section>

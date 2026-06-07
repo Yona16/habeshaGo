@@ -393,6 +393,94 @@ async function handleApi(req, res, url) {
     return send(res, 200, { token, user: publicUser(user), expires_in_seconds: SESSION_TTL_MS / 1000 });
   }
 
+  if (req.method === "POST" && url.pathname.endsWith("/auth/register")) {
+    const body = await readBody(req);
+    const role = ["customer", "driver", "merchant", "admin"].includes(body.role) ? body.role : "customer";
+    const email = String(body.email || "").trim().toLowerCase();
+    const phone = String(body.phone || "").trim();
+    const name = String(body.name || "").trim();
+    const password = String(body.password || "");
+    if (!name || !email || !phone || password.length < 8) {
+      return sendError(res, 400, "Name, email, phone, and an 8+ character password are required");
+    }
+    if (store.users.some((item) => item.email === email || item.phone === phone)) {
+      return sendError(res, 409, "Email or phone is already registered");
+    }
+    const user = {
+      id: randomUUID(),
+      name,
+      email,
+      phone,
+      role,
+      country_id: countryId,
+      city_id: body.city_id || "bole",
+      currency: country.currency,
+      language: body.language || "en",
+      timezone: country.timezone,
+      password_hash: hashPassword(password),
+      status: "active",
+      created_at: new Date().toISOString()
+    };
+    store.users.push(user);
+    if (role === "customer") {
+      store.customers.push({
+        id: randomUUID(),
+        user_id: user.id,
+        country_id: countryId,
+        city_id: user.city_id,
+        currency: user.currency,
+        language: user.language,
+        timezone: user.timezone,
+        wallet_balance: 0,
+        senior_mode: false,
+        family_account: false
+      });
+    }
+    if (role === "driver") {
+      store.drivers.push({
+        id: randomUUID(),
+        user_id: user.id,
+        country_id: countryId,
+        city_id: user.city_id,
+        currency: user.currency,
+        language: user.language,
+        timezone: user.timezone,
+        online: true,
+        frozen: false,
+        safety_score: 95,
+        badge_level: "New Driver",
+        float_balance: 0,
+        cash_collected: 0,
+        earnings: 0
+      });
+    }
+    if (role === "merchant") {
+      store.merchants.push({
+        id: randomUUID(),
+        owner_user_id: user.id,
+        country_id: countryId,
+        city_id: user.city_id,
+        currency: user.currency,
+        language: user.language,
+        timezone: user.timezone,
+        name: body.business_name || `${name}'s Store`,
+        category: body.category || "restaurant",
+        women_owned: Boolean(body.women_owned),
+        verified: false,
+        status: "open",
+        commission_rate: 0.12,
+        rating: 0,
+        address_note: body.address_note || "Local signup merchant"
+      });
+    }
+    const token = randomUUID();
+    store.sessions[token] = { user_id: user.id, created_at: Date.now(), expires_at: Date.now() + SESSION_TTL_MS };
+    audit(user, "auth.register", "user", user.id, { role });
+    broadcast("auth.registered", { user_id: user.id, role });
+    saveStore();
+    return send(res, 201, { token, user: publicUser(user), expires_in_seconds: SESSION_TTL_MS / 1000 });
+  }
+
   if (req.method === "GET" && url.pathname.endsWith("/auth/me")) {
     const user = requireUser(req, res);
     if (!user) return;
