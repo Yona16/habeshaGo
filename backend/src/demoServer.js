@@ -68,7 +68,23 @@ function seedData() {
       { id: "driver-user-1", name: "Demo Driver", email: "driver@habeshago.local", phone: "+251900000004", role: "driver", country_id: "ET", city_id: "bole", currency: "ETB", language: "am", timezone: "Africa/Addis_Ababa", password_hash: hashPassword("Driver123!"), status: "active" }
     ],
     customers: [
-      { id: "customer-1", user_id: "customer-1", country_id: "ET", city_id: "bole", currency: "ETB", language: "am", timezone: "Africa/Addis_Ababa", wallet_balance: 500, senior_mode: false, family_account: true }
+      {
+        id: "customer-1",
+        user_id: "customer-1",
+        country_id: "ET",
+        city_id: "bole",
+        currency: "ETB",
+        language: "am",
+        timezone: "Africa/Addis_Ababa",
+        wallet_balance: 500,
+        senior_mode: false,
+        family_account: true,
+        preferred_address: "Blue gate next to Medhanealem Church, Bole",
+        landmark_note: "Near church, call before arrival",
+        emergency_contact_name: "Family Contact",
+        emergency_contact_phone: "+251900000099",
+        support_preference: "phone"
+      }
     ],
     merchants: [
       { id: "merchant-1", owner_user_id: "merchant-user-1", country_id: "ET", city_id: "bole", currency: "ETB", language: "am", timezone: "Africa/Addis_Ababa", name: "Addis Chefs", category: "restaurant", women_owned: true, verified: true, status: "open", commission_rate: 0.12, rating: 4.7, address_note: "Blue gate next to Medhanealem Church" },
@@ -83,7 +99,30 @@ function seedData() {
       { id: "product-5", merchant_id: "merchant-3", country_id: "ET", city_id: "bole", currency: "ETB", language: "am", timezone: "Africa/Addis_Ababa", name: "Teff Injera Bundle", category: "marketplace", price: 180, available: true }
     ],
     drivers: [
-      { id: "driver-1", user_id: "driver-user-1", country_id: "ET", city_id: "bole", currency: "ETB", language: "am", timezone: "Africa/Addis_Ababa", online: true, frozen: false, safety_score: 98, badge_level: "Bole Starter", float_balance: 1200, cash_collected: 0, earnings: 0 }
+      {
+        id: "driver-1",
+        user_id: "driver-user-1",
+        country_id: "ET",
+        city_id: "bole",
+        currency: "ETB",
+        language: "am",
+        timezone: "Africa/Addis_Ababa",
+        online: true,
+        frozen: false,
+        safety_score: 98,
+        badge_level: "Bole Starter",
+        float_balance: 1200,
+        cash_collected: 0,
+        earnings: 0,
+        vehicle_type: "motorbike",
+        vehicle_plate: "AA-2-34567",
+        license_number: "ET-DRV-001",
+        assigned_zone: "Bole",
+        emergency_contact_name: "Driver Family",
+        emergency_contact_phone: "+251900000088",
+        verification_status: "verified",
+        training_status: "night_safety_pending"
+      }
     ],
     carts: [],
     orders: [],
@@ -433,7 +472,12 @@ async function handleApi(req, res, url) {
         timezone: user.timezone,
         wallet_balance: 0,
         senior_mode: false,
-        family_account: false
+        family_account: Boolean(body.family_account),
+        preferred_address: body.preferred_address || "",
+        landmark_note: body.landmark_note || "",
+        emergency_contact_name: body.emergency_contact_name || "",
+        emergency_contact_phone: body.emergency_contact_phone || "",
+        support_preference: body.support_preference || "app"
       });
     }
     if (role === "driver") {
@@ -451,7 +495,15 @@ async function handleApi(req, res, url) {
         badge_level: "New Driver",
         float_balance: 0,
         cash_collected: 0,
-        earnings: 0
+        earnings: 0,
+        vehicle_type: body.vehicle_type || "motorbike",
+        vehicle_plate: body.vehicle_plate || "",
+        license_number: body.license_number || "",
+        assigned_zone: body.assigned_zone || "Bole",
+        emergency_contact_name: body.emergency_contact_name || "",
+        emergency_contact_phone: body.emergency_contact_phone || "",
+        verification_status: "pending",
+        training_status: "not_started"
       });
     }
     if (role === "merchant") {
@@ -485,6 +537,18 @@ async function handleApi(req, res, url) {
     const user = requireUser(req, res);
     if (!user) return;
     return send(res, 200, { user: publicUser(user) });
+  }
+
+  if (req.method === "GET" && url.pathname.endsWith("/profile/details")) {
+    const user = requireUser(req, res);
+    if (!user) return;
+    const profile = {
+      user: publicUser(user),
+      customer: store.customers.find((item) => item.user_id === user.id) || null,
+      driver: store.drivers.find((item) => item.user_id === user.id) || null,
+      merchant: store.merchants.find((item) => item.owner_user_id === user.id) || null
+    };
+    return send(res, 200, { profile });
   }
 
   if (req.method === "GET" && url.pathname.endsWith("/merchants")) {

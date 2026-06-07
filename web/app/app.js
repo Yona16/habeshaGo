@@ -124,6 +124,14 @@ async function register(event) {
     phone: $("#authPhone").value,
     password: $("#authPassword").value,
     business_name: $("#authBusiness").value,
+    preferred_address: $("#authAddress").value,
+    landmark_note: $("#authLandmark").value,
+    vehicle_type: $("#authVehicleType").value,
+    vehicle_plate: $("#authVehiclePlate").value,
+    license_number: $("#authLicense").value,
+    assigned_zone: $("#authZone").value,
+    emergency_contact_name: $("#authEmergencyName").value,
+    emergency_contact_phone: $("#authEmergencyPhone").value,
     city_id: "bole",
     language: "en"
   };
@@ -148,6 +156,45 @@ async function loadCatalog() {
   state.merchants = merchants.merchants;
   state.products = products.products;
   renderMerchants();
+}
+
+function detail(label, value) {
+  return `<div class="detail"><span>${label}</span><strong>${value || "Not set"}</strong></div>`;
+}
+
+async function loadProfiles() {
+  if (!state.token) {
+    $("#customerProfile").innerHTML = "";
+    $("#driverProfile").innerHTML = "";
+    return;
+  }
+  try {
+    const data = await api(`/api/${state.country}/v1/profile/details`);
+    const { user, customer, driver } = data.profile;
+    $("#customerProfile").innerHTML = customer ? [
+      detail("Customer", user.name),
+      detail("Phone", user.phone),
+      detail("Preferred address", customer.preferred_address),
+      detail("Landmark note", customer.landmark_note),
+      detail("Emergency contact", `${customer.emergency_contact_name || ""} ${customer.emergency_contact_phone || ""}`.trim()),
+      detail("Support preference", customer.support_preference),
+      detail("Wallet", money(customer.wallet_balance, customer.currency))
+    ].join("") : "";
+    $("#driverProfile").innerHTML = driver ? [
+      detail("Driver", user.name),
+      detail("Phone", user.phone),
+      detail("Vehicle", `${driver.vehicle_type || ""} ${driver.vehicle_plate || ""}`.trim()),
+      detail("License", driver.license_number),
+      detail("Zone", driver.assigned_zone),
+      detail("Emergency contact", `${driver.emergency_contact_name || ""} ${driver.emergency_contact_phone || ""}`.trim()),
+      detail("Verification", driver.verification_status),
+      detail("Training", driver.training_status),
+      detail("Safety score", driver.safety_score)
+    ].join("") : "";
+  } catch {
+    $("#customerProfile").innerHTML = "";
+    $("#driverProfile").innerHTML = "";
+  }
 }
 
 function renderMerchants() {
@@ -493,6 +540,7 @@ async function loadDriver() {
 
 async function refreshAll() {
   await loadMetrics();
+  await loadProfiles();
   await loadCatalog();
   await renderCart();
   await loadOrders();

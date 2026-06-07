@@ -59,6 +59,43 @@
               Business name
               <input id="authBusiness" value="Bole Local Kitchen" />
             </label>
+            <label class="signup-only customer-only">
+              Preferred address
+              <input id="authAddress" value="Blue gate next to Medhanealem Church, Bole" />
+            </label>
+            <label class="signup-only customer-only">
+              Landmark note
+              <input id="authLandmark" value="Near church, call before arrival" />
+            </label>
+            <label class="signup-only driver-only">
+              Vehicle type
+              <select id="authVehicleType">
+                <option value="motorbike">Motorbike</option>
+                <option value="bicycle">Bicycle</option>
+                <option value="car">Car</option>
+                <option value="van">Van</option>
+              </select>
+            </label>
+            <label class="signup-only driver-only">
+              Vehicle plate
+              <input id="authVehiclePlate" value="AA-2-77889" />
+            </label>
+            <label class="signup-only driver-only">
+              License number
+              <input id="authLicense" value="ET-DRV-LOCAL" />
+            </label>
+            <label class="signup-only driver-only">
+              Assigned zone
+              <input id="authZone" value="Bole" />
+            </label>
+            <label class="signup-only customer-driver-only">
+              Emergency contact name
+              <input id="authEmergencyName" value="Family Contact" />
+            </label>
+            <label class="signup-only customer-driver-only">
+              Emergency contact phone
+              <input id="authEmergencyPhone" value="+251900000099" />
+            </label>
             <button id="authSubmit" type="submit">Login</button>
           </form>
           <div class="demo-buttons" aria-label="Demo logins">
@@ -98,6 +135,7 @@
               </select>
             </div>
           </div>
+          <div id="customerProfile" class="profile-grid"></div>
           <div class="catalog-layout">
             <div>
               <h3>Merchants</h3>
@@ -147,6 +185,7 @@
             <h2>Driver App</h2>
             <button data-refresh>Refresh</button>
           </div>
+          <div id="driverProfile" class="profile-grid"></div>
           <div id="driverPanel" class="cards"></div>
           <h3>Available Driver Requests</h3>
           <div id="driverRequests" class="table-wrap"></div>

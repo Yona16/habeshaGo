@@ -153,6 +153,44 @@ body:not([data-auth-role="merchant"]) .merchant-only {
   display: none;
 }
 
+body[data-auth-role="customer"] .customer-only,
+body[data-auth-role="driver"] .driver-only,
+body[data-auth-role="customer"] .customer-driver-only,
+body[data-auth-role="driver"] .customer-driver-only {
+  display: grid;
+}
+
+body:not([data-auth-role="customer"]) .customer-only,
+body:not([data-auth-role="driver"]) .driver-only,
+body:not([data-auth-role="customer"]):not([data-auth-role="driver"]) .customer-driver-only {
+  display: none;
+}
+
+.profile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.detail {
+  display: grid;
+  gap: 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfd;
+  padding: 12px;
+}
+
+.detail span {
+  color: var(--muted);
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.detail strong {
+  font-size: 15px;
+}
+
 .status-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
