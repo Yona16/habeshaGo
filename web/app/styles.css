@@ -141,6 +141,26 @@ label { display: grid; gap: 6px; color: var(--muted); font-size: 13px; }
   background: var(--blue);
 }
 
+.signup-details {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfd;
+  padding: 12px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.signup-details strong {
+  display: block;
+  color: var(--ink);
+  margin-bottom: 6px;
+}
+
+.signup-details ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
 body[data-auth-mode="login"] .signup-only {
   display: none;
 }

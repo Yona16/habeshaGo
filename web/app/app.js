@@ -75,6 +75,7 @@ function setAuthMode(mode) {
   document.body.dataset.authMode = mode;
   document.querySelectorAll(".auth-tab").forEach((button) => button.classList.toggle("active", button.dataset.authMode === mode));
   $("#authSubmit").textContent = mode === "signup" ? "Create account" : "Login";
+  renderSignupRoleDetails();
 }
 
 function setRole(role) {
@@ -89,6 +90,22 @@ function setRole(role) {
   if (role === "merchant") $("#authName").value = "Local Merchant";
   if (role === "admin") $("#authName").value = "Local Admin";
   if (role === "customer") $("#authName").value = "Local Customer";
+  renderSignupRoleDetails();
+}
+
+function renderSignupRoleDetails() {
+  const role = $("#authRole").value;
+  const mode = document.body.dataset.authMode;
+  const details = {
+    customer: ["Preferred address", "Landmark note", "Emergency contact", "Wallet/profile created automatically"],
+    driver: ["Vehicle type", "Vehicle plate", "License number", "Assigned zone", "Emergency contact", "Verification/training status"],
+    merchant: ["Business name", "Category", "Manager", "Merchant phone", "Opening hours", "Address", "Prep time", "Delivery radius", "Women-owned badge"],
+    admin: ["Admin identity", "Country/city access", "Operational dashboard access", "Compliance and trust controls"]
+  };
+  $("#signupRoleDetails").innerHTML = `
+    <strong>${mode === "signup" ? "Signup details for" : "Login as"} ${role}</strong>
+    <ul>${(details[role] || []).map((item) => `<li>${item}</li>`).join("")}</ul>
+  `;
 }
 
 function activateRoleTab(role) {
@@ -124,6 +141,14 @@ async function register(event) {
     phone: $("#authPhone").value,
     password: $("#authPassword").value,
     business_name: $("#authBusiness").value,
+    category: $("#authMerchantCategory").value,
+    manager_name: $("#authManagerName").value,
+    merchant_phone: $("#authMerchantPhone").value,
+    opening_hours: $("#authOpeningHours").value,
+    merchant_address: $("#authMerchantAddress").value,
+    prep_time_minutes: Number($("#authPrepTime").value),
+    delivery_radius_km: Number($("#authDeliveryRadius").value),
+    women_owned: $("#authWomenOwned").checked,
     preferred_address: $("#authAddress").value,
     landmark_note: $("#authLandmark").value,
     vehicle_type: $("#authVehicleType").value,

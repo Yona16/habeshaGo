@@ -629,7 +629,16 @@ async function handleApi(req, res, url) {
         status: "open",
         commission_rate: 0.12,
         rating: 0,
-        address_note: body.address_note || "Local signup merchant"
+        address_note: body.merchant_address || body.address_note || "Local signup merchant",
+        contact_phone: body.merchant_phone || phone,
+        manager_name: body.manager_name || name,
+        opening_hours: body.opening_hours || "Hours not set",
+        prep_time_minutes: Number(body.prep_time_minutes || 20),
+        delivery_radius_km: Number(body.delivery_radius_km || 3),
+        payout_schedule: "weekly",
+        trust_score: 50,
+        verification_status: "pending",
+        support_notes: "New merchant signup. Verify address, phone, menu, and payout details before production launch."
       });
     }
     const token = randomUUID();

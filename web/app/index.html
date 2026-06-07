@@ -59,6 +59,44 @@
               Business name
               <input id="authBusiness" value="Bole Local Kitchen" />
             </label>
+            <label class="signup-only merchant-only">
+              Business category
+              <select id="authMerchantCategory">
+                <option value="restaurant">Restaurant</option>
+                <option value="grocery">Grocery</option>
+                <option value="pharmacy">Pharmacy</option>
+                <option value="marketplace">Home seller / marketplace</option>
+                <option value="courier">Courier</option>
+              </select>
+            </label>
+            <label class="signup-only merchant-only">
+              Manager name
+              <input id="authManagerName" value="Store Manager" />
+            </label>
+            <label class="signup-only merchant-only">
+              Merchant phone
+              <input id="authMerchantPhone" value="+251911222333" />
+            </label>
+            <label class="signup-only merchant-only">
+              Opening hours
+              <input id="authOpeningHours" value="Mon-Sun 8:00 AM - 10:00 PM" />
+            </label>
+            <label class="signup-only merchant-only">
+              Merchant address
+              <input id="authMerchantAddress" value="Bole, near main road" />
+            </label>
+            <label class="signup-only merchant-only">
+              Prep time minutes
+              <input id="authPrepTime" type="number" value="20" />
+            </label>
+            <label class="signup-only merchant-only">
+              Delivery radius km
+              <input id="authDeliveryRadius" type="number" value="4" />
+            </label>
+            <label class="signup-only merchant-only check">
+              <input id="authWomenOwned" type="checkbox" />
+              Women-owned business
+            </label>
             <label class="signup-only customer-only">
               Preferred address
               <input id="authAddress" value="Blue gate next to Medhanealem Church, Bole" />
@@ -98,6 +136,7 @@
             </label>
             <button id="authSubmit" type="submit">Login</button>
           </form>
+          <div id="signupRoleDetails" class="signup-details"></div>
           <div class="demo-buttons" aria-label="Demo logins">
             <button type="button" data-demo="customer">Demo Customer</button>
             <button type="button" data-demo="merchant">Demo Merchant</button>
