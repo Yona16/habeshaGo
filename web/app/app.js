@@ -38,10 +38,13 @@ function connectEvents() {
   state.events.addEventListener("connected", () => {
     $("#liveStatus").textContent = "Connected";
   });
-  ["order.created", "order.updated", "dispatch.requested", "dispatch.accepted", "menu.requested"].forEach((name) => {
+  ["order.created", "order.updated", "dispatch.requested", "dispatch.accepted", "menu.requested", "notification.created"].forEach((name) => {
     state.events.addEventListener(name, async (event) => {
       const data = JSON.parse(event.data);
       $("#lastEvent").textContent = `${data.type} at ${new Date(data.at).toLocaleTimeString()}`;
+      if (data.type === "notification.created" && data.payload?.type === "food_ready") {
+        toast(data.payload.title + ": " + data.payload.body);
+      }
       await refreshAll();
     });
   });
@@ -290,6 +293,16 @@ async function addToCart(productId) {
     body: JSON.stringify({ product_id: productId, quantity: 1 })
   });
   toast("Added to cart");
+  await renderCart();
+}
+
+async function addSampleCart(bundle) {
+  if (!state.user) return toast("Login as customer first");
+  await api(`/api/${state.country}/v1/cart/sample`, {
+    method: "POST",
+    body: JSON.stringify({ bundle })
+  });
+  toast("Sample cart added");
   await renderCart();
 }
 
@@ -589,6 +602,26 @@ async function loadRecommendations() {
   `).join("");
 }
 
+async function loadNotifications() {
+  if (!state.token) {
+    $("#notifications").innerHTML = "<div class='card'>Login to see order notifications.</div>";
+    return;
+  }
+  try {
+    const data = await api(`/api/${state.country}/v1/notifications`);
+    const notifications = data.notifications || [];
+    $("#notifications").innerHTML = notifications.length ? notifications.slice(0, 8).map((item) => `
+      <article class="notification-item ${item.type}">
+        <strong>${item.title}</strong>
+        <p>${item.body}</p>
+        <span>${new Date(item.created_at).toLocaleString()}${item.order_id ? ` - order ${item.order_id.slice(0, 8)}` : ""}</span>
+      </article>
+    `).join("") : "<div class='card'>No notifications yet. Place an order, then mark it ready from Merchant Portal.</div>";
+  } catch {
+    $("#notifications").innerHTML = "<div class='card'>Login to see order notifications.</div>";
+  }
+}
+
 async function adjustWallet() {
   if (!state.user || state.user.role !== "admin") return toast("Login as admin first");
   const amount = Number($("#walletAmount").value);
@@ -636,6 +669,7 @@ async function loadDriver() {
 async function refreshAll() {
   await loadMetrics();
   await loadRecommendations();
+  await loadNotifications();
   await loadProfiles();
   await loadCatalog();
   await renderCart();
@@ -674,6 +708,10 @@ $("#adjustWalletBtn").addEventListener("click", () => adjustWallet().catch((erro
 $("#sendSmsBtn").addEventListener("click", () => sendSampleSms().catch((error) => toast(error.message)));
 $("#quoteMapBtn").addEventListener("click", () => quoteMap().catch((error) => toast(error.message)));
 $("#refreshRecommendationsBtn").addEventListener("click", () => loadRecommendations().catch((error) => toast(error.message)));
+$("#refreshNotificationsBtn").addEventListener("click", () => loadNotifications().catch((error) => toast(error.message)));
+document.querySelectorAll("[data-sample-cart]").forEach((button) => {
+  button.addEventListener("click", () => addSampleCart(button.dataset.sampleCart).catch((error) => toast(error.message)));
+});
 $("#applyDiscoveryBtn").addEventListener("click", () => loadCatalog().catch((error) => toast(error.message)));
 document.querySelectorAll("[data-refresh]").forEach((button) => button.addEventListener("click", () => refreshAll().catch((error) => toast(error.message))));
 

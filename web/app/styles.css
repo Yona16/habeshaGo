@@ -344,6 +344,44 @@ body:not([data-auth-role="customer"]):not([data-auth-role="driver"]) .customer-d
   margin-bottom: 12px;
 }
 
+.sample-cart {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.notification-list {
+  display: grid;
+  gap: 8px;
+}
+
+.notification-item {
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--green);
+  border-radius: 8px;
+  padding: 12px;
+  background: #fbfcfd;
+}
+
+.notification-item.food_ready {
+  border-left-color: var(--gold);
+  background: #fffaf0;
+}
+
+.notification-item.delivered {
+  border-left-color: var(--blue);
+}
+
+.notification-item strong {
+  display: block;
+}
+
+.notification-item span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .cart-row, .flag {
   display: flex;
   justify-content: space-between;

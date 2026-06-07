@@ -159,6 +159,13 @@
         <span id="liveStatus">Connecting...</span>
         <span id="lastEvent">No events yet</span>
       </section>
+      <section class="panel">
+        <div class="section-head">
+          <h2>Notifications</h2>
+          <button id="refreshNotificationsBtn" class="secondary">Refresh</button>
+        </div>
+        <div id="notifications" class="notification-list"></div>
+      </section>
 
       <section class="workspace">
         <nav class="tabs" aria-label="Application areas">
@@ -227,6 +234,11 @@
             </div>
             <div>
               <h3>Cart</h3>
+              <div class="sample-cart">
+                <button data-sample-cart="family_lunch">Sample food cart</button>
+                <button data-sample-cart="grocery_pack" class="secondary">Sample grocery cart</button>
+                <button data-sample-cart="almaz_market" class="secondary">Sample Almaz cart</button>
+              </div>
               <div id="cartList" class="cart"></div>
               <div class="map-box">
                 <h3>Special Menu Request</h3>

@@ -128,6 +128,7 @@ function seedData() {
     orders: [],
     dispatch_requests: [],
     menu_requests: [],
+    notifications: [],
     trust_verifications: [
       { id: "trust-merchant-1", entity_type: "merchant", entity_id: "merchant-1", status: "verified", score: 92, note: "Business phone and address confirmed." },
       { id: "trust-driver-1", entity_type: "driver", entity_id: "driver-1", status: "verified", score: 98, note: "License and safety training checked." },
@@ -174,6 +175,7 @@ function loadStore() {
     seeded.orders = parsed.orders || [];
     seeded.dispatch_requests = parsed.dispatch_requests || [];
     seeded.menu_requests = parsed.menu_requests || [];
+    seeded.notifications = parsed.notifications || [];
     seeded.wallet_transactions = parsed.wallet_transactions || [];
     seeded.payment_transactions = parsed.payment_transactions || [];
     seeded.sms_messages = parsed.sms_messages || [];
@@ -188,6 +190,7 @@ function loadStore() {
   parsed.payment_transactions = parsed.payment_transactions || [];
   parsed.dispatch_requests = parsed.dispatch_requests || [];
   parsed.menu_requests = parsed.menu_requests || [];
+  parsed.notifications = parsed.notifications || [];
   parsed.sms_messages = parsed.sms_messages || [];
   parsed.map_quotes = parsed.map_quotes || [];
   parsed.compliance_reviews = parsed.compliance_reviews || seedData().compliance_reviews;
@@ -468,6 +471,23 @@ function logSms({ to, template, body, country_id, user_id, order_id }) {
   return message;
 }
 
+function notifyUser({ user_id, country_id, title, body, order_id, type = "info" }) {
+  const notification = {
+    id: randomUUID(),
+    user_id,
+    country_id,
+    title,
+    body,
+    order_id,
+    type,
+    read: false,
+    created_at: new Date().toISOString()
+  };
+  store.notifications.push(notification);
+  broadcast("notification.created", notification);
+  return notification;
+}
+
 function transitionOrder(order, nextStatus, actor, reason) {
   const allowed = ORDER_TRANSITIONS[order.status] || [];
   if (!allowed.includes(nextStatus) && actor.role !== "admin") {
@@ -479,6 +499,26 @@ function transitionOrder(order, nextStatus, actor, reason) {
   order.status_history.push({ status: nextStatus, reason, actor_user_id: actor.id, at: new Date().toISOString() });
   audit(actor, "order.status_changed", "order", order.id, { status: nextStatus, reason });
   broadcast("order.updated", { order_id: order.id, status: nextStatus, actor_role: actor.role });
+  if (nextStatus === "ready_for_pickup") {
+    notifyUser({
+      user_id: order.customer_user_id,
+      country_id: order.country_id,
+      order_id: order.id,
+      type: "food_ready",
+      title: "Food is ready",
+      body: `Your order ${order.id.slice(0, 8)} is ready and waiting for driver pickup.`
+    });
+  }
+  if (nextStatus === "delivered") {
+    notifyUser({
+      user_id: order.customer_user_id,
+      country_id: order.country_id,
+      order_id: order.id,
+      type: "delivered",
+      title: "Order delivered",
+      body: `Your order ${order.id.slice(0, 8)} has been delivered.`
+    });
+  }
 }
 
 function serveStatic(req, res, pathname) {
@@ -757,6 +797,33 @@ async function handleApi(req, res, url) {
     return send(res, 200, { cart: getCart(user.id, countryId) });
   }
 
+  if (req.method === "POST" && url.pathname.endsWith("/cart/sample")) {
+    const user = requireUser(req, res, ["customer", "admin"]);
+    if (!user) return;
+    const body = await readBody(req);
+    const bundle = body.bundle || "family_lunch";
+    const bundleItems = {
+      family_lunch: [
+        { product_id: "product-1", quantity: 1 },
+        { product_id: "product-2", quantity: 1 }
+      ],
+      grocery_pack: [
+        { product_id: "product-3", quantity: 2 },
+        { product_id: "product-4", quantity: 1 }
+      ],
+      almaz_market: [
+        { product_id: "product-5", quantity: 2 }
+      ]
+    };
+    const cart = getCart(user.id, countryId);
+    const items = calculateItems(bundleItems[bundle] || bundleItems.family_lunch, countryId);
+    const merchantIds = [...new Set(items.map((item) => item.merchant_id))];
+    if (merchantIds.length > 1) return sendError(res, 409, "Sample cart bundles must use one merchant at a time");
+    cart.items = items;
+    saveStore();
+    return send(res, 201, { cart, bundle });
+  }
+
   if (req.method === "POST" && url.pathname.endsWith("/cart/items")) {
     const user = requireUser(req, res, ["customer", "admin"]);
     if (!user) return;
@@ -827,6 +894,14 @@ async function handleApi(req, res, url) {
     });
     cart.items = [];
     audit(user, "order.created", "order", order.id, { total: order.total });
+    notifyUser({
+      user_id: user.id,
+      country_id: countryId,
+      order_id: order.id,
+      type: "order_placed",
+      title: "Order placed",
+      body: `Your order ${order.id.slice(0, 8)} was placed for ${order.total} ${order.currency}.`
+    });
     broadcast("order.created", { order_id: order.id, status: order.status, total: order.total });
     saveStore();
     return send(res, 201, { order });
@@ -953,6 +1028,15 @@ async function handleApi(req, res, url) {
     if (!user) return;
     const orders = store.orders.filter((order) => user.role === "admin" || order.customer_user_id === user.id);
     return send(res, 200, { orders: orders.map(enrichOrder) });
+  }
+
+  if (req.method === "GET" && url.pathname.endsWith("/notifications")) {
+    const user = requireUser(req, res);
+    if (!user) return;
+    const notifications = store.notifications
+      .filter((item) => item.country_id === countryId && (item.user_id === user.id || user.role === "admin"))
+      .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+    return send(res, 200, { notifications });
   }
 
   const orderStatusMatch = url.pathname.match(/^\/api\/[^/]+\/v1\/orders\/([^/]+)\/status$/);
