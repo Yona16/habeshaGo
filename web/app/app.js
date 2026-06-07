@@ -176,7 +176,11 @@ async function submitAuth(event) {
 }
 
 async function loadCatalog() {
-  const merchants = await api(`/api/${state.country}/v1/merchants`);
+  const [lat, lng] = ($("#nearbyLocation")?.value || "8.994|38.789").split("|");
+  const radius = $("#nearbyRadius")?.value || 5;
+  const minRating = $("#minRating")?.value || 0;
+  const sort = $("#merchantSort")?.value || "nearest";
+  const merchants = await api(`/api/${state.country}/v1/merchants?lat=${lat}&lng=${lng}&radius_km=${radius}&min_rating=${minRating}&sort=${sort}`);
   const products = await api(`/api/${state.country}/v1/products`);
   state.merchants = merchants.merchants;
   state.products = products.products;
@@ -252,7 +256,7 @@ function renderMerchants() {
     return `
       <article class="card">
         <h3>${merchant.name}</h3>
-        <p>${merchant.category} - ${merchant.rating} rating</p>
+        <p>${merchant.category} - ${merchant.rating} rating - ${merchant.review_count || 0} reviews - ${merchant.distance_km ?? "?"} km</p>
         <div>
           ${merchant.women_owned ? '<span class="badge">Almaz</span>' : ""}
           ${merchant.verified ? '<span class="badge">Verified</span>' : ""}
@@ -670,6 +674,7 @@ $("#adjustWalletBtn").addEventListener("click", () => adjustWallet().catch((erro
 $("#sendSmsBtn").addEventListener("click", () => sendSampleSms().catch((error) => toast(error.message)));
 $("#quoteMapBtn").addEventListener("click", () => quoteMap().catch((error) => toast(error.message)));
 $("#refreshRecommendationsBtn").addEventListener("click", () => loadRecommendations().catch((error) => toast(error.message)));
+$("#applyDiscoveryBtn").addEventListener("click", () => loadCatalog().catch((error) => toast(error.message)));
 document.querySelectorAll("[data-refresh]").forEach((button) => button.addEventListener("click", () => refreshAll().catch((error) => toast(error.message))));
 
 renderSession();

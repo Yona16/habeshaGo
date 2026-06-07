@@ -87,9 +87,9 @@ function seedData() {
       }
     ],
     merchants: [
-      { id: "merchant-1", owner_user_id: "merchant-user-1", country_id: "ET", city_id: "bole", currency: "ETB", language: "am", timezone: "Africa/Addis_Ababa", name: "Addis Chefs", category: "restaurant", women_owned: true, verified: true, status: "open", commission_rate: 0.12, rating: 4.7, address_note: "Blue gate next to Medhanealem Church", contact_phone: "+251911111111", manager_name: "Mimi Alemu", opening_hours: "Mon-Sun 8:00 AM - 10:00 PM", prep_time_minutes: 18, delivery_radius_km: 4, payout_schedule: "weekly", trust_score: 92, verification_status: "verified", support_notes: "High demand lunch merchant. Confirm kitfo spice level before dispatch." },
-      { id: "merchant-2", owner_user_id: "merchant-user-1", country_id: "ET", city_id: "bole", currency: "ETB", language: "en", timezone: "Africa/Addis_Ababa", name: "Bole Fresh Grocery", category: "grocery", women_owned: false, verified: true, status: "open", commission_rate: 0.08, rating: 4.5, address_note: "Friendship area", contact_phone: "+251922222222", manager_name: "Dawit Bekele", opening_hours: "Mon-Sat 7:00 AM - 9:00 PM", prep_time_minutes: 12, delivery_radius_km: 3, payout_schedule: "weekly", trust_score: 89, verification_status: "verified", support_notes: "Grocery substitutions allowed after customer confirmation." },
-      { id: "merchant-3", owner_user_id: "merchant-user-1", country_id: "ET", city_id: "bole", currency: "ETB", language: "am", timezone: "Africa/Addis_Ababa", name: "Almaz Injera House", category: "marketplace", women_owned: true, verified: false, status: "open", commission_rate: 0.07, rating: 4.4, address_note: "Woreda 03, yellow door near school", contact_phone: "+251933333333", manager_name: "Almaz Tesfaye", opening_hours: "Mon-Fri 6:00 AM - 7:00 PM", prep_time_minutes: 25, delivery_radius_km: 2, payout_schedule: "weekly", trust_score: 81, verification_status: "pending", support_notes: "Home-based seller; verify quantity before accepting bulk orders." }
+      { id: "merchant-1", owner_user_id: "merchant-user-1", country_id: "ET", city_id: "bole", currency: "ETB", language: "am", timezone: "Africa/Addis_Ababa", name: "Addis Chefs", category: "restaurant", women_owned: true, verified: true, status: "open", commission_rate: 0.12, rating: 4.7, review_count: 128, latitude: 8.996, longitude: 38.787, address_note: "Blue gate next to Medhanealem Church", contact_phone: "+251911111111", manager_name: "Mimi Alemu", opening_hours: "Mon-Sun 8:00 AM - 10:00 PM", prep_time_minutes: 18, delivery_radius_km: 4, payout_schedule: "weekly", trust_score: 92, verification_status: "verified", support_notes: "High demand lunch merchant. Confirm kitfo spice level before dispatch." },
+      { id: "merchant-2", owner_user_id: "merchant-user-1", country_id: "ET", city_id: "bole", currency: "ETB", language: "en", timezone: "Africa/Addis_Ababa", name: "Bole Fresh Grocery", category: "grocery", women_owned: false, verified: true, status: "open", commission_rate: 0.08, rating: 4.5, review_count: 86, latitude: 8.991, longitude: 38.792, address_note: "Friendship area", contact_phone: "+251922222222", manager_name: "Dawit Bekele", opening_hours: "Mon-Sat 7:00 AM - 9:00 PM", prep_time_minutes: 12, delivery_radius_km: 3, payout_schedule: "weekly", trust_score: 89, verification_status: "verified", support_notes: "Grocery substitutions allowed after customer confirmation." },
+      { id: "merchant-3", owner_user_id: "merchant-user-1", country_id: "ET", city_id: "bole", currency: "ETB", language: "am", timezone: "Africa/Addis_Ababa", name: "Almaz Injera House", category: "marketplace", women_owned: true, verified: false, status: "open", commission_rate: 0.07, rating: 4.4, review_count: 42, latitude: 8.999, longitude: 38.782, address_note: "Woreda 03, yellow door near school", contact_phone: "+251933333333", manager_name: "Almaz Tesfaye", opening_hours: "Mon-Fri 6:00 AM - 7:00 PM", prep_time_minutes: 25, delivery_radius_km: 2, payout_schedule: "weekly", trust_score: 81, verification_status: "pending", support_notes: "Home-based seller; verify quantity before accepting bulk orders." }
     ],
     products: [
       { id: "product-1", merchant_id: "merchant-1", country_id: "ET", city_id: "bole", currency: "ETB", language: "am", timezone: "Africa/Addis_Ababa", name: "Kitfo", category: "food", price: 350, available: true, description: "Minced lean beef with mitmita, ayib, and kocho.", prep_time_minutes: 18, dietary_tags: ["spicy", "beef"], stock_quantity: 24, popular: true },
@@ -211,6 +211,9 @@ function normalizeDetails(data) {
     merchant.trust_score = merchant.trust_score || fallback.trust_score || 75;
     merchant.verification_status = merchant.verification_status || fallback.verification_status || (merchant.verified ? "verified" : "pending");
     merchant.support_notes = merchant.support_notes || fallback.support_notes || "No support notes yet.";
+    merchant.review_count = merchant.review_count ?? fallback.review_count ?? 0;
+    merchant.latitude = merchant.latitude ?? fallback.latitude ?? 8.994;
+    merchant.longitude = merchant.longitude ?? fallback.longitude ?? 38.789;
   }
   for (const product of data.products || []) {
     const fallback = seeded.products.find((item) => item.id === product.id) || {};
@@ -669,7 +672,21 @@ async function handleApi(req, res, url) {
 
   if (req.method === "GET" && url.pathname.endsWith("/merchants")) {
     const city = url.searchParams.get("city");
-    const merchants = store.merchants.filter((merchant) => merchant.country_id === countryId && (!city || merchant.city_id === city));
+    const lat = Number(url.searchParams.get("lat") || HQ_COORDS.lat);
+    const lng = Number(url.searchParams.get("lng") || HQ_COORDS.lng);
+    const radiusKm = Number(url.searchParams.get("radius_km") || 999);
+    const minRating = Number(url.searchParams.get("min_rating") || 0);
+    const sort = url.searchParams.get("sort") || "default";
+    let merchants = store.merchants
+      .filter((merchant) => merchant.country_id === countryId && (!city || merchant.city_id === city))
+      .map((merchant) => ({
+        ...merchant,
+        distance_km: Number(distanceKm({ lat, lng }, { lat: merchant.latitude, lng: merchant.longitude }).toFixed(2))
+      }))
+      .filter((merchant) => merchant.distance_km <= radiusKm && Number(merchant.rating || 0) >= minRating);
+    if (sort === "nearest") merchants = merchants.sort((a, b) => a.distance_km - b.distance_km);
+    if (sort === "rating") merchants = merchants.sort((a, b) => Number(b.rating || 0) - Number(a.rating || 0));
+    if (sort === "reviews") merchants = merchants.sort((a, b) => Number(b.review_count || 0) - Number(a.review_count || 0));
     return send(res, 200, { merchants });
   }
 

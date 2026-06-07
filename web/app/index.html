@@ -181,6 +181,42 @@
               </select>
             </div>
           </div>
+          <div class="panel discovery-panel">
+            <h3>Nearby Discovery</h3>
+            <div class="discovery-controls">
+              <label>
+                Location
+                <select id="nearbyLocation">
+                  <option value="8.994|38.789">Bole Medhanealem</option>
+                  <option value="8.991|38.792">Friendship area</option>
+                  <option value="8.999|38.782">Woreda 03</option>
+                </select>
+              </label>
+              <label>
+                Radius km
+                <input id="nearbyRadius" type="number" min="1" max="20" value="5" />
+              </label>
+              <label>
+                Minimum review
+                <select id="minRating">
+                  <option value="0">Any rating</option>
+                  <option value="4">4.0+</option>
+                  <option value="4.5">4.5+</option>
+                  <option value="4.7">4.7+</option>
+                </select>
+              </label>
+              <label>
+                Sort by
+                <select id="merchantSort">
+                  <option value="nearest">Nearby location</option>
+                  <option value="rating">Best review rating</option>
+                  <option value="reviews">Most reviews</option>
+                  <option value="default">Default</option>
+                </select>
+              </label>
+              <button id="applyDiscoveryBtn" class="secondary">Apply</button>
+            </div>
+          </div>
           <div id="customerProfile" class="profile-grid"></div>
           <h3>Merchant Details</h3>
           <div id="merchantDetails" class="profile-grid"></div>
