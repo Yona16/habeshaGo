@@ -291,6 +291,54 @@ function enrichOrder(order) {
   };
 }
 
+function recommendationsFor(user, countryId) {
+  const orders = store.orders.filter((order) => order.country_id === countryId);
+  const openOrders = orders.filter((order) => !["delivered", "cancelled", "rejected"].includes(order.status));
+  const popularProducts = store.products.filter((product) => product.country_id === countryId && product.popular);
+  const womenOwned = store.merchants.filter((merchant) => merchant.country_id === countryId && merchant.women_owned);
+  const pendingDispatch = store.dispatch_requests.filter((request) => request.country_id === countryId && request.status === "requested");
+  const legalHolds = store.compliance_reviews.filter((review) => review.legal_hold);
+  const base = [
+    { title: "Keep legal holds on", detail: `${legalHolds.length} regulated features are blocked until legal approval.`, priority: "high", area: "compliance" },
+    { title: "Test offline fallback", detail: "Run at least 10 offline/SMS fallback order tests before pilot launch.", priority: "medium", area: "operations" },
+    { title: "Verify Bole addresses", detail: "Use landmark notes and trust verification before dispatching hard-to-find deliveries.", priority: "medium", area: "trust" }
+  ];
+  if (!user) {
+    return [
+      { title: "Create a test account", detail: "Signup as customer, merchant, driver, or admin to test each workflow.", priority: "high", area: "onboarding" },
+      ...base
+    ];
+  }
+  if (user.role === "customer") {
+    return [
+      { title: "Try a popular dish", detail: popularProducts.length ? `${popularProducts[0].name} is popular near Bole.` : "Browse popular products near Bole.", priority: "medium", area: "customer" },
+      { title: "Use landmark address", detail: "Add gate color, nearby church/school/bank, and phone notes for faster delivery.", priority: "high", area: "address" },
+      { title: "Support Almaz merchants", detail: womenOwned.length ? `${womenOwned[0].name} is women-owned and available now.` : "Filter for women-owned merchants when available.", priority: "low", area: "almaz" }
+    ];
+  }
+  if (user.role === "merchant") {
+    return [
+      { title: "Request driver when ready", detail: `${openOrders.filter((order) => order.status === "ready_for_pickup").length} orders may be ready for dispatch.`, priority: "high", area: "merchant" },
+      { title: "Confirm menu details", detail: "Keep stock, prep time, dietary tags, and substitutions current.", priority: "medium", area: "menu" },
+      { title: "Improve trust score", detail: "Keep phone, manager, hours, and location verification up to date.", priority: "medium", area: "trust" }
+    ];
+  }
+  if (user.role === "driver") {
+    return [
+      { title: "Accept nearby requests", detail: `${pendingDispatch.length} driver requests are waiting.`, priority: pendingDispatch.length ? "high" : "low", area: "driver" },
+      { title: "Protect cash balance", detail: "Reconcile cash collected daily against driver float.", priority: "high", area: "cash" },
+      { title: "Finish night safety training", detail: "Night certification unlocks future Mesewa delivery flows.", priority: "medium", area: "safety" }
+    ];
+  }
+  return [
+    { title: "Pilot readiness", detail: `${orders.length} local orders recorded. Target 100 completed orders in week one.`, priority: "high", area: "admin" },
+    { title: "Watch dispatch queue", detail: `${pendingDispatch.length} driver requests are currently waiting.`, priority: pendingDispatch.length ? "high" : "medium", area: "dispatch" },
+    { title: "Audit simulated payments", detail: `${store.payment_transactions.length} dummy payment records exist. Confirm no real money movement.`, priority: "high", area: "payments" },
+    { title: "Resolve support queue", detail: `${store.support_tickets.filter((ticket) => ticket.status === "open").length} support tickets are open.`, priority: "medium", area: "support" },
+    ...base
+  ];
+}
+
 function readBody(req) {
   return new Promise((resolve) => {
     let body = "";
@@ -475,6 +523,10 @@ async function handleApi(req, res, url) {
   if (req.method === "GET" && url.pathname.endsWith("/payments/methods")) return send(res, 200, { providers: country.payments, currency: country.currency, abstraction_ready: true });
   if (req.method === "GET" && url.pathname.endsWith("/feature-flags")) return send(res, 200, { flags: store.feature_flags });
   if (req.method === "GET" && url.pathname.endsWith("/compliance/reviews")) return send(res, 200, { reviews: store.compliance_reviews, regulated_features_blocked: store.compliance_reviews.filter((item) => item.legal_hold).length });
+  if (req.method === "GET" && url.pathname.endsWith("/recommendations")) {
+    const user = userFromRequest(req);
+    return send(res, 200, { recommendations: recommendationsFor(user, countryId), role: user ? user.role : "guest" });
+  }
 
   if (req.method === "POST" && url.pathname.endsWith("/auth/login")) {
     const body = await readBody(req);

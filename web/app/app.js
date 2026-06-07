@@ -548,6 +548,18 @@ async function loadMetrics() {
   `;
 }
 
+async function loadRecommendations() {
+  const data = await api(`/api/${state.country}/v1/recommendations`);
+  $("#recommendations").innerHTML = data.recommendations.map((item) => `
+    <article class="recommendation priority-${item.priority}">
+      <h3>${item.title}</h3>
+      <p>${item.detail}</p>
+      <span class="badge">${item.area}</span>
+      <span class="badge">${item.priority}</span>
+    </article>
+  `).join("");
+}
+
 async function adjustWallet() {
   if (!state.user || state.user.role !== "admin") return toast("Login as admin first");
   const amount = Number($("#walletAmount").value);
@@ -594,6 +606,7 @@ async function loadDriver() {
 
 async function refreshAll() {
   await loadMetrics();
+  await loadRecommendations();
   await loadProfiles();
   await loadCatalog();
   await renderCart();
@@ -631,6 +644,7 @@ $("#menuRequestBtn").addEventListener("click", () => sendMenuRequest().catch((er
 $("#adjustWalletBtn").addEventListener("click", () => adjustWallet().catch((error) => toast(error.message)));
 $("#sendSmsBtn").addEventListener("click", () => sendSampleSms().catch((error) => toast(error.message)));
 $("#quoteMapBtn").addEventListener("click", () => quoteMap().catch((error) => toast(error.message)));
+$("#refreshRecommendationsBtn").addEventListener("click", () => loadRecommendations().catch((error) => toast(error.message)));
 document.querySelectorAll("[data-refresh]").forEach((button) => button.addEventListener("click", () => refreshAll().catch((error) => toast(error.message))));
 
 renderSession();

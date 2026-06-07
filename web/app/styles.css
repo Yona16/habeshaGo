@@ -172,6 +172,41 @@ body:not([data-auth-role="customer"]):not([data-auth-role="driver"]) .customer-d
   gap: 12px;
 }
 
+.recommendation-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.recommendation {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px;
+  background: #fbfcfd;
+}
+
+.recommendation h3 {
+  margin-bottom: 6px;
+}
+
+.recommendation p {
+  color: var(--muted);
+  font-size: 13px;
+  margin-bottom: 10px;
+}
+
+.priority-high {
+  border-left: 4px solid var(--danger);
+}
+
+.priority-medium {
+  border-left: 4px solid var(--gold);
+}
+
+.priority-low {
+  border-left: 4px solid var(--green);
+}
+
 .detail {
   display: grid;
   gap: 4px;
