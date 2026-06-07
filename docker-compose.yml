@@ -1,0 +1,27 @@
+services:
+  api:
+    build: ./backend
+    ports:
+      - "4000:4000"
+    env_file:
+      - ./backend/.env.example
+    environment:
+      DATABASE_URL: postgres://habeshago:habeshago@postgres:5432/habeshago
+    depends_on:
+      - postgres
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: habeshago
+      POSTGRES_PASSWORD: habeshago
+      POSTGRES_DB: habeshago
+    ports:
+      - "5432:5432"
+    volumes:
+      - habeshago_pg:/var/lib/postgresql/data
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+      - ./database/seed.sql:/docker-entrypoint-initdb.d/02_seed.sql:ro
+
+volumes:
+  habeshago_pg:

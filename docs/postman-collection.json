@@ -1,0 +1,38 @@
+{
+  "info": {
+    "name": "HabeshaGo Foundation API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:4000" },
+    { "key": "country", "value": "ET" },
+    { "key": "token", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "request": { "method": "GET", "url": "{{baseUrl}}/health" }
+    },
+    {
+      "name": "Countries",
+      "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/countries" }
+    },
+    {
+      "name": "Login Customer",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/{{country}}/v1/auth/login",
+        "body": { "mode": "raw", "raw": "{\"email\":\"customer@habeshago.local\",\"password\":\"Customer123!\"}" }
+      }
+    },
+    {
+      "name": "Merchants",
+      "request": { "method": "GET", "url": "{{baseUrl}}/api/{{country}}/v1/merchants" }
+    },
+    {
+      "name": "Feature Flags",
+      "request": { "method": "GET", "url": "{{baseUrl}}/api/{{country}}/v1/feature-flags" }
+    }
+  ]
+}

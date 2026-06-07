@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>HabeshaGo Admin Dashboard</title>
+    <style>
+      body { margin: 0; font-family: Arial, sans-serif; background: #f4f6f8; color: #1e252b; }
+      header { background: #19324a; color: white; padding: 18px 28px; }
+      main { max-width: 1180px; margin: 24px auto; padding: 0 18px; display: grid; gap: 18px; }
+      section { background: white; border: 1px solid #d8dee5; border-radius: 8px; padding: 18px; }
+      .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; }
+      .tile { border: 1px solid #e1e6ea; border-radius: 8px; padding: 14px; }
+      .flag { display: flex; justify-content: space-between; border-bottom: 1px solid #edf0f2; padding: 10px 0; }
+      button { border: 0; border-radius: 6px; background: #19324a; color: white; padding: 10px 14px; cursor: pointer; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>HabeshaGo Admin Dashboard</h1>
+      <p>Country operations, safety, trust, wallet controls, cash reconciliation, and feature flags.</p>
+    </header>
+    <main>
+      <section class="grid">
+        <div class="tile"><strong>Countries</strong><p>6 configured</p></div>
+        <div class="tile"><strong>Active Pilot</strong><p>Bole, Addis Ababa</p></div>
+        <div class="tile"><strong>Cash Review</strong><p>0 unresolved</p></div>
+        <div class="tile"><strong>Trust Queue</strong><p>3 pending</p></div>
+      </section>
+      <section>
+        <h2>Feature Flags</h2>
+        <div class="flag"><span>Merchant Advance</span><strong>Legal Hold</strong></div>
+        <div class="flag"><span>Diaspora Funding</span><strong>Legal Hold</strong></div>
+        <div class="flag"><span>Voice Ordering</span><strong>Disabled</strong></div>
+        <div class="flag"><span>Night Safety</span><strong>Disabled</strong></div>
+      </section>
+      <section>
+        <h2>Operational Controls</h2>
+        <p>Freeze drivers or merchants, override orders, audit wallet adjustments, and review fraud flags.</p>
+        <button>Review Reports</button>
+      </section>
+    </main>
+  </body>
+</html>

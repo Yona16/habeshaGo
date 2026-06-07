@@ -1,0 +1,17 @@
+name: habeshago_driver
+description: HabeshaGo driver app placeholder with float, cash, safety, and offline workflows.
+publish_to: "none"
+version: 0.1.0
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ^1.2.2
+  sqflite: ^2.3.3+1
+  path: ^1.9.0
+
+flutter:
+  uses-material-design: true

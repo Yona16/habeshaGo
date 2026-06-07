@@ -1,0 +1,16 @@
+node_modules/
+.env
+.env.*
+!.env.example
+dist/
+build/
+coverage/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+pubspec.lock
+*.log
+Dockerfile.local
+*.sqlite
+*.db
