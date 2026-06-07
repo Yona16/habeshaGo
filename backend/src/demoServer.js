@@ -3,7 +3,7 @@ const fs = require("fs");
 const path = require("path");
 const { randomUUID, pbkdf2Sync, timingSafeEqual } = require("crypto");
 
-const port = Number(process.env.PORT || 4000);
+const port = Number(process.env.PORT || 3000);
 const rootDir = path.resolve(__dirname, "..", "..");
 const webDir = path.resolve(rootDir, "web", "app");
 const dataFile = path.resolve(__dirname, "..", "data", "local-store.json");

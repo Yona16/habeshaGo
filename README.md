@@ -26,7 +26,7 @@ node src/demoServer.js
 Then open:
 
 ```text
-http://localhost:4000
+http://localhost:3000
 ```
 
 This exposes a local browser MVP for customer ordering, real-time live updates, customer special menu requests, merchant order flow, driver dispatch requests, driver pickup/delivery flow, admin reporting, dummy payments, simulated SMS logs, map/ETA quotes, wallet adjustment, feature flags, and legal/compliance gates.
@@ -56,7 +56,7 @@ backend/data/local-store.json
 The browser listens for live events from:
 
 ```text
-/api/ET/v1/events
+http://localhost:3000/api/ET/v1/events
 ```
 
 Full Express API:
@@ -71,7 +71,7 @@ npm run dev
 Open:
 
 ```text
-http://localhost:4000/health
+http://localhost:3000/health
 ```
 
 Demo accounts:
@@ -90,7 +90,7 @@ cd outputs/habeshago
 docker compose up --build
 ```
 
-The API starts on port `4000`, and PostgreSQL starts on port `5432`.
+The API starts on port `3000`, and PostgreSQL starts on port `5432`.
 
 ## Important Compliance Position
 
@@ -99,15 +99,15 @@ Ye HabeshaGo Bank is only a technical foundation. Lending, merchant advances, di
 ## First API Calls
 
 ```bash
-curl http://localhost:4000/api/v1/countries
-curl http://localhost:4000/api/ET/v1/cities
-curl http://localhost:4000/api/ET/v1/merchants
+curl http://localhost:3000/api/v1/countries
+curl http://localhost:3000/api/ET/v1/cities
+curl http://localhost:3000/api/ET/v1/merchants
 ```
 
 Login:
 
 ```bash
-curl -X POST http://localhost:4000/api/ET/v1/auth/login \
+curl -X POST http://localhost:3000/api/ET/v1/auth/login \
   -H "Content-Type: application/json" \
   -d "{\"email\":\"customer@habeshago.local\",\"password\":\"Customer123!\"}"
 ```
