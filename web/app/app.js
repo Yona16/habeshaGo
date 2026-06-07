@@ -3,7 +3,8 @@ const state = {
   token: localStorage.getItem("hg_token") || "",
   user: JSON.parse(localStorage.getItem("hg_user") || "null"),
   products: [],
-  merchants: []
+  merchants: [],
+  events: null
 };
 
 const $ = (selector) => document.querySelector(selector);
@@ -23,6 +24,24 @@ function toast(message) {
   el.textContent = message;
   el.classList.add("show");
   setTimeout(() => el.classList.remove("show"), 2600);
+}
+
+function connectEvents() {
+  if (state.events) state.events.close();
+  state.events = new EventSource(`/api/${state.country}/v1/events`);
+  state.events.addEventListener("connected", () => {
+    $("#liveStatus").textContent = "Connected";
+  });
+  ["order.created", "order.updated", "dispatch.requested", "dispatch.accepted", "menu.requested"].forEach((name) => {
+    state.events.addEventListener(name, async (event) => {
+      const data = JSON.parse(event.data);
+      $("#lastEvent").textContent = `${data.type} at ${new Date(data.at).toLocaleTimeString()}`;
+      await refreshAll();
+    });
+  });
+  state.events.onerror = () => {
+    $("#liveStatus").textContent = "Reconnecting...";
+  };
 }
 
 function setSession(token, user) {
@@ -101,6 +120,21 @@ async function addToCart(productId) {
   });
   toast("Added to cart");
   await renderCart();
+}
+
+async function sendMenuRequest() {
+  if (!state.user) return toast("Login as customer first");
+  const merchant = state.merchants[0];
+  await api(`/api/${state.country}/v1/menu-requests`, {
+    method: "POST",
+    body: JSON.stringify({
+      merchant_id: merchant.id,
+      item_name: $("#menuRequestName").value,
+      note: $("#menuRequestNote").value
+    })
+  });
+  toast("Menu request sent to merchant");
+  await refreshAll();
 }
 
 async function renderCart() {
@@ -190,7 +224,7 @@ async function loadOrders() {
   ];
   $("#customerOrders").innerHTML = table(orders, cols);
   $("#merchantOrders").innerHTML = table(orders, cols, (o) => merchantActions(o));
-  $("#driverOrders").innerHTML = table(orders.filter((o) => ["ready_for_pickup", "driver_accepted", "picked_up"].includes(o.status)), cols, (o) => driverActions(o));
+  $("#driverOrders").innerHTML = table(orders.filter((o) => ["driver_accepted", "picked_up"].includes(o.status)), cols, (o) => driverActions(o));
   $("#adminOrders").innerHTML = table(orders, cols, (o) => `<button data-pay="${o.id}|Cash">Dummy cash</button> <button class="secondary" data-pay="${o.id}|Chapa">Dummy Chapa</button> <button class="danger" data-status="${o.id}|cancelled">Cancel</button>`);
   bindStatusButtons();
 }
@@ -199,11 +233,11 @@ function merchantActions(order) {
   if (order.status === "placed") return `<button data-status="${order.id}|accepted">Accept</button> <button class="danger" data-status="${order.id}|rejected">Reject</button>`;
   if (order.status === "accepted") return `<button data-status="${order.id}|preparing">Prepare</button>`;
   if (order.status === "preparing") return `<button data-status="${order.id}|ready_for_pickup">Ready</button>`;
+  if (order.status === "ready_for_pickup") return `<button data-dispatch="${order.id}">Request driver</button>`;
   return "";
 }
 
 function driverActions(order) {
-  if (order.status === "ready_for_pickup") return `<button data-status="${order.id}|driver_accepted">Accept</button>`;
   if (order.status === "driver_accepted") return `<button data-status="${order.id}|picked_up">Picked up</button>`;
   if (order.status === "picked_up") return `<button data-status="${order.id}|delivered">Delivered</button>`;
   return "";
@@ -227,6 +261,57 @@ function bindStatusButtons() {
       await simulatePayment(id, provider);
     });
   });
+  document.querySelectorAll("[data-dispatch]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      await api(`/api/${state.country}/v1/orders/${button.dataset.dispatch}/request-driver`, {
+        method: "POST",
+        body: JSON.stringify({ pickup_note: "Ready at merchant counter" })
+      });
+      toast("Driver request sent");
+      await refreshAll();
+    });
+  });
+  document.querySelectorAll("[data-accept-request]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      await api(`/api/${state.country}/v1/drivers/requests/${button.dataset.acceptRequest}/accept`, { method: "POST", body: "{}" });
+      toast("Driver request accepted");
+      await refreshAll();
+    });
+  });
+}
+
+async function loadMenuRequests() {
+  if (!state.token || !["merchant", "admin", "customer"].includes(state.user.role)) {
+    $("#merchantMenuRequests").innerHTML = "<div class='card'>Login to view menu requests.</div>";
+    return;
+  }
+  try {
+    const data = await api(`/api/${state.country}/v1/menu-requests`);
+    $("#merchantMenuRequests").innerHTML = table(data.requests, [
+      { label: "Request", render: (r) => r.id.slice(0, 8) },
+      { label: "Item", key: "item_name" },
+      { label: "Note", key: "note" },
+      { label: "Status", key: "status" }
+    ]);
+  } catch {
+    $("#merchantMenuRequests").innerHTML = "<div class='card'>Login as merchant or admin.</div>";
+  }
+}
+
+async function loadDriverRequests() {
+  if (!state.token || !["driver", "admin"].includes(state.user.role)) {
+    $("#driverRequests").innerHTML = "<div class='card'>Login as driver to view requests.</div>";
+    return;
+  }
+  const data = await api(`/api/${state.country}/v1/drivers/requests`);
+  $("#driverRequests").innerHTML = table(data.requests, [
+    { label: "Request", render: (r) => r.id.slice(0, 8) },
+    { label: "Order", render: (r) => r.order_id.slice(0, 8) },
+    { label: "ETA", render: (r) => `${r.eta_minutes} min` },
+    { label: "Fee", render: (r) => money(r.delivery_fee, r.currency) },
+    { label: "Status", key: "status" }
+  ], (r) => `<button data-accept-request="${r.id}">Accept request</button>`);
+  bindStatusButtons();
 }
 
 async function loadAdmin() {
@@ -346,6 +431,8 @@ async function refreshAll() {
   await loadCatalog();
   await renderCart();
   await loadOrders();
+  await loadMenuRequests();
+  await loadDriverRequests();
   await loadAdmin();
   await loadDriver();
 }
@@ -361,10 +448,12 @@ document.querySelectorAll(".tab").forEach((button) => {
 $("#loginForm").addEventListener("submit", (event) => login(event).catch((error) => toast(error.message)));
 $("#logoutBtn").addEventListener("click", () => { clearSession(); refreshAll(); });
 $("#placeOrderBtn").addEventListener("click", () => placeOrder().catch((error) => toast(error.message)));
+$("#menuRequestBtn").addEventListener("click", () => sendMenuRequest().catch((error) => toast(error.message)));
 $("#adjustWalletBtn").addEventListener("click", () => adjustWallet().catch((error) => toast(error.message)));
 $("#sendSmsBtn").addEventListener("click", () => sendSampleSms().catch((error) => toast(error.message)));
 $("#quoteMapBtn").addEventListener("click", () => quoteMap().catch((error) => toast(error.message)));
 document.querySelectorAll("[data-refresh]").forEach((button) => button.addEventListener("click", () => refreshAll().catch((error) => toast(error.message))));
 
 renderSession();
+connectEvents();
 refreshAll().catch((error) => toast(error.message));

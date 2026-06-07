@@ -14,7 +14,8 @@ const ORDER_TRANSITIONS = {
   placed: ["accepted", "cancelled", "rejected"],
   accepted: ["preparing", "cancelled"],
   preparing: ["ready_for_pickup"],
-  ready_for_pickup: ["driver_accepted", "picked_up"],
+  ready_for_pickup: ["driver_requested", "driver_accepted", "picked_up"],
+  driver_requested: ["driver_accepted", "cancelled"],
   driver_accepted: ["picked_up"],
   picked_up: ["delivered"],
   delivered: [],
@@ -86,6 +87,8 @@ function seedData() {
     ],
     carts: [],
     orders: [],
+    dispatch_requests: [],
+    menu_requests: [],
     wallet_transactions: [],
     payment_transactions: [],
     sms_messages: [],
@@ -125,6 +128,8 @@ function loadStore() {
   if (parsed.schemaVersion !== 2) {
     const seeded = seedData();
     seeded.orders = parsed.orders || [];
+    seeded.dispatch_requests = parsed.dispatch_requests || [];
+    seeded.menu_requests = parsed.menu_requests || [];
     seeded.wallet_transactions = parsed.wallet_transactions || [];
     seeded.payment_transactions = parsed.payment_transactions || [];
     seeded.sms_messages = parsed.sms_messages || [];
@@ -136,6 +141,8 @@ function loadStore() {
   }
   parsed.sessions = parsed.sessions || {};
   parsed.payment_transactions = parsed.payment_transactions || [];
+  parsed.dispatch_requests = parsed.dispatch_requests || [];
+  parsed.menu_requests = parsed.menu_requests || [];
   parsed.sms_messages = parsed.sms_messages || [];
   parsed.map_quotes = parsed.map_quotes || [];
   parsed.compliance_reviews = parsed.compliance_reviews || seedData().compliance_reviews;
@@ -145,9 +152,22 @@ function loadStore() {
 }
 
 let store = loadStore();
+const eventClients = new Set();
 
 function saveStore() {
   fs.writeFileSync(dataFile, JSON.stringify(store, null, 2));
+}
+
+function broadcast(type, payload) {
+  const event = { type, payload, at: new Date().toISOString() };
+  const encoded = `event: ${type}\ndata: ${JSON.stringify(event)}\n\n`;
+  for (const res of eventClients) {
+    try {
+      res.write(encoded);
+    } catch {
+      eventClients.delete(res);
+    }
+  }
 }
 
 function publicUser(user) {
@@ -313,6 +333,7 @@ function transitionOrder(order, nextStatus, actor, reason) {
   order.status = nextStatus;
   order.status_history.push({ status: nextStatus, reason, actor_user_id: actor.id, at: new Date().toISOString() });
   audit(actor, "order.status_changed", "order", order.id, { status: nextStatus, reason });
+  broadcast("order.updated", { order_id: order.id, status: nextStatus, actor_role: actor.role });
 }
 
 function serveStatic(req, res, pathname) {
@@ -331,6 +352,19 @@ async function handleApi(req, res, url) {
   const countryId = countryFromPath(url.pathname);
   const country = store.countries.find((item) => item.id === countryId);
   if (!country && url.pathname !== "/api/v1/countries") return sendError(res, 404, "Unsupported country");
+
+  if (req.method === "GET" && url.pathname.endsWith("/events")) {
+    res.writeHead(200, {
+      "content-type": "text/event-stream; charset=utf-8",
+      "cache-control": "no-cache",
+      connection: "keep-alive",
+      "access-control-allow-origin": "*"
+    });
+    res.write(`event: connected\ndata: ${JSON.stringify({ type: "connected", at: new Date().toISOString() })}\n\n`);
+    eventClients.add(res);
+    req.on("close", () => eventClients.delete(res));
+    return;
+  }
 
   if (req.method === "GET" && url.pathname === "/health") {
     return send(res, 200, {
@@ -379,6 +413,48 @@ async function handleApi(req, res, url) {
 
   if (req.method === "GET" && url.pathname.endsWith("/products")) {
     return send(res, 200, { products: store.products.filter((product) => product.country_id === countryId) });
+  }
+
+  if (req.method === "POST" && url.pathname.endsWith("/menu-requests")) {
+    const user = requireUser(req, res, ["customer", "admin"]);
+    if (!user) return;
+    const body = await readBody(req);
+    const merchant = store.merchants.find((item) => item.id === body.merchant_id && item.country_id === countryId);
+    if (!merchant) return sendError(res, 404, "Merchant not found");
+    const request = {
+      id: randomUUID(),
+      country_id: countryId,
+      city_id: merchant.city_id,
+      currency: merchant.currency,
+      language: user.language,
+      timezone: merchant.timezone,
+      customer_user_id: user.id,
+      merchant_id: merchant.id,
+      item_name: String(body.item_name || "Special request").slice(0, 80),
+      note: String(body.note || "").slice(0, 240),
+      status: "requested",
+      created_at: new Date().toISOString()
+    };
+    store.menu_requests.push(request);
+    audit(user, "menu_request.created", "menu_request", request.id);
+    broadcast("menu.requested", { request_id: request.id, merchant_id: merchant.id, item_name: request.item_name });
+    saveStore();
+    return send(res, 201, { request });
+  }
+
+  if (req.method === "GET" && url.pathname.endsWith("/menu-requests")) {
+    const user = requireUser(req, res, ["customer", "merchant", "admin"]);
+    if (!user) return;
+    const requests = store.menu_requests.filter((request) => {
+      if (request.country_id !== countryId) return false;
+      if (user.role === "customer") return request.customer_user_id === user.id;
+      if (user.role === "merchant") {
+        const merchant = store.merchants.find((item) => item.id === request.merchant_id);
+        return merchant && merchant.owner_user_id === user.id;
+      }
+      return true;
+    });
+    return send(res, 200, { requests });
   }
 
   if (req.method === "GET" && url.pathname.endsWith("/cart")) {
@@ -457,6 +533,7 @@ async function handleApi(req, res, url) {
     });
     cart.items = [];
     audit(user, "order.created", "order", order.id, { total: order.total });
+    broadcast("order.created", { order_id: order.id, status: order.status, total: order.total });
     saveStore();
     return send(res, 201, { order });
   }
@@ -543,6 +620,40 @@ async function handleApi(req, res, url) {
     return send(res, 200, { orders });
   }
 
+  const requestDriverMatch = url.pathname.match(/^\/api\/[^/]+\/v1\/orders\/([^/]+)\/request-driver$/);
+  if (req.method === "POST" && requestDriverMatch) {
+    const user = requireUser(req, res, ["merchant", "admin"]);
+    if (!user) return;
+    const body = await readBody(req);
+    const order = store.orders.find((item) => item.id === requestDriverMatch[1] && item.country_id === countryId);
+    if (!order) return sendError(res, 404, "Order not found");
+    if (!["ready_for_pickup", "driver_requested"].includes(order.status)) return sendError(res, 409, "Order must be ready for pickup before requesting a driver");
+    let request = store.dispatch_requests.find((item) => item.order_id === order.id && ["requested", "offered"].includes(item.status));
+    if (!request) {
+      request = {
+        id: randomUUID(),
+        country_id: countryId,
+        city_id: order.city_id,
+        currency: order.currency,
+        language: order.language,
+        timezone: order.timezone,
+        order_id: order.id,
+        merchant_id: order.merchant_id,
+        driver_id: null,
+        status: "requested",
+        pickup_note: body.pickup_note || "Ready at merchant counter",
+        delivery_fee: order.delivery_fee,
+        eta_minutes: order.map_quote ? order.map_quote.eta_minutes : 20,
+        created_at: new Date().toISOString()
+      };
+      store.dispatch_requests.push(request);
+    }
+    transitionOrder(order, "driver_requested", user, "driver_requested");
+    broadcast("dispatch.requested", { request_id: request.id, order_id: order.id, eta_minutes: request.eta_minutes });
+    saveStore();
+    return send(res, 201, { request, order });
+  }
+
   if (req.method === "GET" && url.pathname.endsWith("/customers/orders")) {
     const user = requireUser(req, res, ["customer", "admin"]);
     if (!user) return;
@@ -573,6 +684,31 @@ async function handleApi(req, res, url) {
 
   if (req.method === "GET" && url.pathname.endsWith("/drivers/available")) {
     return send(res, 200, { drivers: store.drivers.filter((driver) => driver.country_id === countryId && driver.online && !driver.frozen) });
+  }
+
+  if (req.method === "GET" && url.pathname.endsWith("/drivers/requests")) {
+    const user = requireUser(req, res, ["driver", "admin"]);
+    if (!user) return;
+    return send(res, 200, { requests: store.dispatch_requests.filter((request) => request.country_id === countryId && ["requested", "offered"].includes(request.status)) });
+  }
+
+  const acceptDispatchMatch = url.pathname.match(/^\/api\/[^/]+\/v1\/drivers\/requests\/([^/]+)\/accept$/);
+  if (req.method === "POST" && acceptDispatchMatch) {
+    const user = requireUser(req, res, ["driver", "admin"]);
+    if (!user) return;
+    const driver = store.drivers.find((item) => item.user_id === user.id || user.role === "admin");
+    const request = store.dispatch_requests.find((item) => item.id === acceptDispatchMatch[1] && item.country_id === countryId);
+    if (!driver || !request) return sendError(res, 404, "Driver request not found");
+    if (!["requested", "offered"].includes(request.status)) return sendError(res, 409, "Driver request is no longer available");
+    const order = store.orders.find((item) => item.id === request.order_id);
+    request.status = "accepted";
+    request.driver_id = driver.id;
+    request.accepted_at = new Date().toISOString();
+    order.driver_id = driver.id;
+    transitionOrder(order, "driver_accepted", user, "driver_accept");
+    broadcast("dispatch.accepted", { request_id: request.id, order_id: order.id, driver_id: driver.id });
+    saveStore();
+    return send(res, 200, { request, order });
   }
 
   if (req.method === "GET" && url.pathname.endsWith("/wallet")) {

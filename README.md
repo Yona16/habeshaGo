@@ -29,7 +29,7 @@ Then open:
 http://localhost:4000
 ```
 
-This exposes a local browser MVP for customer ordering, merchant order flow, driver flow, admin reporting, dummy payments, simulated SMS logs, map/ETA quotes, wallet adjustment, feature flags, and legal/compliance gates.
+This exposes a local browser MVP for customer ordering, real-time live updates, customer special menu requests, merchant order flow, driver dispatch requests, driver pickup/delivery flow, admin reporting, dummy payments, simulated SMS logs, map/ETA quotes, wallet adjustment, feature flags, and legal/compliance gates.
 
 The local server persists test data to:
 
@@ -42,8 +42,22 @@ backend/data/local-store.json
 - Dummy payments record provider/status only. No real money moves.
 - SMS messages are logged with `SIMULATED_SMS`; no SMS is sent.
 - Map estimates use sample coordinates and distance math, not Google Maps billing/API calls.
+- Real-time updates use server-sent events for local testing. Production should use managed WebSockets/SSE infrastructure with auth, fanout, retries, and observability.
 - Legal-hold features remain blocked in feature flags and compliance reviews.
 - This is suitable for local product testing, demos, and engineering iteration, not real customer launch.
+
+## End-To-End Local Test Flow
+
+1. Login as `Customer`, add menu items, send a special menu request, quote ETA/fee, and place an order.
+2. Login as `Merchant`, accept the order, mark it preparing, mark it ready, then request a driver.
+3. Login as `Driver`, accept the available driver request, mark picked up, then mark delivered.
+4. Login as `Admin`, review orders, dummy payments, SMS logs, compliance gates, and reports.
+
+The browser listens for live events from:
+
+```text
+/api/ET/v1/events
+```
 
 Full Express API:
 
