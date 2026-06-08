@@ -12,6 +12,12 @@ const dataFile = path.resolve(__dirname, "..", "data", "local-store.json");
 
 const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
 const HQ_COORDS = { lat: 8.994, lng: 38.789 };
+const CORS_ALLOWED_ORIGINS = new Set([
+  "http://localhost:3000",
+  "http://localhost:8080",
+  "http://localhost:8081",
+  "http://localhost:8082"
+]);
 const ORDER_TRANSITIONS = {
   placed: ["accepted", "cancelled", "rejected"],
   accepted: ["preparing", "cancelled"],
@@ -315,12 +321,22 @@ function countryFromPath(pathname) {
   return match ? match[1].toUpperCase() : "ET";
 }
 
+function corsHeaders(req) {
+  const origin = req?.headers?.origin;
+  const allowedOrigin = CORS_ALLOWED_ORIGINS.has(origin) ? origin : "http://localhost:3000";
+  return {
+    "access-control-allow-origin": allowedOrigin,
+    "access-control-allow-methods": "GET,POST,PATCH,DELETE,OPTIONS",
+    "access-control-allow-headers": "Content-Type,Authorization",
+    "access-control-allow-credentials": "true",
+    vary: "Origin"
+  };
+}
+
 function send(res, status, payload, headers = {}) {
   res.writeHead(status, {
     "content-type": "application/json; charset=utf-8",
-    "access-control-allow-origin": "*",
-    "access-control-allow-methods": "GET,POST,PATCH,DELETE,OPTIONS",
-    "access-control-allow-headers": "Content-Type,Authorization",
+    ...corsHeaders(res.req),
     "x-content-type-options": "nosniff",
     "x-frame-options": "DENY",
     "referrer-policy": "no-referrer",
@@ -937,7 +953,7 @@ async function handleApi(req, res, url) {
       "content-type": "text/event-stream; charset=utf-8",
       "cache-control": "no-cache",
       connection: "keep-alive",
-      "access-control-allow-origin": "*"
+      ...corsHeaders(req)
     });
     res.write(`event: connected\ndata: ${JSON.stringify({ type: "connected", at: new Date().toISOString() })}\n\n`);
     eventClients.add(res);

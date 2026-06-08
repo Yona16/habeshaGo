@@ -6,7 +6,7 @@ const env = {
   jwtSecret: process.env.JWT_SECRET || "dev-only-change-me",
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || "1d",
   adminSignupCode: process.env.ADMIN_SIGNUP_CODE || "",
-  corsOrigin: process.env.CORS_ORIGIN || "*",
+  corsOrigin: process.env.CORS_ORIGIN || "http://localhost:3000,http://localhost:8080,http://localhost:8081,http://localhost:8082",
   databaseUrl: process.env.DATABASE_URL,
   defaultCountry: process.env.DEFAULT_COUNTRY || "ET",
   enableDemoStore: process.env.ENABLE_DEMO_STORE !== "false",
