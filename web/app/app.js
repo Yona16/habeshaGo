@@ -17,6 +17,24 @@ const demoAccounts = {
   admin: { email: "admin@habeshago.local", password: "Admin123!" }
 };
 
+function setAuthStatus(message, type = "") {
+  const el = $("#authStatus");
+  if (!el) return;
+  el.textContent = message;
+  el.classList.remove("success", "error");
+  if (type) el.classList.add(type);
+}
+
+function signupDefaults(role) {
+  const stamp = `${Date.now()}`.slice(-7);
+  return {
+    name: `Local ${role[0].toUpperCase()}${role.slice(1)} ${stamp}`,
+    email: `${role}-${stamp}@habeshago.local`,
+    phone: `+2519${stamp.padStart(8, "0").slice(0, 8)}`,
+    password: `${role[0].toUpperCase()}${role.slice(1)}123!`
+  };
+}
+
 async function api(path, options = {}) {
   const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
   if (state.token) headers.Authorization = `Bearer ${state.token}`;
@@ -124,6 +142,17 @@ function setAuthMode(mode) {
   document.body.dataset.authMode = mode;
   document.querySelectorAll(".auth-tab").forEach((button) => button.classList.toggle("active", button.dataset.authMode === mode));
   $("#authSubmit").textContent = mode === "signup" ? "Create account" : "Login";
+  if (mode === "signup") {
+    const defaults = signupDefaults($("#authRole").value);
+    $("#authName").value = defaults.name;
+    $("#authEmail").value = defaults.email;
+    $("#authPhone").value = defaults.phone;
+    $("#authPassword").value = defaults.password;
+    setAuthStatus("Signup fields use a unique local email and phone so account creation will not collide with demo users.");
+  } else {
+    setRole($("#authRole").value);
+    setAuthStatus("Login mode uses demo credentials. Choose a role or click a Demo button.");
+  }
   renderSignupRoleDetails();
 }
 
@@ -134,6 +163,11 @@ function setRole(role) {
   if (demo && document.body.dataset.authMode !== "signup") {
     $("#authEmail").value = demo.email;
     $("#authPassword").value = demo.password;
+  } else if (document.body.dataset.authMode === "signup") {
+    const defaults = signupDefaults(role);
+    $("#authEmail").value = defaults.email;
+    $("#authPhone").value = defaults.phone;
+    $("#authPassword").value = defaults.password;
   }
   if (role === "driver") $("#authName").value = "Local Driver";
   if (role === "merchant") $("#authName").value = "Local Merchant";
@@ -167,20 +201,36 @@ function activateRoleTab(role) {
   window.location.hash = view;
 }
 
+async function refreshAfterAuth(role) {
+  try {
+    await refreshAll();
+  } catch (error) {
+    setAuthStatus(`${role} signed in. Some dashboard panels need refresh: ${error.message}`, "success");
+    toast("Signed in. Refresh dashboard if a panel is still loading.");
+  }
+}
+
 async function loginWithCredentials(email, password) {
+  setAuthStatus("Signing in...");
   const data = await api(`/api/${state.country}/v1/auth/login`, {
     method: "POST",
     body: JSON.stringify({ email, password })
   });
   setSession(data.token, data.user);
+  setAuthStatus(`Signed in as ${data.user.name} (${data.user.role}). Token saved locally.`, "success");
   toast(`Logged in as ${data.user.role}`);
   activateRoleTab(data.user.role);
-  await refreshAll();
+  await refreshAfterAuth(data.user.role);
 }
 
 async function login(event) {
   event.preventDefault();
-  await loginWithCredentials($("#authEmail").value.trim().toLowerCase(), $("#authPassword").value);
+  try {
+    await loginWithCredentials($("#authEmail").value.trim().toLowerCase(), $("#authPassword").value);
+  } catch (error) {
+    setAuthStatus(`Login failed: ${error.message}`, "error");
+    throw error;
+  }
 }
 
 async function register(event) {
@@ -212,14 +262,16 @@ async function register(event) {
     city_id: "bole",
     language: "en"
   };
+  setAuthStatus("Creating account...");
   const data = await api(`/api/${state.country}/v1/auth/register`, {
     method: "POST",
     body: JSON.stringify(payload)
   });
   setSession(data.token, data.user);
+  setAuthStatus(`Created ${data.user.name} (${data.user.role}). You are signed in.`, "success");
   toast(`Created ${data.user.role} account`);
   activateRoleTab(data.user.role);
-  await refreshAll();
+  await refreshAfterAuth(data.user.role);
 }
 
 async function submitAuth(event) {

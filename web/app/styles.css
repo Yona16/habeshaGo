@@ -131,6 +131,27 @@ label { display: grid; gap: 6px; color: var(--muted); font-size: 13px; }
   align-self: end;
 }
 
+.auth-status {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fafc;
+  color: var(--muted);
+  padding: 10px 12px;
+  font-size: 13px;
+}
+
+.auth-status.success {
+  border-color: rgba(15, 81, 50, .35);
+  background: #f0faf4;
+  color: var(--green);
+}
+
+.auth-status.error {
+  border-color: rgba(179, 48, 48, .35);
+  background: #fff5f5;
+  color: var(--danger);
+}
+
 .demo-buttons {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
