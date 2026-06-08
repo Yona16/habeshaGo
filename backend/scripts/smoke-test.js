@@ -27,6 +27,7 @@ async function step(name, run) {
 async function main() {
   let token = "";
   let adminToken = "";
+  let merchantToken = "";
 
   await step("web app loads", async () => {
     const response = await fetch(`${baseUrl}/`);
@@ -52,6 +53,13 @@ async function main() {
     const { response, data } = await request("/api/ET/v1/merchants?lat=8.994&lng=38.789&radius_km=5&category=cafe&sort=nearest");
     assert(response.ok, "Nearby merchant search failed");
     assert((data.merchants || []).length > 0, "Nearby merchant search returned no cafes");
+  });
+
+  await step("real-time sample locations are available", async () => {
+    const { response, data } = await request("/api/ET/v1/locations/live?lat=8.994&lng=38.789");
+    assert(response.ok, "Live location endpoint failed");
+    assert(data.provider === "SIMULATED_REAL_TIME", "Live location provider was unexpected");
+    assert((data.drivers || []).length > 0, "Live location endpoint returned no drivers");
   });
 
   await step("customer login works", async () => {
@@ -88,6 +96,21 @@ async function main() {
     assert(data.order && data.order.status === "placed", "Order was not placed");
   });
 
+  await step("merchant portal dashboard works", async () => {
+    const login = await request("/api/ET/v1/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email: "merchant@habeshago.local", password: "Merchant123!" })
+    });
+    assert(login.response.ok, "Merchant login failed");
+    merchantToken = login.data.token;
+    const dashboard = await request("/api/ET/v1/merchant/dashboard", {
+      headers: { Authorization: `Bearer ${merchantToken}` }
+    });
+    assert(dashboard.response.ok, "Merchant dashboard failed");
+    assert(dashboard.data.merchant, "Merchant dashboard missing profile");
+    assert((dashboard.data.products || []).length > 0, "Merchant dashboard missing products");
+  });
+
   await step("admin login works", async () => {
     const { response, data } = await request("/api/ET/v1/auth/login", {
       method: "POST",
@@ -115,6 +138,21 @@ async function main() {
     });
     assert(logs.response.ok, "Admin SMS logs failed");
     assert((logs.data.messages || []).some((message) => message.body === smsBody), "Created SMS log was not returned");
+  });
+
+  await step("admin portal controls work", async () => {
+    const [roles, providers, audit, support, commissions] = await Promise.all([
+      request("/api/ET/v1/admin/security-roles", { headers: { Authorization: `Bearer ${adminToken}` } }),
+      request("/api/ET/v1/admin/payment-providers", { headers: { Authorization: `Bearer ${adminToken}` } }),
+      request("/api/ET/v1/admin/audit-logs", { headers: { Authorization: `Bearer ${adminToken}` } }),
+      request("/api/ET/v1/admin/support-tickets", { headers: { Authorization: `Bearer ${adminToken}` } }),
+      request("/api/ET/v1/admin/commission-settings", { headers: { Authorization: `Bearer ${adminToken}` } })
+    ]);
+    assert(roles.response.ok && (roles.data.roles || []).length >= 4, "Admin security roles failed");
+    assert(providers.response.ok && (providers.data.providers || []).length === 4, "Admin payment providers failed");
+    assert(audit.response.ok && Array.isArray(audit.data.logs), "Admin audit logs failed");
+    assert(support.response.ok && Array.isArray(support.data.tickets), "Admin support tickets failed");
+    assert(commissions.response.ok && Array.isArray(commissions.data.settings), "Admin commission settings failed");
   });
 
   console.log("Smoke test complete.");

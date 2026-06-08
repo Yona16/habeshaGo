@@ -3,42 +3,242 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>HabeshaGo Admin Dashboard</title>
+    <title>HabeshaGo Admin Portal</title>
     <style>
-      body { margin: 0; font-family: Arial, sans-serif; background: #f4f6f8; color: #1e252b; }
-      header { background: #19324a; color: white; padding: 18px 28px; }
-      main { max-width: 1180px; margin: 24px auto; padding: 0 18px; display: grid; gap: 18px; }
-      section { background: white; border: 1px solid #d8dee5; border-radius: 8px; padding: 18px; }
-      .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; }
-      .tile { border: 1px solid #e1e6ea; border-radius: 8px; padding: 14px; }
-      .flag { display: flex; justify-content: space-between; border-bottom: 1px solid #edf0f2; padding: 10px 0; }
-      button { border: 0; border-radius: 6px; background: #19324a; color: white; padding: 10px 14px; cursor: pointer; }
+      :root { --blue:#19324a; --ink:#172026; --muted:#60717d; --line:#d8dee5; --bg:#f4f6f8; --danger:#9b1c1c; --gold:#bb7a12; }
+      * { box-sizing: border-box; }
+      body { margin:0; font-family:Arial, sans-serif; background:var(--bg); color:var(--ink); }
+      header { background:var(--blue); color:white; padding:18px 28px; display:flex; justify-content:space-between; gap:16px; align-items:center; }
+      main { max-width:1280px; margin:22px auto; padding:0 18px; display:grid; gap:16px; }
+      section { background:white; border:1px solid var(--line); border-radius:8px; padding:16px; }
+      .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:12px; }
+      .metric,.card { border:1px solid var(--line); border-radius:8px; padding:12px; background:white; }
+      .metric strong { display:block; font-size:24px; }
+      .metric span,p,small { color:var(--muted); }
+      .bar,.actions { display:flex; flex-wrap:wrap; gap:8px; align-items:end; }
+      label { display:grid; gap:5px; font-size:13px; color:var(--muted); }
+      input { border:1px solid var(--line); border-radius:6px; padding:9px; }
+      button { border:0; border-radius:6px; background:var(--blue); color:white; padding:8px 11px; cursor:pointer; }
+      button.secondary { background:#345c75; }
+      button.warn { background:var(--gold); }
+      button.danger { background:var(--danger); }
+      table { width:100%; border-collapse:collapse; font-size:14px; }
+      th,td { text-align:left; border-bottom:1px solid #e8edf1; padding:8px; vertical-align:top; }
+      th { color:var(--muted); font-size:12px; text-transform:uppercase; }
+      nav { display:flex; flex-wrap:wrap; gap:8px; }
+      nav a { color:white; }
+      #toast { position:fixed; right:16px; bottom:16px; background:#172026; color:white; padding:10px 12px; border-radius:8px; opacity:0; transition:.2s; }
+      #toast.show { opacity:1; }
     </style>
   </head>
   <body>
     <header>
-      <h1>HabeshaGo Admin Dashboard</h1>
-      <p>Country operations, safety, trust, wallet controls, cash reconciliation, and feature flags.</p>
+      <div>
+        <h1>HabeshaGo Admin Portal</h1>
+        <p>Operations, approvals, payments, support, security, trust, and launch controls.</p>
+      </div>
+      <nav>
+        <a href="/">Customer app</a>
+        <a href="/merchant">Merchant portal</a>
+      </nav>
     </header>
     <main>
+      <section class="bar">
+        <label>Email <input id="email" value="admin@habeshago.local" /></label>
+        <label>Password <input id="password" type="password" value="Admin123!" /></label>
+        <button id="loginBtn">Admin Login</button>
+        <button id="refreshBtn" class="secondary">Refresh</button>
+        <span id="session">Not signed in</span>
+      </section>
+      <section id="metrics" class="grid"></section>
       <section class="grid">
-        <div class="tile"><strong>Countries</strong><p>6 configured</p></div>
-        <div class="tile"><strong>Active Pilot</strong><p>Bole, Addis Ababa</p></div>
-        <div class="tile"><strong>Cash Review</strong><p>0 unresolved</p></div>
-        <div class="tile"><strong>Trust Queue</strong><p>3 pending</p></div>
+        <div class="card"><h2>Production Gate</h2><div id="launchGate"></div></div>
+        <div class="card"><h2>Admin Security Roles</h2><div id="roles"></div></div>
+        <div class="card"><h2>Payment Integrations</h2><div id="paymentProviders"></div></div>
       </section>
-      <section>
-        <h2>Feature Flags</h2>
-        <div class="flag"><span>Merchant Advance</span><strong>Legal Hold</strong></div>
-        <div class="flag"><span>Diaspora Funding</span><strong>Legal Hold</strong></div>
-        <div class="flag"><span>Voice Ordering</span><strong>Disabled</strong></div>
-        <div class="flag"><span>Night Safety</span><strong>Disabled</strong></div>
+      <section><h2>Order Monitoring</h2><div id="orders"></div></section>
+      <section class="grid">
+        <div class="card"><h2>Merchant Approval</h2><div id="merchants"></div></div>
+        <div class="card"><h2>Driver Approval</h2><div id="drivers"></div></div>
       </section>
-      <section>
-        <h2>Operational Controls</h2>
-        <p>Freeze drivers or merchants, override orders, audit wallet adjustments, and review fraud flags.</p>
-        <button>Review Reports</button>
+      <section class="grid">
+        <div class="card"><h2>Customer Management</h2><div id="customers"></div></div>
+        <div class="card"><h2>City/Neighborhood Management</h2><div id="neighborhoods"></div></div>
       </section>
+      <section class="grid">
+        <div class="card"><h2>Refund/Payment Review</h2><div id="payments"></div></div>
+        <div class="card"><h2>Wallet Audit</h2><div id="wallets"></div></div>
+      </section>
+      <section class="grid">
+        <div class="card"><h2>Commission Settings</h2><div id="commissions"></div></div>
+        <div class="card"><h2>Support Tickets</h2><div id="support"></div></div>
+      </section>
+      <section class="grid">
+        <div class="card"><h2>Feature Flags</h2><div id="flags"></div></div>
+        <div class="card"><h2>Safety/Trust Controls</h2><div id="trust"></div></div>
+      </section>
+      <section><h2>Audit Logs</h2><div id="audit"></div></section>
     </main>
+    <div id="toast"></div>
+    <script>
+      const state = { country:"ET", token:localStorage.getItem("hg_admin_token") || "", data:null };
+      const $ = (id) => document.querySelector(id);
+      const money = (n, c = "ETB") => `${Number(n || 0).toLocaleString()} ${c}`;
+      function toast(message) { const el = $("#toast"); el.textContent = message; el.classList.add("show"); setTimeout(() => el.classList.remove("show"), 2200); }
+      async function api(path, options = {}) {
+        const headers = { "Content-Type":"application/json", ...(options.headers || {}) };
+        if (state.token) headers.Authorization = `Bearer ${state.token}`;
+        const response = await fetch(path, { ...options, headers });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || "Request failed");
+        return data;
+      }
+      function table(rows, columns, actions) {
+        if (!rows.length) return "<p>No records yet.</p>";
+        return `<table><thead><tr>${columns.map(c => `<th>${c.label}</th>`).join("")}<th>Actions</th></tr></thead><tbody>${rows.map(row => `<tr>${columns.map(c => `<td>${c.render ? c.render(row) : row[c.key]}</td>`).join("")}<td><div class="actions">${actions ? actions(row) : ""}</div></td></tr>`).join("")}</tbody></table>`;
+      }
+      async function login() {
+        const data = await api(`/api/${state.country}/v1/auth/login`, { method:"POST", body:JSON.stringify({ email:$("#email").value, password:$("#password").value }) });
+        state.token = data.token;
+        localStorage.setItem("hg_admin_token", state.token);
+        $("#session").textContent = `${data.user.name} (${data.user.role})`;
+        await load();
+      }
+      async function load() {
+        if (!state.token) return;
+        const [reports, details, orders, merchants, drivers, payments, wallets, sms, flags, trust, support, audit, roles, providers, commissions, neighborhoods, gate] = await Promise.all([
+          api(`/api/${state.country}/v1/admin/reports`),
+          api(`/api/${state.country}/v1/admin/details`),
+          api(`/api/${state.country}/v1/admin/orders`),
+          api(`/api/${state.country}/v1/admin/merchants`),
+          api(`/api/${state.country}/v1/admin/drivers`),
+          api(`/api/${state.country}/v1/admin/payment-transactions`),
+          api(`/api/${state.country}/v1/admin/wallet-transactions`),
+          api(`/api/${state.country}/v1/admin/sms-messages`),
+          api(`/api/${state.country}/v1/feature-flags`),
+          api(`/api/${state.country}/v1/admin/trust-verifications`),
+          api(`/api/${state.country}/v1/admin/support-tickets`),
+          api(`/api/${state.country}/v1/admin/audit-logs`),
+          api(`/api/${state.country}/v1/admin/security-roles`),
+          api(`/api/${state.country}/v1/admin/payment-providers`),
+          api(`/api/${state.country}/v1/admin/commission-settings`),
+          api(`/api/${state.country}/v1/admin/neighborhoods`),
+          fetch(`/api/${state.country}/v1/launch-gate`).then(r => r.json())
+        ]);
+        state.data = { reports, details, orders, merchants, drivers, payments, wallets, sms, flags, trust, support, audit, roles, providers, commissions, neighborhoods, gate };
+        render();
+      }
+      function render() {
+        const d = state.data;
+        $("#metrics").innerHTML = [
+          ["Orders", d.reports.orders_total],
+          ["Gross value", money(d.reports.gross_value)],
+          ["Active merchants", d.reports.active_merchants],
+          ["Open support", d.reports.support_open],
+          ["Dummy payments", d.reports.simulated_payments],
+          ["SMS logs", d.reports.simulated_sms]
+        ].map(([label,value]) => `<div class="metric"><strong>${value}</strong><span>${label}</span></div>`).join("");
+        $("#launchGate").innerHTML = `<p>${d.gate.launch_allowed ? "Allowed" : "Blocked"} - mode ${d.gate.mode}</p><small>${(d.gate.missing_environment || []).join(", ")}</small>`;
+        $("#roles").innerHTML = d.roles.roles.map(r => `<p><strong>${r.role}</strong><br><small>${r.permissions.join(", ")}</small></p>`).join("");
+        $("#paymentProviders").innerHTML = d.providers.providers.map(p => `<p>${p.provider}: ${p.status} (${p.mode})</p>`).join("");
+        $("#orders").innerHTML = table(d.orders.orders, [
+          { label:"Order", render:o => o.id.slice(0,8) },
+          { label:"Customer", key:"customer_name" },
+          { label:"Merchant", key:"merchant_name" },
+          { label:"Status", key:"status" },
+          { label:"Total", render:o => money(o.total, o.currency) }
+        ], o => `<button class="danger" data-order="${o.id}|cancelled">Cancel</button><button data-pay="${o.id}|Chapa">Dummy refund/review</button>`);
+        $("#merchants").innerHTML = table(d.merchants.merchants, [
+          { label:"Merchant", key:"name" },
+          { label:"Category", key:"category" },
+          { label:"Status", key:"status" },
+          { label:"Verified", render:m => m.verified ? "Yes" : "No" },
+          { label:"Commission", render:m => `${Math.round(Number(m.commission_rate || 0) * 100)}%` }
+        ], m => `<button data-merchant="${m.id}|open|true">Approve</button><button class="warn" data-merchant="${m.id}|paused|false">Pause</button>`);
+        $("#drivers").innerHTML = table(d.drivers.drivers, [
+          { label:"Driver", key:"id" },
+          { label:"Vehicle", render:x => `${x.vehicle_type} ${x.vehicle_plate}` },
+          { label:"Online", render:x => x.online ? "Yes" : "No" },
+          { label:"Frozen", render:x => x.frozen ? "Yes" : "No" },
+          { label:"Safety", key:"safety_score" }
+        ], x => `<button data-driver="${x.id}|false|true">Approve</button><button class="danger" data-driver="${x.id}|true|false">Freeze</button>`);
+        $("#customers").innerHTML = table(d.details.customers, [
+          { label:"Customer", key:"user_id" },
+          { label:"Wallet", render:c => money(c.wallet_balance, c.currency) },
+          { label:"Address", key:"preferred_address" }
+        ]);
+        $("#neighborhoods").innerHTML = d.neighborhoods.neighborhoods.map(n => `<p>${n.name}: ${n.lat}, ${n.lng}</p>`).join("") + `<small>${d.neighborhoods.map_provider}</small>`;
+        $("#payments").innerHTML = table(d.payments.transactions, [
+          { label:"Provider", key:"provider" },
+          { label:"Status", key:"status" },
+          { label:"Amount", render:p => money(p.amount, p.currency) },
+          { label:"Real money", render:p => p.real_money_moved ? "Yes" : "No" }
+        ]);
+        $("#wallets").innerHTML = table(d.wallets.transactions, [
+          { label:"Type", key:"type" },
+          { label:"Amount", render:w => money(w.amount, w.currency) },
+          { label:"Reason", key:"reason" }
+        ]);
+        $("#commissions").innerHTML = table(d.commissions.settings, [
+          { label:"Merchant", key:"merchant_name" },
+          { label:"Rate", render:c => `${Math.round(Number(c.commission_rate || 0) * 100)}%` },
+          { label:"Payout", key:"payout_schedule" }
+        ], c => `<button data-commission="${c.merchant_id}">Edit</button>`);
+        $("#support").innerHTML = table(d.support.tickets, [
+          { label:"Subject", key:"subject" },
+          { label:"Priority", key:"priority" },
+          { label:"Status", key:"status" }
+        ]);
+        $("#flags").innerHTML = d.flags.flags.map(f => `<p><strong>${f.key}</strong> - ${f.legal_hold ? "Legal hold" : f.enabled ? "Enabled" : "Disabled"} ${f.legal_hold ? "" : `<button data-flag="${f.key}|${!f.enabled}">Toggle</button>`}</p>`).join("");
+        $("#trust").innerHTML = table(d.trust.verifications, [
+          { label:"Entity", render:t => `${t.entity_type} ${t.entity_id}` },
+          { label:"Status", key:"status" },
+          { label:"Score", key:"score" },
+          { label:"Note", key:"note" }
+        ]);
+        $("#audit").innerHTML = table(d.audit.logs, [
+          { label:"Action", key:"action" },
+          { label:"Entity", render:a => `${a.entity_type} ${a.entity_id}` },
+          { label:"Actor", key:"actor_user_id" },
+          { label:"When", render:a => new Date(a.created_at).toLocaleString() }
+        ]);
+        bind();
+      }
+      function bind() {
+        document.querySelectorAll("[data-merchant]").forEach(btn => btn.onclick = async () => {
+          const [id, status, verified] = btn.dataset.merchant.split("|");
+          await api(`/api/${state.country}/v1/admin/merchants/${id}/status`, { method:"PATCH", body:JSON.stringify({ status, verified: verified === "true" }) });
+          toast("Merchant updated"); await load();
+        });
+        document.querySelectorAll("[data-driver]").forEach(btn => btn.onclick = async () => {
+          const [id, frozen, online] = btn.dataset.driver.split("|");
+          await api(`/api/${state.country}/v1/admin/drivers/${id}/status`, { method:"PATCH", body:JSON.stringify({ frozen: frozen === "true", online: online === "true" }) });
+          toast("Driver updated"); await load();
+        });
+        document.querySelectorAll("[data-order]").forEach(btn => btn.onclick = async () => {
+          const [id, status] = btn.dataset.order.split("|");
+          await api(`/api/${state.country}/v1/orders/${id}/status`, { method:"PATCH", body:JSON.stringify({ status }) });
+          toast("Order updated"); await load();
+        });
+        document.querySelectorAll("[data-pay]").forEach(btn => btn.onclick = async () => {
+          const [order_id, provider] = btn.dataset.pay.split("|");
+          await api(`/api/${state.country}/v1/payments/simulate`, { method:"POST", body:JSON.stringify({ order_id, provider }) });
+          toast("Payment review logged"); await load();
+        });
+        document.querySelectorAll("[data-flag]").forEach(btn => btn.onclick = async () => {
+          const [key, enabled] = btn.dataset.flag.split("|");
+          await api(`/api/${state.country}/v1/admin/feature-flags/${encodeURIComponent(key)}`, { method:"PATCH", body:JSON.stringify({ enabled: enabled === "true" }) });
+          toast("Feature flag updated"); await load();
+        });
+        document.querySelectorAll("[data-commission]").forEach(btn => btn.onclick = async () => {
+          const rate = prompt("Commission rate, for example 0.12");
+          if (rate) await api(`/api/${state.country}/v1/admin/commission-settings/${btn.dataset.commission}`, { method:"PATCH", body:JSON.stringify({ commission_rate:Number(rate) }) });
+          await load();
+        });
+      }
+      $("#loginBtn").onclick = login;
+      $("#refreshBtn").onclick = () => load().catch(e => toast(e.message));
+      if (state.token) load().catch(e => toast(e.message));
+    </script>
   </body>
 </html>

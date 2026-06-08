@@ -5,43 +5,216 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>HabeshaGo Merchant Portal</title>
     <style>
-      body { margin: 0; font-family: Arial, sans-serif; background: #f6f7f8; color: #172026; }
-      header { background: #0f5132; color: white; padding: 18px 28px; }
-      main { max-width: 1120px; margin: 24px auto; padding: 0 18px; display: grid; gap: 18px; }
-      section { background: white; border: 1px solid #d9e0e4; border-radius: 8px; padding: 18px; }
-      .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
-      .metric { border-left: 4px solid #d09a2d; padding-left: 12px; }
-      button { border: 0; border-radius: 6px; background: #0f5132; color: white; padding: 10px 14px; cursor: pointer; }
-      table { width: 100%; border-collapse: collapse; }
-      th, td { text-align: left; border-bottom: 1px solid #e7ecef; padding: 10px; }
+      :root { --green:#0f5132; --ink:#172026; --muted:#60717d; --line:#d9e0e4; --gold:#c58a21; --bg:#f6f8f9; }
+      * { box-sizing: border-box; }
+      body { margin: 0; font-family: Arial, sans-serif; background: var(--bg); color: var(--ink); }
+      header { background: var(--green); color: white; padding: 18px 28px; display:flex; justify-content:space-between; gap:16px; align-items:center; }
+      main { max-width: 1220px; margin: 22px auto; padding: 0 18px; display: grid; gap: 16px; }
+      section { background: white; border: 1px solid var(--line); border-radius: 8px; padding: 16px; }
+      .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
+      .metric, .card { border: 1px solid var(--line); border-radius: 8px; padding: 12px; background:#fff; }
+      .metric strong { display:block; font-size:24px; }
+      .metric span, small, p { color: var(--muted); }
+      label { display:grid; gap:5px; font-size:13px; color:var(--muted); }
+      input, select { width:100%; border:1px solid var(--line); border-radius:6px; padding:9px; color:var(--ink); }
+      button { border:0; border-radius:6px; background:var(--green); color:white; padding:9px 12px; cursor:pointer; }
+      button.secondary { background:#24435f; }
+      button.warn { background:#8a4b07; }
+      table { width:100%; border-collapse: collapse; font-size:14px; }
+      th, td { text-align:left; border-bottom:1px solid #e7ecef; padding:9px; vertical-align:top; }
+      th { color:var(--muted); font-size:12px; text-transform:uppercase; }
+      .actions { display:flex; flex-wrap:wrap; gap:6px; }
+      .bar { display:flex; flex-wrap:wrap; gap:10px; align-items:end; }
+      #toast { position:fixed; right:16px; bottom:16px; background:#172026; color:white; padding:10px 12px; border-radius:8px; opacity:0; transition:.2s; }
+      #toast.show { opacity:1; }
     </style>
   </head>
   <body>
     <header>
-      <h1>HabeshaGo Merchant Portal</h1>
-      <p>Manage menu, orders, payouts, promotions, and Almaz women-owned business visibility.</p>
+      <div>
+        <h1>HabeshaGo Merchant Portal</h1>
+        <p>Profile, menu, incoming orders, preparation, payout, and support operations.</p>
+      </div>
+      <div class="actions">
+        <button id="loginBtn">Demo Merchant Login</button>
+        <a href="/" style="color:white">Customer app</a>
+        <a href="/admin" style="color:white">Admin portal</a>
+      </div>
     </header>
     <main>
+      <section class="bar">
+        <label>Email <input id="email" value="merchant@habeshago.local" /></label>
+        <label>Password <input id="password" type="password" value="Merchant123!" /></label>
+        <button id="manualLoginBtn">Login</button>
+        <button id="refreshBtn" class="secondary">Refresh</button>
+        <span id="session">Not signed in</span>
+      </section>
+
+      <section id="metrics" class="grid"></section>
+
+      <section>
+        <h2>Restaurant/store Profile Setup</h2>
+        <div class="grid">
+          <label>Business name <input id="merchantName" /></label>
+          <label>Category <input id="merchantCategory" /></label>
+          <label>Manager <input id="managerName" /></label>
+          <label>Phone <input id="contactPhone" /></label>
+          <label>Opening hours <input id="openingHours" /></label>
+          <label>Address <input id="addressNote" /></label>
+          <label>Prep minutes <input id="prepTime" type="number" /></label>
+          <label>Delivery radius km <input id="deliveryRadius" type="number" /></label>
+        </div>
+        <p id="profileMeta"></p>
+        <button id="saveProfileBtn">Save profile</button>
+      </section>
+
+      <section>
+        <h2>Menu/Product Management</h2>
+        <div class="bar">
+          <label>Name <input id="newProductName" value="New lunch special" /></label>
+          <label>Category <input id="newProductCategory" value="food" /></label>
+          <label>Price <input id="newProductPrice" type="number" value="250" /></label>
+          <label>Stock <input id="newProductStock" type="number" value="10" /></label>
+          <button id="addProductBtn">Add product</button>
+        </div>
+        <div id="products"></div>
+      </section>
+
+      <section>
+        <h2>Incoming Order Dashboard</h2>
+        <div id="orders"></div>
+      </section>
+
       <section class="grid">
-        <div class="metric"><strong>Open Orders</strong><p>8</p></div>
-        <div class="metric"><strong>Today Sales</strong><p>4,820 ETB</p></div>
-        <div class="metric"><strong>Payout Pending</strong><p>2,140 ETB</p></div>
-        <div class="metric"><strong>Commission</strong><p>12%</p></div>
-      </section>
-      <section>
-        <h2>Live Orders</h2>
-        <table>
-          <thead><tr><th>Order</th><th>Status</th><th>Total</th><th>Action</th></tr></thead>
-          <tbody>
-            <tr><td>HG-1001</td><td>Placed</td><td>410 ETB</td><td><button>Accept</button></td></tr>
-            <tr><td>HG-1002</td><td>Preparing</td><td>560 ETB</td><td><button>Ready</button></td></tr>
-          </tbody>
-        </table>
-      </section>
-      <section>
-        <h2>Menu Tools</h2>
-        <p>Add products, update availability, run promotions, and manage inventory placeholders from this portal.</p>
+        <div class="card">
+          <h2>Payout/Wallet Summary</h2>
+          <div id="payout"></div>
+        </div>
+        <div class="card">
+          <h2>Support/contact Admin</h2>
+          <label>Subject <input id="supportSubject" value="Merchant support request" /></label>
+          <button id="supportBtn" class="secondary">Create support ticket</button>
+          <div id="supportTickets"></div>
+        </div>
       </section>
     </main>
+    <div id="toast"></div>
+    <script>
+      const state = { country: "ET", token: localStorage.getItem("hg_merchant_token") || "", merchant: null, data: null };
+      const $ = (id) => document.querySelector(id);
+      const money = (n, c = "ETB") => `${Number(n || 0).toLocaleString()} ${c}`;
+      function toast(message) { const el = $("#toast"); el.textContent = message; el.classList.add("show"); setTimeout(() => el.classList.remove("show"), 2200); }
+      async function api(path, options = {}) {
+        const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
+        if (state.token) headers.Authorization = `Bearer ${state.token}`;
+        const response = await fetch(path, { ...options, headers });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || "Request failed");
+        return data;
+      }
+      function table(rows, columns, actions) {
+        if (!rows.length) return "<div class='card'>No records yet.</div>";
+        return `<table><thead><tr>${columns.map(c => `<th>${c.label}</th>`).join("")}<th>Actions</th></tr></thead><tbody>${rows.map(row => `<tr>${columns.map(c => `<td>${c.render ? c.render(row) : row[c.key]}</td>`).join("")}<td><div class="actions">${actions ? actions(row) : ""}</div></td></tr>`).join("")}</tbody></table>`;
+      }
+      async function login() {
+        const data = await api(`/api/${state.country}/v1/auth/login`, { method:"POST", body: JSON.stringify({ email: $("#email").value, password: $("#password").value }) });
+        state.token = data.token;
+        localStorage.setItem("hg_merchant_token", state.token);
+        $("#session").textContent = `${data.user.name} (${data.user.role})`;
+        await load();
+      }
+      async function load() {
+        if (!state.token) return;
+        const data = await api(`/api/${state.country}/v1/merchant/dashboard`);
+        state.data = data;
+        state.merchant = data.merchant;
+        render(data);
+      }
+      function render(data) {
+        const m = data.merchant;
+        $("#merchantName").value = m.name || "";
+        $("#merchantCategory").value = m.category || "";
+        $("#managerName").value = m.manager_name || "";
+        $("#contactPhone").value = m.contact_phone || "";
+        $("#openingHours").value = m.opening_hours || "";
+        $("#addressNote").value = m.address_note || "";
+        $("#prepTime").value = m.prep_time_minutes || 15;
+        $("#deliveryRadius").value = m.delivery_radius_km || 3;
+        $("#profileMeta").textContent = `${m.verification_status} - ${m.status} - commission ${Math.round(Number(m.commission_rate || 0) * 100)}%`;
+        $("#metrics").innerHTML = [
+          ["Open orders", data.payout.open_orders],
+          ["Completed", data.payout.completed_orders],
+          ["Gross sales", money(data.payout.gross_sales, data.payout.currency)],
+          ["Payout pending", money(data.payout.payout_pending, data.payout.currency)]
+        ].map(([label, value]) => `<div class="metric"><strong>${value}</strong><span>${label}</span></div>`).join("");
+        $("#products").innerHTML = table(data.products, [
+          { label:"Product", render:p => `${p.name}<br><small>${p.description || ""}</small>` },
+          { label:"Price", render:p => money(p.price, p.currency) },
+          { label:"Stock", key:"stock_quantity" },
+          { label:"Available", render:p => p.available ? "Yes" : "No" }
+        ], p => `<button data-toggle="${p.id}">${p.available ? "Disable" : "Enable"}</button><button class="secondary" data-price="${p.id}">Save price</button>`);
+        $("#orders").innerHTML = table(data.orders, [
+          { label:"Order", render:o => o.id.slice(0,8) },
+          { label:"Customer", key:"customer_name" },
+          { label:"Status", key:"status" },
+          { label:"Total", render:o => money(o.total, o.currency) },
+          { label:"Address", key:"address_note" }
+        ], orderActions);
+        $("#payout").innerHTML = `<p>Gross: ${money(data.payout.gross_sales, data.payout.currency)}</p><p>Commission: ${money(data.payout.commission_due, data.payout.currency)}</p><p>Pending payout: ${money(data.payout.payout_pending, data.payout.currency)}</p>`;
+        $("#supportTickets").innerHTML = data.support_tickets.map(t => `<p>${t.subject} - ${t.status}</p>`).join("") || "<p>No support tickets yet.</p>";
+        bindRows();
+      }
+      function orderActions(o) {
+        if (o.status === "placed") return `<button data-status="${o.id}|accepted">Accept</button><button class="warn" data-status="${o.id}|rejected">Reject</button>`;
+        if (o.status === "accepted") return `<button data-status="${o.id}|preparing">Start prep</button>`;
+        if (o.status === "preparing") return `<button data-status="${o.id}|ready_for_pickup">Food ready</button>`;
+        if (o.status === "ready_for_pickup") return `<button data-dispatch="${o.id}">Request driver</button>`;
+        return "";
+      }
+      function bindRows() {
+        document.querySelectorAll("[data-status]").forEach(btn => btn.onclick = async () => {
+          const [id, status] = btn.dataset.status.split("|");
+          await api(`/api/${state.country}/v1/orders/${id}/status`, { method:"PATCH", body: JSON.stringify({ status }) });
+          toast("Order updated");
+          await load();
+        });
+        document.querySelectorAll("[data-dispatch]").forEach(btn => btn.onclick = async () => {
+          await api(`/api/${state.country}/v1/orders/${btn.dataset.dispatch}/request-driver`, { method:"POST", body:"{}" });
+          toast("Driver requested");
+          await load();
+        });
+        document.querySelectorAll("[data-toggle]").forEach(btn => btn.onclick = async () => {
+          const product = state.data.products.find(p => p.id === btn.dataset.toggle);
+          await api(`/api/${state.country}/v1/products/${product.id}`, { method:"PATCH", body: JSON.stringify({ available: !product.available }) });
+          await load();
+        });
+        document.querySelectorAll("[data-price]").forEach(btn => btn.onclick = async () => {
+          const product = state.data.products.find(p => p.id === btn.dataset.price);
+          const price = prompt("New price", product.price);
+          if (price) await api(`/api/${state.country}/v1/products/${product.id}`, { method:"PATCH", body: JSON.stringify({ price }) });
+          await load();
+        });
+      }
+      $("#loginBtn").onclick = login;
+      $("#manualLoginBtn").onclick = login;
+      $("#refreshBtn").onclick = () => load().catch(e => toast(e.message));
+      $("#saveProfileBtn").onclick = async () => {
+        const body = { name: $("#merchantName").value, category: $("#merchantCategory").value, manager_name: $("#managerName").value, contact_phone: $("#contactPhone").value, opening_hours: $("#openingHours").value, address_note: $("#addressNote").value, prep_time_minutes: Number($("#prepTime").value), delivery_radius_km: Number($("#deliveryRadius").value) };
+        await api(`/api/${state.country}/v1/merchants/${state.merchant.id}/profile`, { method:"PATCH", body: JSON.stringify(body) });
+        toast("Profile saved");
+        await load();
+      };
+      $("#addProductBtn").onclick = async () => {
+        await api(`/api/${state.country}/v1/merchants/${state.merchant.id}/products`, { method:"POST", body: JSON.stringify({ name: $("#newProductName").value, category: $("#newProductCategory").value, price: Number($("#newProductPrice").value), stock_quantity: Number($("#newProductStock").value) }) });
+        toast("Product added");
+        await load();
+      };
+      $("#supportBtn").onclick = async () => {
+        await api(`/api/${state.country}/v1/support/tickets`, { method:"POST", body: JSON.stringify({ subject: $("#supportSubject").value, priority:"normal" }) });
+        toast("Support ticket created");
+        await load();
+      };
+      if (state.token) load().catch(e => toast(e.message));
+    </script>
   </body>
 </html>

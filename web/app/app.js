@@ -4,6 +4,7 @@ const state = {
   user: JSON.parse(localStorage.getItem("hg_user") || "null"),
   products: [],
   merchants: [],
+  locations: null,
   events: null
 };
 
@@ -56,10 +57,15 @@ function connectEvents() {
   state.events.addEventListener("connected", () => {
     $("#liveStatus").textContent = "Connected";
   });
-  ["order.created", "order.updated", "dispatch.requested", "dispatch.accepted", "menu.requested", "notification.created"].forEach((name) => {
+  ["order.created", "order.updated", "dispatch.requested", "dispatch.accepted", "menu.requested", "notification.created", "driver.location.updated"].forEach((name) => {
     state.events.addEventListener(name, async (event) => {
       const data = JSON.parse(event.data);
       $("#lastEvent").textContent = `${data.type} at ${new Date(data.at).toLocaleTimeString()}`;
+      if (data.type === "driver.location.updated") {
+        addLiveLog(`Driver location: ${Number(data.payload.latitude).toFixed(5)}, ${Number(data.payload.longitude).toFixed(5)}`);
+        await loadRealtimeLocations();
+        return;
+      }
       if (data.type === "order.updated" || data.type === "live.step") {
         const status = data.payload?.status;
         if (status) updateTracker(status);
@@ -709,6 +715,31 @@ async function loadNearbyMap() {
         <span>Zone ${driver.assigned_zone} - plate ${driver.vehicle_plate || "not set"}</span>
       </article>
     `).join("") : "<article class='map-marker driver'><strong>No nearby drivers</strong><span>Try increasing radius.</span></article>"}
+  `;
+  await loadRealtimeLocations();
+}
+
+async function loadRealtimeLocations() {
+  const [lat, lng] = ($("#nearbyLocation")?.value || "8.994|38.789").split("|");
+  const data = await api(`/api/${state.country}/v1/locations/live?lat=${lat}&lng=${lng}`);
+  state.locations = data;
+  const drivers = data.drivers || [];
+  const merchants = data.merchants || [];
+  $("#realtimeMap").innerHTML = `
+    <div class="map-dot customer" style="left:50%;top:50%"><span>You</span></div>
+    ${merchants.slice(0, 5).map((merchant, index) => `
+      <div class="map-dot merchant" style="left:${18 + index * 13}%;top:${28 + (index % 2) * 24}%"><span>${merchant.name}</span></div>
+    `).join("")}
+    ${drivers.slice(0, 5).map((driver, index) => `
+      <div class="map-dot driver moving" style="left:${62 + index * 7}%;top:${26 + index * 11}%"><span>${driver.vehicle_type} ${driver.distance_km} km</span></div>
+    `).join("")}
+  `;
+  $("#realtimeLocationPanel").innerHTML = `
+    <strong>Real-time sample location</strong>
+    <span>${data.provider} - ${drivers.length} online driver${drivers.length === 1 ? "" : "s"} - refreshed ${new Date().toLocaleTimeString()}</span>
+    ${drivers.slice(0, 3).map((driver) => `
+      <p>${driver.badge_level}: ${driver.latitude.toFixed(5)}, ${driver.longitude.toFixed(5)} - ${driver.eta_minutes} min ETA - accuracy ${driver.accuracy_m}m</p>
+    `).join("")}
   `;
 }
 

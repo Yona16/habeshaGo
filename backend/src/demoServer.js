@@ -7,6 +7,7 @@ const port = Number(process.env.PORT || 3000);
 const appMode = process.env.APP_MODE || "local-demo";
 const rootDir = path.resolve(__dirname, "..", "..");
 const webDir = path.resolve(rootDir, "web", "app");
+const webRootDir = path.resolve(rootDir, "web");
 const dataFile = path.resolve(__dirname, "..", "data", "local-store.json");
 
 const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
@@ -145,6 +146,7 @@ function seedData() {
     payment_transactions: [],
     sms_messages: [],
     map_quotes: [],
+    driver_locations: [],
     compliance_reviews: [
       { id: "compliance-wallet", area: "Wallet ledger", status: "technical_foundation_only", legal_hold: false, note: "Wallet ledger demo is allowed locally; production needs financial counsel review." },
       { id: "compliance-driver-float", area: "Driver float and cash reconciliation", status: "pilot_controls_required", legal_hold: false, note: "Daily reconciliation, audit logs, and finance owner approval required." },
@@ -187,6 +189,7 @@ function loadStore() {
     seeded.payment_transactions = parsed.payment_transactions || [];
     seeded.sms_messages = parsed.sms_messages || [];
     seeded.map_quotes = parsed.map_quotes || [];
+    seeded.driver_locations = parsed.driver_locations || [];
     seeded.support_tickets = parsed.support_tickets || [];
     seeded.audit_logs = parsed.audit_logs || [];
     seeded.trust_verifications = parsed.trust_verifications || seedData().trust_verifications;
@@ -200,6 +203,7 @@ function loadStore() {
   parsed.notifications = parsed.notifications || [];
   parsed.sms_messages = parsed.sms_messages || [];
   parsed.map_quotes = parsed.map_quotes || [];
+  parsed.driver_locations = parsed.driver_locations || [];
   parsed.compliance_reviews = parsed.compliance_reviews || seedData().compliance_reviews;
   parsed.support_tickets = parsed.support_tickets || [];
   parsed.audit_logs = parsed.audit_logs || [];
@@ -246,6 +250,9 @@ function normalizeDetails(data) {
     driver.assigned_zone = driver.assigned_zone || fallback.assigned_zone || "Bole";
     driver.vehicle_type = driver.vehicle_type || fallback.vehicle_type || "motorbike";
     driver.vehicle_plate = driver.vehicle_plate || fallback.vehicle_plate || "";
+    driver.location_accuracy_m = driver.location_accuracy_m ?? fallback.location_accuracy_m ?? 18;
+    driver.location_updated_at = driver.location_updated_at || new Date().toISOString();
+    driver.location_provider = driver.location_provider || "SIMULATED_REAL_TIME";
   }
 }
 
@@ -537,6 +544,100 @@ function quoteDelivery(destination = {}) {
   return { origin: HQ_COORDS, destination: dest, distance_km: Number(distance.toFixed(2)), eta_minutes: eta, fee };
 }
 
+function recordDriverLocation(driver, { lat, lng, source = "simulated_tick" } = {}) {
+  const location = {
+    id: randomUUID(),
+    driver_id: driver.id,
+    country_id: driver.country_id,
+    latitude: Number(lat),
+    longitude: Number(lng),
+    accuracy_m: driver.location_accuracy_m || 18,
+    heading_degrees: driver.heading_degrees || 75,
+    speed_kph: driver.speed_kph || 18,
+    source,
+    provider: "SIMULATED_REAL_TIME",
+    created_at: new Date().toISOString()
+  };
+  driver.latitude = location.latitude;
+  driver.longitude = location.longitude;
+  driver.location_updated_at = location.created_at;
+  driver.location_provider = location.provider;
+  store.driver_locations.push(location);
+  store.driver_locations = store.driver_locations.slice(-120);
+  broadcast("driver.location.updated", {
+    driver_id: driver.id,
+    latitude: location.latitude,
+    longitude: location.longitude,
+    accuracy_m: location.accuracy_m,
+    heading_degrees: location.heading_degrees,
+    speed_kph: location.speed_kph,
+    source: location.source
+  });
+  return location;
+}
+
+function liveLocationSnapshot(countryId, origin = HQ_COORDS) {
+  const drivers = store.drivers
+    .filter((driver) => driver.country_id === countryId && driver.online && !driver.frozen)
+    .map((driver) => ({
+      id: driver.id,
+      badge_level: driver.badge_level,
+      vehicle_type: driver.vehicle_type,
+      vehicle_plate: driver.vehicle_plate,
+      assigned_zone: driver.assigned_zone,
+      latitude: driver.latitude,
+      longitude: driver.longitude,
+      location_updated_at: driver.location_updated_at,
+      location_provider: driver.location_provider || "SIMULATED_REAL_TIME",
+      accuracy_m: driver.location_accuracy_m || 18,
+      distance_km: Number(distanceKm(origin, { lat: driver.latitude, lng: driver.longitude }).toFixed(2)),
+      eta_minutes: Math.max(4, Math.round(3 + distanceKm(origin, { lat: driver.latitude, lng: driver.longitude }) * 5))
+    }))
+    .sort((a, b) => a.distance_km - b.distance_km);
+  const merchants = store.merchants
+    .filter((merchant) => merchant.country_id === countryId && merchant.status === "open")
+    .map((merchant) => ({
+      id: merchant.id,
+      name: merchant.name,
+      category: merchant.category,
+      rating: merchant.rating,
+      review_count: merchant.review_count,
+      latitude: merchant.latitude,
+      longitude: merchant.longitude,
+      distance_km: Number(distanceKm(origin, { lat: merchant.latitude, lng: merchant.longitude }).toFixed(2))
+    }))
+    .sort((a, b) => a.distance_km - b.distance_km);
+  return {
+    provider: "SIMULATED_REAL_TIME",
+    origin,
+    drivers,
+    merchants,
+    recent_locations: store.driver_locations.filter((item) => item.country_id === countryId).slice(-20)
+  };
+}
+
+function merchantForUser(user, merchantId, countryId) {
+  if (user.role === "admin" && merchantId) {
+    return store.merchants.find((merchant) => merchant.id === merchantId && merchant.country_id === countryId);
+  }
+  return store.merchants.find((merchant) => merchant.owner_user_id === user.id && merchant.country_id === countryId);
+}
+
+function merchantSummary(merchant, countryId) {
+  const orders = store.orders.filter((order) => order.country_id === countryId && order.merchant_id === merchant.id);
+  const completed = orders.filter((order) => order.status === "delivered");
+  const sales = orders.reduce((sum, order) => sum + order.total, 0);
+  const commission = Math.round(sales * Number(merchant.commission_rate || 0));
+  return {
+    open_orders: orders.filter((order) => !["delivered", "cancelled", "rejected"].includes(order.status)).length,
+    completed_orders: completed.length,
+    gross_sales: sales,
+    commission_due: commission,
+    payout_pending: Math.max(0, sales - commission),
+    currency: merchant.currency
+  };
+}
+
 function logSms({ to, template, body, country_id, user_id, order_id }) {
   const message = {
     id: randomUUID(),
@@ -709,9 +810,16 @@ function runLiveDemo(order, actors) {
 }
 
 function serveStatic(req, res, pathname) {
-  const routePath = pathname === "/" ? "/index.html" : pathname;
-  const filePath = path.resolve(webDir, `.${routePath}`);
-  if (!filePath.startsWith(webDir)) return false;
+  let filePath;
+  if (pathname === "/admin" || pathname === "/admin/") {
+    filePath = path.resolve(webRootDir, "admin", "index.html");
+  } else if (pathname === "/merchant" || pathname === "/merchant/") {
+    filePath = path.resolve(webRootDir, "merchant", "index.html");
+  } else {
+    const routePath = pathname === "/" ? "/index.html" : pathname;
+    filePath = path.resolve(webDir, `.${routePath}`);
+  }
+  if (!filePath.startsWith(webDir) && !filePath.startsWith(webRootDir)) return false;
   if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) return false;
   const ext = path.extname(filePath);
   const types = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "application/javascript; charset=utf-8", ".json": "application/json; charset=utf-8" };
@@ -968,6 +1076,85 @@ async function handleApi(req, res, url) {
     return send(res, 200, { products });
   }
 
+  if (req.method === "GET" && url.pathname.endsWith("/merchant/dashboard")) {
+    const user = requireUser(req, res, ["merchant", "admin"]);
+    if (!user) return;
+    const merchant = merchantForUser(user, url.searchParams.get("merchant_id"), countryId);
+    if (!merchant) return sendError(res, 404, "Merchant profile not found");
+    const orders = store.orders.filter((order) => order.country_id === countryId && order.merchant_id === merchant.id).map(enrichOrder);
+    return send(res, 200, {
+      merchant,
+      products: store.products.filter((product) => product.merchant_id === merchant.id && product.country_id === countryId),
+      orders,
+      menu_requests: store.menu_requests.filter((request) => request.country_id === countryId && request.merchant_id === merchant.id),
+      payout: merchantSummary(merchant, countryId),
+      support_tickets: store.support_tickets.filter((ticket) => ticket.country_id === countryId && ticket.user_id === user.id),
+      payment_providers: ["Telebirr", "CBE Birr", "Chapa", "SantimPay"].map((provider) => ({ provider, mode: "integration_placeholder", real_money_moved: false }))
+    });
+  }
+
+  const merchantProfileMatch = url.pathname.match(/^\/api\/[^/]+\/v1\/merchants\/([^/]+)\/profile$/);
+  if (req.method === "PATCH" && merchantProfileMatch) {
+    const user = requireUser(req, res, ["merchant", "admin"]);
+    if (!user) return;
+    const merchant = merchantForUser(user, merchantProfileMatch[1], countryId);
+    if (!merchant || merchant.id !== merchantProfileMatch[1]) return sendError(res, 404, "Merchant profile not found");
+    const body = await readBody(req);
+    for (const key of ["name", "category", "manager_name", "contact_phone", "opening_hours", "address_note", "prep_time_minutes", "delivery_radius_km", "status"]) {
+      if (body[key] !== undefined) merchant[key] = ["prep_time_minutes", "delivery_radius_km"].includes(key) ? Number(body[key]) : body[key];
+    }
+    audit(user, "merchant.profile_updated", "merchant", merchant.id);
+    saveStore();
+    return send(res, 200, { merchant });
+  }
+
+  if (req.method === "POST" && merchantProductsMatch) {
+    const user = requireUser(req, res, ["merchant", "admin"]);
+    if (!user) return;
+    const merchant = merchantForUser(user, merchantProductsMatch[1], countryId);
+    if (!merchant || merchant.id !== merchantProductsMatch[1]) return sendError(res, 404, "Merchant profile not found");
+    const body = await readBody(req);
+    const product = {
+      id: randomUUID(),
+      merchant_id: merchant.id,
+      country_id: countryId,
+      city_id: merchant.city_id,
+      currency: merchant.currency,
+      language: merchant.language,
+      timezone: merchant.timezone,
+      name: body.name || "New menu item",
+      category: body.category || "food",
+      price: Number(body.price || 0),
+      available: body.available !== false,
+      description: body.description || "Merchant-created local demo product.",
+      prep_time_minutes: Number(body.prep_time_minutes || merchant.prep_time_minutes || 15),
+      dietary_tags: body.dietary_tags || [],
+      stock_quantity: Number(body.stock_quantity || 10),
+      popular: Boolean(body.popular)
+    };
+    store.products.push(product);
+    audit(user, "product.created", "product", product.id);
+    saveStore();
+    return send(res, 201, { product });
+  }
+
+  const productMatch = url.pathname.match(/^\/api\/[^/]+\/v1\/products\/([^/]+)$/);
+  if (req.method === "PATCH" && productMatch) {
+    const user = requireUser(req, res, ["merchant", "admin"]);
+    if (!user) return;
+    const product = store.products.find((item) => item.id === productMatch[1] && item.country_id === countryId);
+    if (!product) return sendError(res, 404, "Product not found");
+    const merchant = merchantForUser(user, product.merchant_id, countryId);
+    if (!merchant || merchant.id !== product.merchant_id) return sendError(res, 403, "Cannot update this product");
+    const body = await readBody(req);
+    for (const key of ["name", "category", "description", "available", "popular", "price", "prep_time_minutes", "stock_quantity"]) {
+      if (body[key] !== undefined) product[key] = ["price", "prep_time_minutes", "stock_quantity"].includes(key) ? Number(body[key]) : body[key];
+    }
+    audit(user, "product.updated", "product", product.id);
+    saveStore();
+    return send(res, 200, { product });
+  }
+
   if (req.method === "GET" && url.pathname.endsWith("/products")) {
     return send(res, 200, { products: store.products.filter((product) => product.country_id === countryId) });
   }
@@ -1197,6 +1384,26 @@ async function handleApi(req, res, url) {
     return send(res, 200, { quotes: store.map_quotes.filter((quote) => quote.country_id === countryId) });
   }
 
+  if (req.method === "GET" && url.pathname.endsWith("/locations/live")) {
+    const lat = Number(url.searchParams.get("lat") || HQ_COORDS.lat);
+    const lng = Number(url.searchParams.get("lng") || HQ_COORDS.lng);
+    return send(res, 200, liveLocationSnapshot(countryId, { lat, lng }));
+  }
+
+  if (req.method === "POST" && url.pathname.endsWith("/drivers/location")) {
+    const user = requireUser(req, res, ["driver", "admin"]);
+    if (!user) return;
+    const body = await readBody(req);
+    const driver = store.drivers.find((item) => item.user_id === user.id || (user.role === "admin" && item.id === body.driver_id));
+    if (!driver) return sendError(res, 404, "Driver profile not found");
+    const lat = Number(body.lat ?? body.latitude);
+    const lng = Number(body.lng ?? body.longitude);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return sendError(res, 400, "Latitude and longitude are required");
+    const location = recordDriverLocation(driver, { lat, lng, source: user.role === "admin" ? "admin_demo_update" : "driver_app_update" });
+    saveStore();
+    return send(res, 200, { driver, location });
+  }
+
   if (req.method === "GET" && url.pathname.endsWith("/orders")) {
     const user = requireUser(req, res);
     if (!user) return;
@@ -1391,6 +1598,52 @@ async function handleApi(req, res, url) {
     if (req.method === "GET" && url.pathname.endsWith("/admin/payment-transactions")) return send(res, 200, { transactions: store.payment_transactions.filter((tx) => tx.country_id === countryId) });
     if (req.method === "GET" && url.pathname.endsWith("/admin/sms-messages")) return send(res, 200, { messages: store.sms_messages.filter((message) => message.country_id === countryId) });
     if (req.method === "GET" && url.pathname.endsWith("/admin/trust-verifications")) return send(res, 200, { verifications: store.trust_verifications });
+    if (req.method === "GET" && url.pathname.endsWith("/admin/support-tickets")) return send(res, 200, { tickets: store.support_tickets.filter((ticket) => ticket.country_id === countryId) });
+    if (req.method === "GET" && url.pathname.endsWith("/admin/audit-logs")) return send(res, 200, { logs: store.audit_logs.filter((log) => log.country_id === countryId).slice(-100).reverse() });
+    if (req.method === "GET" && url.pathname.endsWith("/admin/security-roles")) {
+      return send(res, 200, {
+        roles: [
+          { role: "admin", permissions: ["orders:read", "orders:update", "merchants:approve", "drivers:approve", "payments:review", "wallet:adjust", "feature_flags:update", "audit:read"] },
+          { role: "merchant", permissions: ["merchant:profile:update", "products:update", "orders:accept", "orders:prepare", "support:create"] },
+          { role: "driver", permissions: ["dispatch:accept", "orders:pickup", "orders:deliver", "location:update"] },
+          { role: "customer", permissions: ["cart:update", "orders:create", "orders:read", "support:create"] }
+        ],
+        mfa_required_for_admin: true,
+        session_policy: "Local demo sessions. Production requires signed JWT, refresh rotation, MFA, and device/session audit."
+      });
+    }
+    if (req.method === "GET" && url.pathname.endsWith("/admin/payment-providers")) {
+      return send(res, 200, {
+        providers: ["Telebirr", "CBE Birr", "Chapa", "SantimPay"].map((provider) => ({
+          provider,
+          status: "planned_integration",
+          mode: "dummy_payment_only",
+          real_money_moved: false,
+          requires_webhook_audit: true,
+          requires_settlement_reconciliation: true
+        }))
+      });
+    }
+    if (req.method === "GET" && url.pathname.endsWith("/admin/commission-settings")) {
+      return send(res, 200, {
+        settings: store.merchants.filter((merchant) => merchant.country_id === countryId).map((merchant) => ({
+          merchant_id: merchant.id,
+          merchant_name: merchant.name,
+          commission_rate: merchant.commission_rate,
+          payout_schedule: merchant.payout_schedule
+        }))
+      });
+    }
+    if (req.method === "GET" && url.pathname.endsWith("/admin/neighborhoods")) {
+      return send(res, 200, {
+        neighborhoods: [
+          { id: "bole-medhanealem", city_id: "bole", name: "Bole Medhanealem", lat: 8.994, lng: 38.789, active: true },
+          { id: "friendship", city_id: "bole", name: "Friendship area", lat: 8.991, lng: 38.792, active: true },
+          { id: "woreda-03", city_id: "bole", name: "Woreda 03", lat: 8.999, lng: 38.782, active: true }
+        ],
+        map_provider: "OpenStreetMap planned first; current local demo uses stored coordinates."
+      });
+    }
     if (req.method === "GET" && url.pathname.endsWith("/admin/details")) {
       return send(res, 200, {
         countries: store.countries,
@@ -1418,6 +1671,51 @@ async function handleApi(req, res, url) {
         map_quotes: store.map_quotes.filter((quote) => quote.country_id === countryId).length,
         legal_holds: store.compliance_reviews.filter((review) => review.legal_hold).length
       });
+    }
+    const merchantStatusMatch = url.pathname.match(/^\/api\/[^/]+\/v1\/admin\/merchants\/([^/]+)\/status$/);
+    if (req.method === "PATCH" && merchantStatusMatch) {
+      const body = await readBody(req);
+      const merchant = store.merchants.find((item) => item.id === merchantStatusMatch[1] && item.country_id === countryId);
+      if (!merchant) return sendError(res, 404, "Merchant not found");
+      merchant.status = body.status || merchant.status;
+      merchant.verified = body.verified ?? merchant.verified;
+      merchant.verification_status = body.verification_status || (merchant.verified ? "verified" : "pending");
+      audit(user, "admin.merchant_status_updated", "merchant", merchant.id, { status: merchant.status, verified: merchant.verified });
+      saveStore();
+      return send(res, 200, { merchant });
+    }
+    const driverStatusMatch = url.pathname.match(/^\/api\/[^/]+\/v1\/admin\/drivers\/([^/]+)\/status$/);
+    if (req.method === "PATCH" && driverStatusMatch) {
+      const body = await readBody(req);
+      const driver = store.drivers.find((item) => item.id === driverStatusMatch[1] && item.country_id === countryId);
+      if (!driver) return sendError(res, 404, "Driver not found");
+      driver.frozen = Boolean(body.frozen);
+      driver.online = body.online ?? driver.online;
+      driver.verification_status = body.verification_status || driver.verification_status;
+      audit(user, "admin.driver_status_updated", "driver", driver.id, { frozen: driver.frozen, online: driver.online });
+      saveStore();
+      return send(res, 200, { driver });
+    }
+    const featureFlagMatch = url.pathname.match(/^\/api\/[^/]+\/v1\/admin\/feature-flags\/([^/]+)$/);
+    if (req.method === "PATCH" && featureFlagMatch) {
+      const body = await readBody(req);
+      const flag = store.feature_flags.find((item) => item.key === decodeURIComponent(featureFlagMatch[1]));
+      if (!flag) return sendError(res, 404, "Feature flag not found");
+      if (!flag.legal_hold) flag.enabled = Boolean(body.enabled);
+      audit(user, "admin.feature_flag_updated", "feature_flag", flag.key, { enabled: flag.enabled });
+      saveStore();
+      return send(res, 200, { flag });
+    }
+    const commissionMatch = url.pathname.match(/^\/api\/[^/]+\/v1\/admin\/commission-settings\/([^/]+)$/);
+    if (req.method === "PATCH" && commissionMatch) {
+      const body = await readBody(req);
+      const merchant = store.merchants.find((item) => item.id === commissionMatch[1] && item.country_id === countryId);
+      if (!merchant) return sendError(res, 404, "Merchant not found");
+      if (body.commission_rate !== undefined) merchant.commission_rate = Number(body.commission_rate);
+      if (body.payout_schedule !== undefined) merchant.payout_schedule = body.payout_schedule;
+      audit(user, "admin.commission_updated", "merchant", merchant.id, { commission_rate: merchant.commission_rate });
+      saveStore();
+      return send(res, 200, { merchant });
     }
   }
 
@@ -1448,6 +1746,19 @@ const server = http.createServer(async (req, res) => {
   }
   sendError(res, 404, "Static asset not found");
 });
+
+let locationTick = 0;
+setInterval(() => {
+  locationTick += 1;
+  for (const driver of store.drivers.filter((item) => item.online && !item.frozen)) {
+    const nextLat = 8.993 + Math.sin(locationTick / 3) * 0.003 + Math.cos(locationTick / 5) * 0.001;
+    const nextLng = 38.788 + Math.cos(locationTick / 4) * 0.003;
+    driver.heading_degrees = Math.round((locationTick * 38) % 360);
+    driver.speed_kph = 14 + (locationTick % 5) * 3;
+    recordDriverLocation(driver, { lat: Number(nextLat.toFixed(6)), lng: Number(nextLng.toFixed(6)), source: "simulated_realtime_location" });
+  }
+  if (locationTick % 4 === 0) saveStore();
+}, 5000);
 
 server.listen(port, () => {
   console.log(`HabeshaGo local MVP listening on http://localhost:${port}`);

@@ -5,8 +5,11 @@ HabeshaGo is ready for local product demos and workflow validation. It is not re
 ## Current Ready Areas
 
 - Local browser app for customer, merchant, driver, and admin workflows.
+- Standalone Merchant Portal at `/merchant` connected to local merchant APIs.
+- Standalone Admin Portal at `/admin` connected to local admin APIs.
 - Role-based signup and login for local testing.
 - Nearby restaurant, cafe, supermarket, and driver discovery.
+- Simulated real-time driver location events and local map markers.
 - Sample cart, order placement, live order tracking, and food-ready notifications.
 - Dummy payment records, simulated SMS logs, sample map/ETA quotes, compliance gates, and legal holds.
 - End-to-end live demo from order placed to delivered.
@@ -16,8 +19,10 @@ HabeshaGo is ready for local product demos and workflow validation. It is not re
 - Replace local JSON persistence with PostgreSQL-backed API storage, migrations, transactions, backups, and restore testing.
 - Harden authentication with refresh tokens, password reset, MFA for admin, device/session tracking, rate limiting, and secure secrets.
 - Integrate real payment providers such as Telebirr, Chapa, and future M-Pesa, including webhooks, refunds, settlement, reconciliation, and audit trails.
+- Integrate Ethiopia payment providers Telebirr, CBE Birr, Chapa, and SantimPay with webhook signature verification, settlement reports, refund controls, and finance audit ownership.
 - Integrate real SMS and push providers with retries, delivery receipts, notification preferences, and opt-out support.
 - Replace sample distance math with production maps, geocoding, routing, ETA, and dispatch optimization.
+- Add OpenStreetMap/Nominatim first, then validated Ethiopia landmark, neighborhood, and local-address intelligence.
 - Build full Flutter customer and driver apps with offline-first SQLite sync.
 - Add observability: structured logs, metrics, traces, uptime monitors, alerts, and error tracking.
 - Add automated tests: unit, integration, E2E, load, security, provider webhook, offline sync, and cash reconciliation tests.
