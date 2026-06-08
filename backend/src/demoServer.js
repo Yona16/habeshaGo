@@ -883,7 +883,18 @@ async function handleApi(req, res, url) {
   const country = store.countries.find((item) => item.id === countryId);
   if (!country && url.pathname !== "/api/v1/countries") return sendError(res, 404, "Unsupported country");
 
-  if (req.method === "GET" && url.pathname === "/api/marketplace/nearby") {
+  if (req.method === "GET" && url.pathname.endsWith("/health")) {
+    return send(res, 200, {
+      status: "ok",
+      countries: store.countries.length,
+      users: store.users.length,
+      merchants: store.merchants.length,
+      products: store.products.length,
+      orders: store.orders.length
+    });
+  }
+
+  if (req.method === "GET" && (url.pathname === "/api/marketplace/nearby" || url.pathname.endsWith("/marketplace/nearby"))) {
     const lat = Number(url.searchParams.get("lat") || url.searchParams.get("latitude") || HQ_COORDS.lat);
     const lng = Number(url.searchParams.get("lng") || url.searchParams.get("longitude") || HQ_COORDS.lng);
     const radiusKm = Number(url.searchParams.get("radiusKm") || url.searchParams.get("radius_km") || 5);

@@ -11,7 +11,6 @@ const state = {
 };
 
 const API_BASE_URL = "http://localhost:4000/api/et/v1";
-const LOCAL_API_ORIGIN = "http://localhost:3000";
 const $ = (selector) => document.querySelector(selector);
 const money = (amount, currency = "ETB") => `${Number(amount || 0).toLocaleString()} ${currency}`;
 const demoAccounts = {
@@ -39,10 +38,21 @@ function signupDefaults(role) {
   };
 }
 
+function apiUrl(path) {
+  if (path.startsWith(API_BASE_URL)) return path;
+  if (path.startsWith("http")) return path;
+  let normalized = path;
+  normalized = normalized.replace(/^\/api\/[^/]+\/v1/i, "");
+  normalized = normalized.replace(/^\/api\/marketplace/i, "/marketplace");
+  normalized = normalized.replace(/^\/api\/admin/i, "/admin");
+  if (!normalized.startsWith("/")) normalized = `/${normalized}`;
+  return `${API_BASE_URL}${normalized}`;
+}
+
 async function api(path, options = {}) {
   const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
   if (state.token) headers.Authorization = `Bearer ${state.token}`;
-  const url = path.startsWith("http") ? path : `${LOCAL_API_ORIGIN}${path}`;
+  const url = apiUrl(path);
   console.log("API URL:", url);
   console.log("Payload:", options.body ? JSON.parse(options.body) : null);
   const response = await fetch(url, { ...options, headers });
@@ -80,7 +90,7 @@ function updateTracker(status) {
 
 function connectEvents() {
   if (state.events) state.events.close();
-  state.events = new EventSource(`/api/${state.country}/v1/events`);
+  state.events = new EventSource(`${API_BASE_URL}/events`);
   state.events.addEventListener("connected", () => {
     $("#liveStatus").textContent = "Connected";
   });
@@ -814,8 +824,7 @@ async function loadRecommendations() {
 
 async function loadProductionReadiness() {
   const report = await api(`/api/${state.country}/v1/production-readiness`);
-  const gateResponse = await fetch(`/api/${state.country}/v1/launch-gate`);
-  const gate = await gateResponse.json().catch(() => ({}));
+  const gate = await api(`/api/${state.country}/v1/launch-gate`);
   $("#productionReadinessSummary").innerHTML = `
     <strong>${report.score}/100 - ${report.production_ready ? "Production ready" : "Not production ready"}</strong>
     <p>${report.summary}</p>
