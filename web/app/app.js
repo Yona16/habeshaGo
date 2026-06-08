@@ -54,8 +54,9 @@ async function api(path, options = {}) {
   const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
   if (state.token) headers.Authorization = `Bearer ${state.token}`;
   const url = apiUrl(path);
+  const payload = options.body ? JSON.parse(options.body) : null;
   console.log("API URL:", url);
-  console.log("Payload:", options.body ? JSON.parse(options.body) : null);
+  console.log("Payload:", payload);
   const response = await fetch(url, { ...options, headers });
   const data = await response.json().catch(() => ({}));
   state.lastApi = { status: response.status, body: data, url };
