@@ -20,11 +20,14 @@
       button { border:0; border-radius:6px; background:var(--green); color:white; padding:9px 12px; cursor:pointer; }
       button.secondary { background:#24435f; }
       button.warn { background:#8a4b07; }
+      button.danger { background:#9b1c1c; }
       table { width:100%; border-collapse: collapse; font-size:14px; }
       th, td { text-align:left; border-bottom:1px solid #e7ecef; padding:9px; vertical-align:top; }
       th { color:var(--muted); font-size:12px; text-transform:uppercase; }
       .actions { display:flex; flex-wrap:wrap; gap:6px; }
       .bar { display:flex; flex-wrap:wrap; gap:10px; align-items:end; }
+      .product-editor { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:8px; min-width:520px; }
+      .product-editor button { align-self:end; }
       #toast { position:fixed; right:16px; bottom:16px; background:#172026; color:white; padding:10px 12px; border-radius:8px; opacity:0; transition:.2s; }
       #toast.show { opacity:1; }
       .action-status { position:fixed; left:16px; right:16px; bottom:16px; z-index:30; max-height:220px; overflow:auto; border:1px solid var(--line); border-radius:8px; background:white; box-shadow:0 12px 30px rgba(23,32,38,.18); padding:12px; font-size:13px; }
@@ -78,8 +81,10 @@
         <div class="bar">
           <label>Name <input id="newProductName" value="New lunch special" /></label>
           <label>Category <input id="newProductCategory" value="food" /></label>
+          <label>Description <input id="newProductDescription" value="Merchant-created local demo product." /></label>
           <label>Price <input id="newProductPrice" type="number" value="250" /></label>
           <label>Stock <input id="newProductStock" type="number" value="10" /></label>
+          <label>Prep minutes <input id="newProductPrep" type="number" value="15" /></label>
           <button id="addProductBtn">Add product</button>
         </div>
         <div id="products"></div>
@@ -172,6 +177,9 @@
         if (!rows.length) return "<div class='card'>No records yet.</div>";
         return `<table><thead><tr>${columns.map(c => `<th>${c.label}</th>`).join("")}<th>Actions</th></tr></thead><tbody>${rows.map(row => `<tr>${columns.map(c => `<td>${c.render ? c.render(row) : row[c.key]}</td>`).join("")}<td><div class="actions">${actions ? actions(row) : ""}</div></td></tr>`).join("")}</tbody></table>`;
       }
+      function esc(value = "") {
+        return String(value ?? "").replace(/[&<>"']/g, (ch) => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[ch]));
+      }
       async function login() {
         const data = await api(`${API_BASE_URL}/auth/login`, { method:"POST", body: JSON.stringify({ email: $("#email").value, password: $("#password").value }) });
         state.token = data.token;
@@ -206,11 +214,19 @@
           ["Payout pending", money(data.payout.payout_pending, data.payout.currency)]
         ].map(([label, value]) => `<div class="metric"><strong>${value}</strong><span>${label}</span></div>`).join("");
         $("#products").innerHTML = table(data.products, [
-          { label:"Product", render:p => `${p.name}<br><small>${p.description || ""}</small>` },
-          { label:"Price", render:p => money(p.price, p.currency) },
-          { label:"Stock", key:"stock_quantity" },
-          { label:"Available", render:p => p.available ? "Yes" : "No" }
-        ], p => `<button data-toggle="${p.id}">${p.available ? "Disable" : "Enable"}</button><button class="secondary" data-price="${p.id}">Save price</button>`);
+          { label:"Product editor", render:p => `
+            <div class="product-editor" data-product-row="${p.id}">
+              <label>Name <input data-field="name" value="${esc(p.name)}" /></label>
+              <label>Category <input data-field="category" value="${esc(p.category)}" /></label>
+              <label>Description <input data-field="description" value="${esc(p.description || "")}" /></label>
+              <label>Price <input data-field="price" type="number" value="${Number(p.price || 0)}" /></label>
+              <label>Stock <input data-field="stock_quantity" type="number" value="${Number(p.stock_quantity || 0)}" /></label>
+              <label>Prep <input data-field="prep_time_minutes" type="number" value="${Number(p.prep_time_minutes || 15)}" /></label>
+            </div>
+          ` },
+          { label:"Available", render:p => p.available ? "Yes" : "No" },
+          { label:"Currency", key:"currency" }
+        ], p => `<button data-edit-product="${p.id}">Save edit</button><button class="secondary" data-toggle="${p.id}">${p.available ? "Disable" : "Enable"}</button>`);
         $("#orders").innerHTML = table(data.orders, [
           { label:"Order", render:o => o.id.slice(0,8) },
           { label:"Customer", key:"customer_name" },
@@ -218,7 +234,15 @@
           { label:"Total", render:o => money(o.total, o.currency) },
           { label:"Address", key:"address_note" }
         ], orderActions);
-        $("#payout").innerHTML = `<p>Gross: ${money(data.payout.gross_sales, data.payout.currency)}</p><p>Commission: ${money(data.payout.commission_due, data.payout.currency)}</p><p>Pending payout: ${money(data.payout.payout_pending, data.payout.currency)}</p>`;
+        $("#payout").innerHTML = `
+          <p>Gross sales: ${money(data.payout.gross_sales, data.payout.currency)}</p>
+          <p>Commission due: ${money(data.payout.commission_due, data.payout.currency)}</p>
+          <p>Pending payout: ${money(data.payout.payout_pending, data.payout.currency)}</p>
+          <p>Open orders: ${data.payout.open_orders}</p>
+          <p>Completed orders: ${data.payout.completed_orders}</p>
+          <p>Payout schedule: ${m.payout_schedule || "weekly"}</p>
+          <p>Wallet ledger: simulated payout summary only; no real money moved.</p>
+        `;
         $("#supportTickets").innerHTML = data.support_tickets.map(t => `<p>${t.subject} - ${t.status}</p>`).join("") || "<p>No support tickets yet.</p>";
         bindRows();
       }
@@ -246,10 +270,13 @@
           await api(`/api/${state.country}/v1/products/${product.id}`, { method:"PATCH", body: JSON.stringify({ available: !product.available }) });
           await load();
         }).catch(() => {}));
-        document.querySelectorAll("[data-price]").forEach(btn => btn.onclick = () => runButtonAction(btn, "Update product price", async () => {
-          const product = state.data.products.find(p => p.id === btn.dataset.price);
-          const price = prompt("New price", product.price);
-          if (price) await api(`/api/${state.country}/v1/products/${product.id}`, { method:"PATCH", body: JSON.stringify({ price }) });
+        document.querySelectorAll("[data-edit-product]").forEach(btn => btn.onclick = () => runButtonAction(btn, "Edit product", async () => {
+          const row = document.querySelector(`[data-product-row="${btn.dataset.editProduct}"]`);
+          const body = {};
+          row.querySelectorAll("[data-field]").forEach((input) => {
+            body[input.dataset.field] = ["price", "stock_quantity", "prep_time_minutes"].includes(input.dataset.field) ? Number(input.value) : input.value;
+          });
+          await api(`/api/${state.country}/v1/products/${btn.dataset.editProduct}`, { method:"PATCH", body: JSON.stringify(body) });
           await load();
         }).catch(() => {}));
       }
@@ -263,7 +290,7 @@
         await load();
       }).catch(() => {});
       $("#addProductBtn").onclick = () => runButtonAction($("#addProductBtn"), "Add product", async () => {
-        await api(`/api/${state.country}/v1/merchants/${state.merchant.id}/products`, { method:"POST", body: JSON.stringify({ name: $("#newProductName").value, category: $("#newProductCategory").value, price: Number($("#newProductPrice").value), stock_quantity: Number($("#newProductStock").value) }) });
+        await api(`/api/${state.country}/v1/merchants/${state.merchant.id}/products`, { method:"POST", body: JSON.stringify({ name: $("#newProductName").value, category: $("#newProductCategory").value, description: $("#newProductDescription").value, price: Number($("#newProductPrice").value), stock_quantity: Number($("#newProductStock").value), prep_time_minutes: Number($("#newProductPrep").value) }) });
         toast("Product added");
         await load();
       }).catch(() => {});

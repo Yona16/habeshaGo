@@ -274,9 +274,81 @@ async function main() {
     assert(dashboard.response.ok, "Merchant dashboard failed");
     assert(dashboard.data.merchant, "Merchant dashboard missing profile");
     assert((dashboard.data.products || []).length > 0, "Merchant dashboard missing products");
+    assert(dashboard.data.payout && typeof dashboard.data.payout.payout_pending === "number", "Merchant dashboard missing payout summary");
+  });
+
+  await step("merchant portal profile, product, payout, and support actions work", async () => {
+    const dashboard = await request("/api/ET/v1/merchant/dashboard", {
+      headers: { Authorization: `Bearer ${merchantToken}` }
+    });
+    const merchant = dashboard.data.merchant;
+    const profile = await request(`/api/ET/v1/merchants/${merchant.id}/profile`, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${merchantToken}` },
+      body: JSON.stringify({
+        name: merchant.name,
+        category: merchant.category,
+        manager_name: merchant.manager_name || "Smoke Manager",
+        contact_phone: merchant.contact_phone || "+251900000003",
+        opening_hours: "Mon-Sun 8:00 AM - 10:00 PM",
+        address_note: merchant.address_note || "Smoke merchant address",
+        prep_time_minutes: Number(merchant.prep_time_minutes || 18),
+        delivery_radius_km: Number(merchant.delivery_radius_km || 4)
+      })
+    });
+    assert(profile.response.ok && profile.data.merchant.id === merchant.id, "Merchant profile save failed");
+    const stamp = Date.now();
+    const created = await request(`/api/ET/v1/merchants/${merchant.id}/products`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${merchantToken}` },
+      body: JSON.stringify({
+        name: `Smoke Merchant Item ${stamp}`,
+        category: "food",
+        description: "Smoke-created merchant product.",
+        price: 275,
+        stock_quantity: 9,
+        prep_time_minutes: 12
+      })
+    });
+    assert(created.response.status === 201 && created.data.product.id, "Merchant add product failed");
+    const productId = created.data.product.id;
+    const edited = await request(`/api/ET/v1/products/${productId}`, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${merchantToken}` },
+      body: JSON.stringify({
+        name: `Edited Smoke Merchant Item ${stamp}`,
+        category: "food",
+        description: "Smoke-edited merchant product.",
+        price: 315,
+        stock_quantity: 7,
+        prep_time_minutes: 14
+      })
+    });
+    assert(edited.response.ok && edited.data.product.price === 315 && edited.data.product.stock_quantity === 7, "Merchant edit product failed");
+    const toggled = await request(`/api/ET/v1/products/${productId}`, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${merchantToken}` },
+      body: JSON.stringify({ available: false })
+    });
+    assert(toggled.response.ok && toggled.data.product.available === false, "Merchant toggle availability failed");
+    const support = await request("/api/ET/v1/support/tickets", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${merchantToken}` },
+      body: JSON.stringify({ subject: "Merchant smoke support ticket", priority: "normal" })
+    });
+    assert(support.response.status === 201 && support.data.ticket.subject, "Merchant support ticket failed");
+    const refreshed = await request("/api/ET/v1/merchant/dashboard", {
+      headers: { Authorization: `Bearer ${merchantToken}` }
+    });
+    assert(refreshed.response.ok && refreshed.data.products.some((item) => item.id === productId), "Merchant dashboard did not reload added product");
+    assert(refreshed.data.support_tickets.some((ticket) => ticket.id === support.data.ticket.id), "Merchant dashboard did not reload support ticket");
   });
 
   await step("merchant receives, accepts, and prepares order", async () => {
+    const incoming = await request("/api/ET/v1/merchant/dashboard", {
+      headers: { Authorization: `Bearer ${merchantToken}` }
+    });
+    assert(incoming.response.ok && incoming.data.orders.some((order) => order.id === flowOrderId), "Merchant incoming orders missing customer order");
     const transitions = ["accepted", "preparing", "ready_for_pickup"];
     for (const status of transitions) {
       const update = await request(`/api/ET/v1/orders/${flowOrderId}/status`, {
@@ -292,6 +364,27 @@ async function main() {
       body: "{}"
     });
     assert(dispatch.response.status === 201, "Merchant driver request failed");
+  });
+
+  await step("merchant can reject an incoming order", async () => {
+    const cart = await request("/api/ET/v1/cart/sample", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ bundle: "family_lunch" })
+    });
+    assert(cart.response.status === 201, "Reject-order sample cart failed");
+    const order = await request("/api/ET/v1/orders", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ payment_method: "cash", address_note: "Reject flow address", destination: { lat: 8.994, lng: 38.789 } })
+    });
+    assert(order.response.status === 201, "Reject-order placement failed");
+    const rejected = await request(`/api/ET/v1/orders/${order.data.order.id}/status`, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${merchantToken}` },
+      body: JSON.stringify({ status: "rejected" })
+    });
+    assert(rejected.response.ok && rejected.data.order.status === "rejected", "Merchant reject order failed");
   });
 
   await step("driver accepts delivery and delivers order", async () => {
