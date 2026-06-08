@@ -26,6 +26,7 @@ async function step(name, run) {
 
 async function main() {
   let token = "";
+  let adminToken = "";
 
   await step("web app loads", async () => {
     const response = await fetch(`${baseUrl}/`);
@@ -85,6 +86,35 @@ async function main() {
     });
     assert(response.status === 201, "Order placement failed");
     assert(data.order && data.order.status === "placed", "Order was not placed");
+  });
+
+  await step("admin login works", async () => {
+    const { response, data } = await request("/api/ET/v1/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email: "admin@habeshago.local", password: "Admin123!" })
+    });
+    assert(response.ok, "Admin login failed");
+    assert(data.user && data.user.role === "admin", "Admin login did not return admin role");
+    adminToken = data.token;
+  });
+
+  await step("admin can create and read SMS logs", async () => {
+    const smsBody = `HabeshaGo smoke SMS ${Date.now()}`;
+    const create = await request("/api/ET/v1/sms/simulate", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${adminToken}` },
+      body: JSON.stringify({
+        to: "+251900000002",
+        template: "SMOKE_TEST",
+        body: smsBody
+      })
+    });
+    assert(create.response.status === 201, "Admin SMS simulation failed");
+    const logs = await request("/api/ET/v1/admin/sms-messages", {
+      headers: { Authorization: `Bearer ${adminToken}` }
+    });
+    assert(logs.response.ok, "Admin SMS logs failed");
+    assert((logs.data.messages || []).some((message) => message.body === smsBody), "Created SMS log was not returned");
   });
 
   console.log("Smoke test complete.");

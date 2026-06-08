@@ -158,12 +158,10 @@ function activateRoleTab(role) {
   document.querySelectorAll(".tab, .view").forEach((el) => el.classList.remove("active"));
   tabButton.classList.add("active");
   $(`#${view}`).classList.add("active");
+  window.location.hash = view;
 }
 
-async function login(event) {
-  event.preventDefault();
-  const email = $("#authEmail").value.trim().toLowerCase();
-  const password = $("#authPassword").value;
+async function loginWithCredentials(email, password) {
   const data = await api(`/api/${state.country}/v1/auth/login`, {
     method: "POST",
     body: JSON.stringify({ email, password })
@@ -172,6 +170,11 @@ async function login(event) {
   toast(`Logged in as ${data.user.role}`);
   activateRoleTab(data.user.role);
   await refreshAll();
+}
+
+async function login(event) {
+  event.preventDefault();
+  await loginWithCredentials($("#authEmail").value.trim().toLowerCase(), $("#authPassword").value);
 }
 
 async function register(event) {
@@ -546,8 +549,9 @@ async function loadDriverRequests() {
 }
 
 async function loadAdmin() {
-  if (!state.token || state.user.role !== "admin") {
+  if (!state.token || !state.user || state.user.role !== "admin") {
     $("#adminReports").innerHTML = "";
+    $("#adminOrders").innerHTML = "<div class='card'>Login as admin to view all orders.</div>";
     $("#featureFlags").innerHTML = "<div class='card'>Login as admin to view operations.</div>";
     $("#paymentsPanel").innerHTML = "<div class='card'>Login as admin.</div>";
     $("#smsPanel").innerHTML = "<div class='card'>Login as admin.</div>";
@@ -590,13 +594,13 @@ async function loadAdmin() {
     { label: "Amount", render: (p) => money(p.amount, p.currency) },
     { label: "Real money", render: (p) => p.real_money_moved ? "Yes" : "No" }
   ]);
-  $("#smsPanel").innerHTML = table(sms.messages, [
+  $("#smsPanel").innerHTML = sms.messages.length ? table(sms.messages, [
     { label: "SMS", render: (m) => m.id.slice(0, 8) },
     { label: "To", key: "to" },
     { label: "Template", key: "template" },
     { label: "Status", key: "status" },
     { label: "Body", key: "body" }
-  ]);
+  ]) : "<div class='card'>No SMS logs yet. Click Log Sample SMS or place an order to create a simulated SMS record.</div>";
   $("#compliancePanel").innerHTML = compliance.reviews.map((review) => `
     <article class="card">
       <h3>${review.area}</h3>
@@ -792,6 +796,8 @@ document.querySelectorAll(".tab").forEach((button) => {
     document.querySelectorAll(".tab, .view").forEach((el) => el.classList.remove("active"));
     button.classList.add("active");
     $(`#${button.dataset.view}`).classList.add("active");
+    window.location.hash = button.dataset.view;
+    if (button.dataset.view === "admin") loadAdmin().catch((error) => toast(error.message));
   });
 });
 
@@ -805,6 +811,8 @@ document.querySelectorAll("[data-demo]").forEach((button) => {
   button.addEventListener("click", () => {
     setAuthMode("login");
     setRole(button.dataset.demo);
+    const demo = demoAccounts[button.dataset.demo];
+    if (demo) loginWithCredentials(demo.email, demo.password).catch((error) => toast(error.message));
   });
 });
 $("#authForm").addEventListener("submit", (event) => submitAuth(event).catch((error) => toast(error.message)));
