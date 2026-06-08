@@ -89,14 +89,18 @@ function seedData() {
     merchants: [
       { id: "merchant-1", owner_user_id: "merchant-user-1", country_id: "ET", city_id: "bole", currency: "ETB", language: "am", timezone: "Africa/Addis_Ababa", name: "Addis Chefs", category: "restaurant", women_owned: true, verified: true, status: "open", commission_rate: 0.12, rating: 4.7, review_count: 128, latitude: 8.996, longitude: 38.787, address_note: "Blue gate next to Medhanealem Church", contact_phone: "+251911111111", manager_name: "Mimi Alemu", opening_hours: "Mon-Sun 8:00 AM - 10:00 PM", prep_time_minutes: 18, delivery_radius_km: 4, payout_schedule: "weekly", trust_score: 92, verification_status: "verified", support_notes: "High demand lunch merchant. Confirm kitfo spice level before dispatch." },
       { id: "merchant-2", owner_user_id: "merchant-user-1", country_id: "ET", city_id: "bole", currency: "ETB", language: "en", timezone: "Africa/Addis_Ababa", name: "Bole Fresh Grocery", category: "grocery", women_owned: false, verified: true, status: "open", commission_rate: 0.08, rating: 4.5, review_count: 86, latitude: 8.991, longitude: 38.792, address_note: "Friendship area", contact_phone: "+251922222222", manager_name: "Dawit Bekele", opening_hours: "Mon-Sat 7:00 AM - 9:00 PM", prep_time_minutes: 12, delivery_radius_km: 3, payout_schedule: "weekly", trust_score: 89, verification_status: "verified", support_notes: "Grocery substitutions allowed after customer confirmation." },
-      { id: "merchant-3", owner_user_id: "merchant-user-1", country_id: "ET", city_id: "bole", currency: "ETB", language: "am", timezone: "Africa/Addis_Ababa", name: "Almaz Injera House", category: "marketplace", women_owned: true, verified: false, status: "open", commission_rate: 0.07, rating: 4.4, review_count: 42, latitude: 8.999, longitude: 38.782, address_note: "Woreda 03, yellow door near school", contact_phone: "+251933333333", manager_name: "Almaz Tesfaye", opening_hours: "Mon-Fri 6:00 AM - 7:00 PM", prep_time_minutes: 25, delivery_radius_km: 2, payout_schedule: "weekly", trust_score: 81, verification_status: "pending", support_notes: "Home-based seller; verify quantity before accepting bulk orders." }
+      { id: "merchant-3", owner_user_id: "merchant-user-1", country_id: "ET", city_id: "bole", currency: "ETB", language: "am", timezone: "Africa/Addis_Ababa", name: "Almaz Injera House", category: "marketplace", women_owned: true, verified: false, status: "open", commission_rate: 0.07, rating: 4.4, review_count: 42, latitude: 8.999, longitude: 38.782, address_note: "Woreda 03, yellow door near school", contact_phone: "+251933333333", manager_name: "Almaz Tesfaye", opening_hours: "Mon-Fri 6:00 AM - 7:00 PM", prep_time_minutes: 25, delivery_radius_km: 2, payout_schedule: "weekly", trust_score: 81, verification_status: "pending", support_notes: "Home-based seller; verify quantity before accepting bulk orders." },
+      { id: "merchant-4", owner_user_id: "merchant-user-1", country_id: "ET", city_id: "bole", currency: "ETB", language: "en", timezone: "Africa/Addis_Ababa", name: "Bole Buna Cafe", category: "cafe", women_owned: false, verified: true, status: "open", commission_rate: 0.1, rating: 4.8, review_count: 212, latitude: 8.995, longitude: 38.790, address_note: "Across from Edna Mall", contact_phone: "+251944444444", manager_name: "Sara Coffee", opening_hours: "Mon-Sun 6:30 AM - 11:00 PM", prep_time_minutes: 9, delivery_radius_km: 3, payout_schedule: "weekly", trust_score: 94, verification_status: "verified", support_notes: "Popular coffee and pastry spot near Bole." },
+      { id: "merchant-5", owner_user_id: "merchant-user-1", country_id: "ET", city_id: "bole", currency: "ETB", language: "en", timezone: "Africa/Addis_Ababa", name: "Bole Supermarket Express", category: "supermarket", women_owned: false, verified: true, status: "open", commission_rate: 0.08, rating: 4.6, review_count: 167, latitude: 8.990, longitude: 38.785, address_note: "Near airport road", contact_phone: "+251955555555", manager_name: "Hana Market", opening_hours: "Mon-Sun 7:00 AM - 12:00 AM", prep_time_minutes: 11, delivery_radius_km: 5, payout_schedule: "weekly", trust_score: 90, verification_status: "verified", support_notes: "Good for household staples and fast grocery baskets." }
     ],
     products: [
       { id: "product-1", merchant_id: "merchant-1", country_id: "ET", city_id: "bole", currency: "ETB", language: "am", timezone: "Africa/Addis_Ababa", name: "Kitfo", category: "food", price: 350, available: true, description: "Minced lean beef with mitmita, ayib, and kocho.", prep_time_minutes: 18, dietary_tags: ["spicy", "beef"], stock_quantity: 24, popular: true },
       { id: "product-2", merchant_id: "merchant-1", country_id: "ET", city_id: "bole", currency: "ETB", language: "am", timezone: "Africa/Addis_Ababa", name: "Shiro", category: "food", price: 220, available: true, description: "Slow-cooked chickpea stew with injera.", prep_time_minutes: 14, dietary_tags: ["vegetarian"], stock_quantity: 30, popular: true },
       { id: "product-3", merchant_id: "merchant-2", country_id: "ET", city_id: "bole", currency: "ETB", language: "en", timezone: "Africa/Addis_Ababa", name: "Fresh Injera Pack", category: "grocery", price: 120, available: true, description: "Pack of fresh injera for family meals.", prep_time_minutes: 6, dietary_tags: ["teff"], stock_quantity: 60, popular: false },
       { id: "product-4", merchant_id: "merchant-2", country_id: "ET", city_id: "bole", currency: "ETB", language: "en", timezone: "Africa/Addis_Ababa", name: "Family Vegetable Box", category: "grocery", price: 480, available: true, description: "Tomato, onion, potato, carrot, and greens.", prep_time_minutes: 10, dietary_tags: ["family", "fresh"], stock_quantity: 15, popular: true },
-      { id: "product-5", merchant_id: "merchant-3", country_id: "ET", city_id: "bole", currency: "ETB", language: "am", timezone: "Africa/Addis_Ababa", name: "Teff Injera Bundle", category: "marketplace", price: 180, available: true, description: "Home-made teff injera bundle from verified home seller.", prep_time_minutes: 25, dietary_tags: ["home-made", "teff"], stock_quantity: 12, popular: false }
+      { id: "product-5", merchant_id: "merchant-3", country_id: "ET", city_id: "bole", currency: "ETB", language: "am", timezone: "Africa/Addis_Ababa", name: "Teff Injera Bundle", category: "marketplace", price: 180, available: true, description: "Home-made teff injera bundle from verified home seller.", prep_time_minutes: 25, dietary_tags: ["home-made", "teff"], stock_quantity: 12, popular: false },
+      { id: "product-6", merchant_id: "merchant-4", country_id: "ET", city_id: "bole", currency: "ETB", language: "en", timezone: "Africa/Addis_Ababa", name: "Macchiato and Croissant", category: "cafe", price: 190, available: true, description: "Fresh macchiato with butter croissant.", prep_time_minutes: 9, dietary_tags: ["coffee", "pastry"], stock_quantity: 40, popular: true },
+      { id: "product-7", merchant_id: "merchant-5", country_id: "ET", city_id: "bole", currency: "ETB", language: "en", timezone: "Africa/Addis_Ababa", name: "Supermarket Essentials Pack", category: "supermarket", price: 650, available: true, description: "Milk, bread, eggs, water, and cleaning basics.", prep_time_minutes: 11, dietary_tags: ["household", "grocery"], stock_quantity: 25, popular: true }
     ],
     drivers: [
       {
@@ -203,6 +207,12 @@ function loadStore() {
 
 function normalizeDetails(data) {
   const seeded = seedData();
+  for (const merchant of seeded.merchants) {
+    if (!data.merchants.some((item) => item.id === merchant.id)) data.merchants.push(merchant);
+  }
+  for (const product of seeded.products) {
+    if (!data.products.some((item) => item.id === product.id)) data.products.push(product);
+  }
   for (const merchant of data.merchants || []) {
     const fallback = seeded.merchants.find((item) => item.id === merchant.id) || {};
     merchant.contact_phone = merchant.contact_phone || fallback.contact_phone || "";
@@ -712,6 +722,8 @@ async function handleApi(req, res, url) {
 
   if (req.method === "GET" && url.pathname.endsWith("/merchants")) {
     const city = url.searchParams.get("city");
+    const category = String(url.searchParams.get("category") || "").toLowerCase();
+    const search = String(url.searchParams.get("search") || "").trim().toLowerCase();
     const lat = Number(url.searchParams.get("lat") || HQ_COORDS.lat);
     const lng = Number(url.searchParams.get("lng") || HQ_COORDS.lng);
     const radiusKm = Number(url.searchParams.get("radius_km") || 999);
@@ -719,6 +731,8 @@ async function handleApi(req, res, url) {
     const sort = url.searchParams.get("sort") || "default";
     let merchants = store.merchants
       .filter((merchant) => merchant.country_id === countryId && (!city || merchant.city_id === city))
+      .filter((merchant) => !category || merchant.category === category)
+      .filter((merchant) => !search || [merchant.name, merchant.category, merchant.address_note, merchant.support_notes].join(" ").toLowerCase().includes(search))
       .map((merchant) => ({
         ...merchant,
         distance_km: Number(distanceKm({ lat, lng }, { lat: merchant.latitude, lng: merchant.longitude }).toFixed(2))

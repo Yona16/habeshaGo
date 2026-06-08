@@ -183,7 +183,9 @@ async function loadCatalog() {
   const radius = $("#nearbyRadius")?.value || 5;
   const minRating = $("#minRating")?.value || 0;
   const sort = $("#merchantSort")?.value || "nearest";
-  const merchants = await api(`/api/${state.country}/v1/merchants?lat=${lat}&lng=${lng}&radius_km=${radius}&min_rating=${minRating}&sort=${sort}`);
+  const category = encodeURIComponent($("#merchantCategory")?.value || "");
+  const search = encodeURIComponent($("#merchantSearch")?.value || "");
+  const merchants = await api(`/api/${state.country}/v1/merchants?lat=${lat}&lng=${lng}&radius_km=${radius}&min_rating=${minRating}&sort=${sort}&category=${category}&search=${search}`);
   const products = await api(`/api/${state.country}/v1/products`);
   state.merchants = merchants.merchants;
   state.products = products.products;
