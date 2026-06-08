@@ -100,15 +100,20 @@
     </main>
     <div id="toast"></div>
     <script>
-      const state = { country: "ET", token: localStorage.getItem("hg_merchant_token") || "", merchant: null, data: null };
+      const API_BASE_URL = "http://localhost:4000/api/et/v1";
+      const LOCAL_API_ORIGIN = "http://localhost:3000";
+      const state = { country: "ET", token: localStorage.getItem("hg_merchant_token") || "", user: JSON.parse(localStorage.getItem("hg_merchant_user") || "null"), merchant: null, data: null };
       const $ = (id) => document.querySelector(id);
       const money = (n, c = "ETB") => `${Number(n || 0).toLocaleString()} ${c}`;
       function toast(message) { const el = $("#toast"); el.textContent = message; el.classList.add("show"); setTimeout(() => el.classList.remove("show"), 2200); }
       async function api(path, options = {}) {
         const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
         if (state.token) headers.Authorization = `Bearer ${state.token}`;
-        const response = await fetch(path, { ...options, headers });
+        const url = path.startsWith("http") ? path : `${LOCAL_API_ORIGIN}${path}`;
+        console.debug("[HabeshaGo Merchant API request]", options.method || "GET", url, options.body ? JSON.parse(options.body) : "");
+        const response = await fetch(url, { ...options, headers });
         const data = await response.json().catch(() => ({}));
+        console.debug("[HabeshaGo Merchant API response]", response.status, data);
         if (!response.ok) throw new Error(data.error || "Request failed");
         return data;
       }
@@ -117,9 +122,11 @@
         return `<table><thead><tr>${columns.map(c => `<th>${c.label}</th>`).join("")}<th>Actions</th></tr></thead><tbody>${rows.map(row => `<tr>${columns.map(c => `<td>${c.render ? c.render(row) : row[c.key]}</td>`).join("")}<td><div class="actions">${actions ? actions(row) : ""}</div></td></tr>`).join("")}</tbody></table>`;
       }
       async function login() {
-        const data = await api(`/api/${state.country}/v1/auth/login`, { method:"POST", body: JSON.stringify({ email: $("#email").value, password: $("#password").value }) });
+        const data = await api(`${API_BASE_URL}/auth/login`, { method:"POST", body: JSON.stringify({ email: $("#email").value, password: $("#password").value }) });
         state.token = data.token;
+        state.user = data.user;
         localStorage.setItem("hg_merchant_token", state.token);
+        localStorage.setItem("hg_merchant_user", JSON.stringify(state.user));
         $("#session").textContent = `${data.user.name} (${data.user.role})`;
         await load();
       }
@@ -214,6 +221,7 @@
         toast("Support ticket created");
         await load();
       };
+      if (state.user) $("#session").textContent = `${state.user.name} (${state.user.role})`;
       if (state.token) load().catch(e => toast(e.message));
     </script>
   </body>

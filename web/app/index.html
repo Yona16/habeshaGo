@@ -127,6 +127,10 @@
               Assigned zone
               <input id="authZone" value="Bole" />
             </label>
+            <label class="signup-only admin-only">
+              Admin signup code
+              <input id="authAdminSignupCode" placeholder="Only required in production" />
+            </label>
             <label class="signup-only customer-driver-only">
               Emergency contact name
               <input id="authEmergencyName" value="Family Contact" />
@@ -137,7 +141,7 @@
             </label>
             <button id="authSubmit" type="submit">Login</button>
           </form>
-          <div id="authStatus" class="auth-status">Auth API ready: /api/ET/v1/auth/login and /api/ET/v1/auth/register</div>
+          <div id="authStatus" class="auth-status">Auth API ready: http://localhost:4000/api/et/v1/auth/login and /auth/signup</div>
           <div id="signupRoleDetails" class="signup-details"></div>
           <div class="demo-buttons" aria-label="Demo logins">
             <button type="button" data-demo="customer">Demo Customer</button>

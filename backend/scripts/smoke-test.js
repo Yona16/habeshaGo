@@ -1,7 +1,21 @@
 const baseUrl = process.env.BASE_URL || "http://localhost:3000";
+const authBaseUrl = process.env.AUTH_BASE_URL || "http://localhost:4000/api/et/v1";
 
 async function request(path, options = {}) {
   const response = await fetch(`${baseUrl}${path}`, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.headers || {})
+    }
+  });
+  const text = await response.text();
+  const data = text ? JSON.parse(text) : {};
+  return { response, data };
+}
+
+async function authRequest(path, options = {}) {
+  const response = await fetch(`${authBaseUrl}${path}`, {
     ...options,
     headers: {
       "Content-Type": "application/json",
@@ -28,6 +42,8 @@ async function main() {
   let token = "";
   let adminToken = "";
   let merchantToken = "";
+  let driverToken = "";
+  let flowOrderId = "";
 
   await step("web app loads", async () => {
     const response = await fetch(`${baseUrl}/`);
@@ -79,6 +95,34 @@ async function main() {
     token = data.token;
   });
 
+  await step("configured frontend auth backend works", async () => {
+    const stamp = Date.now();
+    const signup = await authRequest("/auth/signup", {
+      method: "POST",
+      body: JSON.stringify({
+        name: "Frontend Auth Smoke",
+        email: `frontend-auth-${stamp}@habeshago.local`,
+        phone: `+2519${String(stamp).slice(-8)}`,
+        password: "Customer123!",
+        role: "customer",
+        city_id: "bole",
+        preferred_address: "Bole smoke address",
+        landmark_note: "Smoke landmark"
+      })
+    });
+    assert(signup.response.status === 201, "Configured auth signup failed");
+    assert(signup.data.token && signup.data.user, "Configured auth signup missing token/user");
+    const login = await authRequest("/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email: signup.data.user.email, password: "Customer123!" })
+    });
+    assert(login.response.ok, "Configured auth login failed");
+    const me = await authRequest("/auth/me", {
+      headers: { Authorization: `Bearer ${login.data.token}` }
+    });
+    assert(me.response.ok && me.data.user.email === signup.data.user.email, "Configured auth /me failed");
+  });
+
   await step("sample cart can be created", async () => {
     const { response, data } = await request("/api/ET/v1/cart/sample", {
       method: "POST",
@@ -128,6 +172,7 @@ async function main() {
     });
     assert(response.status === 201, "Order placement failed");
     assert(data.order && data.order.status === "placed", "Order was not placed");
+    flowOrderId = data.order.id;
   });
 
   await step("merchant portal dashboard works", async () => {
@@ -143,6 +188,52 @@ async function main() {
     assert(dashboard.response.ok, "Merchant dashboard failed");
     assert(dashboard.data.merchant, "Merchant dashboard missing profile");
     assert((dashboard.data.products || []).length > 0, "Merchant dashboard missing products");
+  });
+
+  await step("merchant receives, accepts, and prepares order", async () => {
+    const transitions = ["accepted", "preparing", "ready_for_pickup"];
+    for (const status of transitions) {
+      const update = await request(`/api/ET/v1/orders/${flowOrderId}/status`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${merchantToken}` },
+        body: JSON.stringify({ status })
+      });
+      assert(update.response.ok && update.data.order.status === status, `Merchant status ${status} failed`);
+    }
+    const dispatch = await request(`/api/ET/v1/orders/${flowOrderId}/request-driver`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${merchantToken}` },
+      body: "{}"
+    });
+    assert(dispatch.response.status === 201, "Merchant driver request failed");
+  });
+
+  await step("driver accepts delivery and delivers order", async () => {
+    const login = await request("/api/ET/v1/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email: "driver@habeshago.local", password: "Driver123!" })
+    });
+    assert(login.response.ok, "Driver login failed");
+    driverToken = login.data.token;
+    const requests = await request("/api/ET/v1/drivers/requests", {
+      headers: { Authorization: `Bearer ${driverToken}` }
+    });
+    const requestForOrder = (requests.data.requests || []).find((item) => item.order_id === flowOrderId);
+    assert(requestForOrder, "Driver request for smoke order not found");
+    const accept = await request(`/api/ET/v1/drivers/requests/${requestForOrder.id}/accept`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${driverToken}` },
+      body: "{}"
+    });
+    assert(accept.response.ok && accept.data.order.status === "driver_accepted", "Driver accept failed");
+    for (const status of ["picked_up", "on_the_way", "delivered"]) {
+      const update = await request(`/api/ET/v1/orders/${flowOrderId}/status`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${driverToken}` },
+        body: JSON.stringify({ status })
+      });
+      assert(update.response.ok && update.data.order.status === status, `Driver status ${status} failed`);
+    }
   });
 
   await step("admin login works", async () => {
@@ -185,6 +276,19 @@ async function main() {
     });
     assert(logs.response.ok, "Admin SMS logs failed");
     assert((logs.data.messages || []).some((message) => message.body === smsBody), "Created SMS log was not returned");
+  });
+
+  await step("wallet transactions are audited", async () => {
+    const adjustment = await request("/api/ET/v1/wallet/admin-adjustment", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${adminToken}` },
+      body: JSON.stringify({ user_id: "customer-1", amount: 25, reason: "smoke_wallet_audit" })
+    });
+    assert(adjustment.response.status === 201, "Wallet adjustment failed");
+    const tx = await request("/api/ET/v1/admin/wallet-transactions", {
+      headers: { Authorization: `Bearer ${adminToken}` }
+    });
+    assert(tx.response.ok && (tx.data.transactions || []).some((item) => item.reason === "smoke_wallet_audit"), "Wallet audit transaction not found");
   });
 
   await step("admin portal controls work", async () => {

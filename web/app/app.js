@@ -10,8 +10,8 @@ const state = {
   events: null
 };
 
-const API_BASE_URL = "http://localhost:3000/api";
-const API_ORIGIN = API_BASE_URL.replace(/\/api$/, "");
+const API_BASE_URL = "http://localhost:4000/api/et/v1";
+const LOCAL_API_ORIGIN = "http://localhost:3000";
 const $ = (selector) => document.querySelector(selector);
 const money = (amount, currency = "ETB") => `${Number(amount || 0).toLocaleString()} ${currency}`;
 const demoAccounts = {
@@ -42,7 +42,7 @@ function signupDefaults(role) {
 async function api(path, options = {}) {
   const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
   if (state.token) headers.Authorization = `Bearer ${state.token}`;
-  const url = path.startsWith("http") ? path : `${API_ORIGIN}${path}`;
+  const url = path.startsWith("http") ? path : `${LOCAL_API_ORIGIN}${path}`;
   console.debug("[HabeshaGo API request]", options.method || "GET", url, options.body ? JSON.parse(options.body) : "");
   const response = await fetch(url, { ...options, headers });
   const data = await response.json().catch(() => ({}));
@@ -219,7 +219,7 @@ async function refreshAfterAuth(role) {
 
 async function loginWithCredentials(email, password) {
   setAuthStatus("Signing in...");
-  const data = await api(`/api/${state.country}/v1/auth/login`, {
+  const data = await api(`${API_BASE_URL}/auth/login`, {
     method: "POST",
     body: JSON.stringify({ email, password })
   });
@@ -249,28 +249,36 @@ async function register(event) {
     email: $("#authEmail").value.trim().toLowerCase(),
     phone: $("#authPhone").value,
     password: $("#authPassword").value,
-    business_name: $("#authBusiness").value,
-    category: $("#authMerchantCategory").value,
-    manager_name: $("#authManagerName").value,
-    merchant_phone: $("#authMerchantPhone").value,
-    opening_hours: $("#authOpeningHours").value,
-    merchant_address: $("#authMerchantAddress").value,
-    prep_time_minutes: Number($("#authPrepTime").value),
-    delivery_radius_km: Number($("#authDeliveryRadius").value),
-    women_owned: $("#authWomenOwned").checked,
-    preferred_address: $("#authAddress").value,
-    landmark_note: $("#authLandmark").value,
-    vehicle_type: $("#authVehicleType").value,
-    vehicle_plate: $("#authVehiclePlate").value,
-    license_number: $("#authLicense").value,
-    assigned_zone: $("#authZone").value,
-    emergency_contact_name: $("#authEmergencyName").value,
-    emergency_contact_phone: $("#authEmergencyPhone").value,
-    city_id: "bole",
-    language: "en"
+    city_id: "bole"
   };
+  if (role === "driver") {
+    Object.assign(payload, {
+      vehicle_type: $("#authVehicleType").value,
+      vehicle_plate: $("#authVehiclePlate").value,
+      license_number: $("#authLicense").value,
+      assigned_zone: $("#authZone").value
+    });
+  }
+  if (role === "merchant") {
+    Object.assign(payload, {
+      business_name: $("#authBusiness").value,
+      category: $("#authMerchantCategory").value,
+      manager_name: $("#authManagerName").value,
+      merchant_phone: $("#authMerchantPhone").value,
+      merchant_address: $("#authMerchantAddress").value
+    });
+  }
+  if (role === "customer") {
+    Object.assign(payload, {
+      preferred_address: $("#authAddress").value,
+      landmark_note: $("#authLandmark").value
+    });
+  }
+  if (role === "admin" && $("#authAdminSignupCode")) {
+    payload.admin_signup_code = $("#authAdminSignupCode").value;
+  }
   setAuthStatus("Creating account...");
-  const data = await api(`/api/${state.country}/v1/auth/register`, {
+  const data = await api(`${API_BASE_URL}/auth/signup`, {
     method: "POST",
     body: JSON.stringify(payload)
   });

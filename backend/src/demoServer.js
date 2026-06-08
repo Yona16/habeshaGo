@@ -995,6 +995,12 @@ async function handleApi(req, res, url) {
     return send(res, 200, { token, user: publicUser(user), expires_in_seconds: SESSION_TTL_MS / 1000 });
   }
 
+  if (req.method === "GET" && url.pathname.endsWith("/auth/me")) {
+    const user = requireUser(req, res);
+    if (!user) return;
+    return send(res, 200, { user: publicUser(user) });
+  }
+
   if (req.method === "POST" && url.pathname.endsWith("/auth/verify/send")) {
     const body = await readBody(req);
     const user = store.users.find((item) => item.email === String(body.email || "").trim().toLowerCase() || item.phone === String(body.phone || "").trim());
@@ -1014,7 +1020,7 @@ async function handleApi(req, res, url) {
     return send(res, 202, { request, message: "Password reset request logged. Production must send a verified reset link/code." });
   }
 
-  if (req.method === "POST" && url.pathname.endsWith("/auth/register")) {
+  if (req.method === "POST" && (url.pathname.endsWith("/auth/register") || url.pathname.endsWith("/auth/signup"))) {
     const body = await readBody(req);
     const role = ["customer", "driver", "merchant", "admin"].includes(body.role) ? body.role : "customer";
     const email = String(body.email || "").trim().toLowerCase();
@@ -1124,12 +1130,6 @@ async function handleApi(req, res, url) {
     broadcast("auth.registered", { user_id: user.id, role });
     saveStore();
     return send(res, 201, { token, user: publicUser(user), expires_in_seconds: SESSION_TTL_MS / 1000 });
-  }
-
-  if (req.method === "GET" && url.pathname.endsWith("/auth/me")) {
-    const user = requireUser(req, res);
-    if (!user) return;
-    return send(res, 200, { user: publicUser(user) });
   }
 
   if (req.method === "GET" && url.pathname.endsWith("/profile/details")) {

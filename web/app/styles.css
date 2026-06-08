@@ -196,6 +196,7 @@ body:not([data-auth-role="merchant"]) .merchant-only {
 
 body[data-auth-role="customer"] .customer-only,
 body[data-auth-role="driver"] .driver-only,
+body[data-auth-role="admin"] .admin-only,
 body[data-auth-role="customer"] .customer-driver-only,
 body[data-auth-role="driver"] .customer-driver-only {
   display: grid;
@@ -203,6 +204,7 @@ body[data-auth-role="driver"] .customer-driver-only {
 
 body:not([data-auth-role="customer"]) .customer-only,
 body:not([data-auth-role="driver"]) .driver-only,
+body:not([data-auth-role="admin"]) .admin-only,
 body:not([data-auth-role="customer"]):not([data-auth-role="driver"]) .customer-driver-only {
   display: none;
 }
