@@ -541,6 +541,110 @@ function transitionOrder(order, nextStatus, actor, reason) {
   }
 }
 
+function createDemoOrder(country, customerUser) {
+  const items = calculateItems([
+    { product_id: "product-1", quantity: 1 },
+    { product_id: "product-2", quantity: 1 }
+  ], country.id);
+  const subtotal = items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
+  const mapQuote = quoteDelivery({ lat: 8.997, lng: 38.786 });
+  const order = {
+    id: randomUUID(),
+    country_id: country.id,
+    city_id: customerUser.city_id,
+    currency: country.currency,
+    language: customerUser.language,
+    timezone: country.timezone,
+    customer_user_id: customerUser.id,
+    merchant_id: "merchant-1",
+    driver_id: null,
+    status: "placed",
+    subtotal,
+    delivery_fee: mapQuote.fee,
+    total: subtotal + mapQuote.fee,
+    payment_method: "Cash",
+    cash_on_delivery: true,
+    address_note: "Live demo address: blue gate near Medhanealem Church",
+    safety_mode: "standard",
+    community_delivery: false,
+    map_quote: mapQuote,
+    items,
+    status_history: [{ status: "placed", actor_user_id: customerUser.id, at: new Date().toISOString() }],
+    created_at: new Date().toISOString()
+  };
+  store.orders.push(order);
+  notifyUser({
+    user_id: customerUser.id,
+    country_id: country.id,
+    order_id: order.id,
+    type: "order_placed",
+    title: "Live demo order placed",
+    body: `Demo order ${order.id.slice(0, 8)} is now live.`
+  });
+  audit(customerUser, "live_demo.order_created", "order", order.id, { total: order.total });
+  broadcast("live.step", { step: "Order placed", order_id: order.id, status: order.status });
+  return order;
+}
+
+function runLiveDemo(order, actors) {
+  const { merchantUser, driverUser } = actors;
+  const driver = store.drivers.find((item) => item.user_id === driverUser.id) || store.drivers[0];
+  const steps = [
+    { delay: 1200, label: "Merchant accepted", run: () => transitionOrder(order, "accepted", merchantUser, "live_demo_accept") },
+    { delay: 2600, label: "Kitchen preparing", run: () => transitionOrder(order, "preparing", merchantUser, "live_demo_prepare") },
+    { delay: 4200, label: "Food is ready", run: () => transitionOrder(order, "ready_for_pickup", merchantUser, "live_demo_ready") },
+    {
+      delay: 5600,
+      label: "Driver requested",
+      run: () => {
+        const request = {
+          id: randomUUID(),
+          country_id: order.country_id,
+          city_id: order.city_id,
+          currency: order.currency,
+          language: order.language,
+          timezone: order.timezone,
+          order_id: order.id,
+          merchant_id: order.merchant_id,
+          driver_id: null,
+          status: "requested",
+          pickup_note: "Live demo pickup at counter 2",
+          delivery_fee: order.delivery_fee,
+          eta_minutes: order.map_quote ? order.map_quote.eta_minutes : 20,
+          created_at: new Date().toISOString()
+        };
+        store.dispatch_requests.push(request);
+        transitionOrder(order, "driver_requested", merchantUser, "live_demo_driver_requested");
+        broadcast("dispatch.requested", { request_id: request.id, order_id: order.id, eta_minutes: request.eta_minutes });
+      }
+    },
+    {
+      delay: 7200,
+      label: "Driver accepted",
+      run: () => {
+        const request = store.dispatch_requests.find((item) => item.order_id === order.id && item.status === "requested");
+        if (request) {
+          request.status = "accepted";
+          request.driver_id = driver.id;
+          request.accepted_at = new Date().toISOString();
+        }
+        order.driver_id = driver.id;
+        transitionOrder(order, "driver_accepted", driverUser, "live_demo_driver_accept");
+        broadcast("dispatch.accepted", { request_id: request ? request.id : null, order_id: order.id, driver_id: driver.id });
+      }
+    },
+    { delay: 9000, label: "Picked up", run: () => transitionOrder(order, "picked_up", driverUser, "live_demo_pickup") },
+    { delay: 11200, label: "Delivered", run: () => transitionOrder(order, "delivered", driverUser, "live_demo_delivered") }
+  ];
+  for (const step of steps) {
+    setTimeout(() => {
+      step.run();
+      saveStore();
+      broadcast("live.step", { step: step.label, order_id: order.id, status: order.status });
+    }, step.delay);
+  }
+}
+
 function serveStatic(req, res, pathname) {
   const routePath = pathname === "/" ? "/index.html" : pathname;
   const filePath = path.resolve(webDir, `.${routePath}`);
@@ -589,6 +693,20 @@ async function handleApi(req, res, url) {
   if (req.method === "GET" && url.pathname.endsWith("/recommendations")) {
     const user = userFromRequest(req);
     return send(res, 200, { recommendations: recommendationsFor(user, countryId), role: user ? user.role : "guest" });
+  }
+
+  if (req.method === "POST" && url.pathname.endsWith("/live-demo/start")) {
+    const customerUser = store.users.find((item) => item.id === "customer-1");
+    const merchantUser = store.users.find((item) => item.id === "merchant-user-1");
+    const driverUser = store.users.find((item) => item.id === "driver-user-1");
+    if (!customerUser || !merchantUser || !driverUser) return sendError(res, 500, "Demo actors are missing");
+    const order = createDemoOrder(country, customerUser);
+    saveStore();
+    runLiveDemo(order, { merchantUser, driverUser });
+    return send(res, 201, {
+      order: enrichOrder(order),
+      message: "Live demo started. Watch the live event feed, tracker, notifications, merchant, and driver panels update."
+    });
   }
 
   if (req.method === "POST" && url.pathname.endsWith("/auth/login")) {

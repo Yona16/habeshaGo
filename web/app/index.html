@@ -159,6 +159,27 @@
         <span id="liveStatus">Connecting...</span>
         <span id="lastEvent">No events yet</span>
       </section>
+      <section class="panel live-demo-panel">
+        <div class="section-head">
+          <div>
+            <h2>Live End-To-End Demo</h2>
+            <p>Run one complete real-time flow: customer order, merchant accepts, food ready, driver requested, pickup, delivered.</p>
+          </div>
+          <button id="startLiveDemoBtn">Run live demo</button>
+        </div>
+        <div id="liveTracker" class="tracker">
+          <div class="track-step" data-track-status="placed">Placed</div>
+          <div class="track-step" data-track-status="accepted">Accepted</div>
+          <div class="track-step" data-track-status="preparing">Preparing</div>
+          <div class="track-step" data-track-status="ready_for_pickup">Food ready</div>
+          <div class="track-step" data-track-status="driver_requested">Driver requested</div>
+          <div class="track-step" data-track-status="driver_accepted">Driver accepted</div>
+          <div class="track-step" data-track-status="picked_up">Picked up</div>
+          <div class="track-step" data-track-status="delivered">Delivered</div>
+        </div>
+        <div id="liveDemoSummary" class="live-summary">No live demo running yet.</div>
+        <div id="liveEventLog" class="event-log"></div>
+      </section>
       <section class="panel">
         <div class="section-head">
           <h2>Notifications</h2>

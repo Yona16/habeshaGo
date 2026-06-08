@@ -32,6 +32,24 @@ function toast(message) {
   setTimeout(() => el.classList.remove("show"), 2600);
 }
 
+function addLiveLog(message) {
+  const log = $("#liveEventLog");
+  const item = document.createElement("div");
+  item.textContent = `${new Date().toLocaleTimeString()} - ${message}`;
+  log.prepend(item);
+  while (log.children.length > 20) log.removeChild(log.lastChild);
+}
+
+function updateTracker(status) {
+  const order = ["placed", "accepted", "preparing", "ready_for_pickup", "driver_requested", "driver_accepted", "picked_up", "delivered"];
+  const index = order.indexOf(status);
+  document.querySelectorAll("[data-track-status]").forEach((step) => {
+    const stepIndex = order.indexOf(step.dataset.trackStatus);
+    step.classList.toggle("active", stepIndex >= 0 && stepIndex <= index);
+    step.classList.toggle("current", step.dataset.trackStatus === status);
+  });
+}
+
 function connectEvents() {
   if (state.events) state.events.close();
   state.events = new EventSource(`/api/${state.country}/v1/events`);
@@ -42,8 +60,15 @@ function connectEvents() {
     state.events.addEventListener(name, async (event) => {
       const data = JSON.parse(event.data);
       $("#lastEvent").textContent = `${data.type} at ${new Date(data.at).toLocaleTimeString()}`;
+      if (data.type === "order.updated" || data.type === "live.step") {
+        const status = data.payload?.status;
+        if (status) updateTracker(status);
+        addLiveLog(`${data.payload?.step || data.type}: ${status || ""}`);
+        if (data.payload?.order_id) $("#liveDemoSummary").textContent = `Live order ${data.payload.order_id.slice(0, 8)} is ${status || "moving"}.`;
+      }
       if (data.type === "notification.created" && data.payload?.type === "food_ready") {
         toast(data.payload.title + ": " + data.payload.body);
+        addLiveLog(`Notification: ${data.payload.title}`);
       }
       await refreshAll();
     });
@@ -51,6 +76,21 @@ function connectEvents() {
   state.events.onerror = () => {
     $("#liveStatus").textContent = "Reconnecting...";
   };
+}
+
+async function startLiveDemo() {
+  $("#startLiveDemoBtn").disabled = true;
+  $("#liveEventLog").innerHTML = "";
+  updateTracker("");
+  try {
+    const data = await api(`/api/${state.country}/v1/live-demo/start`, { method: "POST", body: "{}" });
+    $("#liveDemoSummary").textContent = `Live order ${data.order.id.slice(0, 8)} started. Watch it move automatically.`;
+    updateTracker(data.order.status);
+    addLiveLog("Live demo started");
+    toast("Live demo started");
+  } finally {
+    setTimeout(() => { $("#startLiveDemoBtn").disabled = false; }, 12000);
+  }
 }
 
 function setSession(token, user) {
@@ -740,6 +780,10 @@ $("#menuRequestBtn").addEventListener("click", () => sendMenuRequest().catch((er
 $("#adjustWalletBtn").addEventListener("click", () => adjustWallet().catch((error) => toast(error.message)));
 $("#sendSmsBtn").addEventListener("click", () => sendSampleSms().catch((error) => toast(error.message)));
 $("#quoteMapBtn").addEventListener("click", () => quoteMap().catch((error) => toast(error.message)));
+$("#startLiveDemoBtn").addEventListener("click", () => startLiveDemo().catch((error) => {
+  $("#startLiveDemoBtn").disabled = false;
+  toast(error.message);
+}));
 $("#refreshRecommendationsBtn").addEventListener("click", () => loadRecommendations().catch((error) => toast(error.message)));
 $("#refreshNotificationsBtn").addEventListener("click", () => loadNotifications().catch((error) => toast(error.message)));
 $("#refreshNearbyMapBtn").addEventListener("click", () => loadNearbyMap().catch((error) => toast(error.message)));
