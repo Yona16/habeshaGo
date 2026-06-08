@@ -82,6 +82,33 @@ async function main() {
     assert((data.cart.items || []).length > 0, "Sample cart returned no items");
   });
 
+  await step("customer tools work", async () => {
+    const promo = await request("/api/ET/v1/promos/validate", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ code: "BOLE10", subtotal: 1000 })
+    });
+    assert(promo.response.ok && promo.data.discount > 0, "Promo validation failed");
+    const address = await request("/api/ET/v1/addresses", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ label: "Smoke address", sub_city: "Bole", woreda: "03", neighborhood: "Medhanealem", landmark: "Blue gate", lat: 8.994, lng: 38.789 })
+    });
+    assert(address.response.status === 201, "Saved address failed");
+    const favorite = await request("/api/ET/v1/favorites", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ merchant_id: "merchant-1" })
+    });
+    assert(favorite.response.status === 201, "Favorite merchant failed");
+    const review = await request("/api/ET/v1/reviews", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ merchant_id: "merchant-1", rating: 5, comment: "Smoke review" })
+    });
+    assert(review.response.status === 201, "Merchant review failed");
+  });
+
   await step("customer can place an order", async () => {
     const { response, data } = await request("/api/ET/v1/orders", {
       method: "POST",
@@ -119,6 +146,19 @@ async function main() {
     assert(response.ok, "Admin login failed");
     assert(data.user && data.user.role === "admin", "Admin login did not return admin role");
     adminToken = data.token;
+  });
+
+  await step("auth verification and reset placeholders work", async () => {
+    const verify = await request("/api/ET/v1/auth/verify/send", {
+      method: "POST",
+      body: JSON.stringify({ email: "customer@habeshago.local" })
+    });
+    assert(verify.response.status === 201, "Verification placeholder failed");
+    const reset = await request("/api/ET/v1/auth/password-reset/request", {
+      method: "POST",
+      body: JSON.stringify({ email: "customer@habeshago.local" })
+    });
+    assert(reset.response.status === 202, "Password reset placeholder failed");
   });
 
   await step("admin can create and read SMS logs", async () => {

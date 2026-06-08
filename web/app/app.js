@@ -531,7 +531,8 @@ function merchantActions(order) {
 
 function driverActions(order) {
   if (order.status === "driver_accepted") return `<button data-status="${order.id}|picked_up">Picked up</button>`;
-  if (order.status === "picked_up") return `<button data-status="${order.id}|delivered">Delivered</button>`;
+  if (order.status === "picked_up") return `<button data-status="${order.id}|on_the_way">On the way</button> <button data-status="${order.id}|delivered">Delivered</button>`;
+  if (order.status === "on_the_way") return `<button data-status="${order.id}|delivered">Delivered</button>`;
   return "";
 }
 
@@ -570,6 +571,59 @@ function bindStatusButtons() {
       await refreshAll();
     });
   });
+}
+
+async function validatePromo() {
+  if (!state.token) return toast("Login as customer first");
+  const cart = await api(`/api/${state.country}/v1/cart`);
+  const subtotal = (cart.cart.items || []).reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
+  const data = await api(`/api/${state.country}/v1/promos/validate`, {
+    method: "POST",
+    body: JSON.stringify({ code: $("#promoCode").value, subtotal })
+  });
+  $("#customerToolsPanel").innerHTML = `<p>Promo ${data.promo.code}: discount ${money(data.discount)}. New subtotal ${money(data.final_subtotal)}.</p>`;
+  toast("Promo validated");
+}
+
+async function saveCustomerAddress() {
+  if (!state.token) return toast("Login as customer first");
+  const data = await api(`/api/${state.country}/v1/addresses`, {
+    method: "POST",
+    body: JSON.stringify({
+      label: "Bole delivery address",
+      sub_city: "Bole",
+      woreda: "03",
+      neighborhood: "Medhanealem",
+      landmark: $("#addressNote").value,
+      delivery_instructions: "Call before arrival",
+      lat: Number($("#destLat").value),
+      lng: Number($("#destLng").value)
+    })
+  });
+  $("#customerToolsPanel").innerHTML = `<p>Saved address: ${data.address.label}, ${data.address.neighborhood}, ${data.address.landmark}</p>`;
+  toast("Address saved");
+}
+
+async function favoriteFirstMerchant() {
+  if (!state.token) return toast("Login as customer first");
+  const merchant = state.merchants[0];
+  if (!merchant) return toast("No merchant loaded");
+  await api(`/api/${state.country}/v1/favorites`, { method: "POST", body: JSON.stringify({ merchant_id: merchant.id }) });
+  const data = await api(`/api/${state.country}/v1/favorites`);
+  $("#customerToolsPanel").innerHTML = `<p>${data.favorites.length} favorite merchant${data.favorites.length === 1 ? "" : "s"} saved.</p>`;
+  toast("Merchant favorited");
+}
+
+async function reviewFirstMerchant() {
+  if (!state.token) return toast("Login as customer first");
+  const merchant = state.merchants[0];
+  if (!merchant) return toast("No merchant loaded");
+  const data = await api(`/api/${state.country}/v1/reviews`, {
+    method: "POST",
+    body: JSON.stringify({ merchant_id: merchant.id, rating: 5, comment: "Great local demo experience." })
+  });
+  $("#customerToolsPanel").innerHTML = `<p>Reviewed ${data.merchant.name}. New rating ${data.merchant.rating} from ${data.merchant.review_count} reviews.</p>`;
+  toast("Review saved");
 }
 
 async function loadMenuRequests() {
@@ -905,6 +959,10 @@ $("#menuRequestBtn").addEventListener("click", () => sendMenuRequest().catch((er
 $("#adjustWalletBtn").addEventListener("click", () => adjustWallet().catch((error) => toast(error.message)));
 $("#sendSmsBtn").addEventListener("click", () => sendSampleSms().catch((error) => toast(error.message)));
 $("#quoteMapBtn").addEventListener("click", () => quoteMap().catch((error) => toast(error.message)));
+$("#validatePromoBtn").addEventListener("click", () => validatePromo().catch((error) => toast(error.message)));
+$("#saveAddressBtn").addEventListener("click", () => saveCustomerAddress().catch((error) => toast(error.message)));
+$("#favoriteMerchantBtn").addEventListener("click", () => favoriteFirstMerchant().catch((error) => toast(error.message)));
+$("#reviewMerchantBtn").addEventListener("click", () => reviewFirstMerchant().catch((error) => toast(error.message)));
 $("#startLiveDemoBtn").addEventListener("click", () => startLiveDemo().catch((error) => {
   $("#startLiveDemoBtn").disabled = false;
   toast(error.message);

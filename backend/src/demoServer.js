@@ -19,10 +19,12 @@ const ORDER_TRANSITIONS = {
   ready_for_pickup: ["driver_requested", "driver_accepted", "picked_up"],
   driver_requested: ["driver_accepted", "cancelled"],
   driver_accepted: ["picked_up"],
-  picked_up: ["delivered"],
+  picked_up: ["on_the_way", "delivered"],
+  on_the_way: ["delivered"],
   delivered: [],
   cancelled: [],
-  rejected: []
+  rejected: [],
+  refunded: []
 };
 
 function hashPassword(password, salt = randomUUID()) {
@@ -137,6 +139,15 @@ function seedData() {
     dispatch_requests: [],
     menu_requests: [],
     notifications: [],
+    favorites: [],
+    saved_addresses: [],
+    reviews: [],
+    promo_codes: [
+      { code: "BOLE10", country_id: "ET", type: "percent", value: 10, active: true, description: "10% local demo discount for Bole pilot orders." },
+      { code: "ALMAZ", country_id: "ET", type: "fixed", value: 50, active: true, description: "50 ETB off women-owned marketplace baskets." }
+    ],
+    verification_events: [],
+    password_reset_requests: [],
     trust_verifications: [
       { id: "trust-merchant-1", entity_type: "merchant", entity_id: "merchant-1", status: "verified", score: 92, note: "Business phone and address confirmed." },
       { id: "trust-driver-1", entity_type: "driver", entity_id: "driver-1", status: "verified", score: 98, note: "License and safety training checked." },
@@ -185,6 +196,12 @@ function loadStore() {
     seeded.dispatch_requests = parsed.dispatch_requests || [];
     seeded.menu_requests = parsed.menu_requests || [];
     seeded.notifications = parsed.notifications || [];
+    seeded.favorites = parsed.favorites || [];
+    seeded.saved_addresses = parsed.saved_addresses || [];
+    seeded.reviews = parsed.reviews || [];
+    seeded.promo_codes = parsed.promo_codes || seedData().promo_codes;
+    seeded.verification_events = parsed.verification_events || [];
+    seeded.password_reset_requests = parsed.password_reset_requests || [];
     seeded.wallet_transactions = parsed.wallet_transactions || [];
     seeded.payment_transactions = parsed.payment_transactions || [];
     seeded.sms_messages = parsed.sms_messages || [];
@@ -201,6 +218,12 @@ function loadStore() {
   parsed.dispatch_requests = parsed.dispatch_requests || [];
   parsed.menu_requests = parsed.menu_requests || [];
   parsed.notifications = parsed.notifications || [];
+  parsed.favorites = parsed.favorites || [];
+  parsed.saved_addresses = parsed.saved_addresses || [];
+  parsed.reviews = parsed.reviews || [];
+  parsed.promo_codes = parsed.promo_codes || seedData().promo_codes;
+  parsed.verification_events = parsed.verification_events || [];
+  parsed.password_reset_requests = parsed.password_reset_requests || [];
   parsed.sms_messages = parsed.sms_messages || [];
   parsed.map_quotes = parsed.map_quotes || [];
   parsed.driver_locations = parsed.driver_locations || [];
@@ -703,6 +726,27 @@ function transitionOrder(order, nextStatus, actor, reason) {
       body: `Your order ${order.id.slice(0, 8)} has been delivered.`
     });
   }
+  if (nextStatus === "on_the_way") {
+    notifyUser({
+      user_id: order.customer_user_id,
+      country_id: order.country_id,
+      order_id: order.id,
+      type: "on_the_way",
+      title: "Driver is on the way",
+      body: `Your order ${order.id.slice(0, 8)} is on the way.`
+    });
+  }
+  if (nextStatus === "refunded") {
+    order.payment_status = "refunded_simulated";
+    notifyUser({
+      user_id: order.customer_user_id,
+      country_id: order.country_id,
+      order_id: order.id,
+      type: "refund",
+      title: "Refund recorded",
+      body: `A simulated refund was recorded for order ${order.id.slice(0, 8)}.`
+    });
+  }
 }
 
 function createDemoOrder(country, customerUser) {
@@ -905,6 +949,25 @@ async function handleApi(req, res, url) {
     audit(user, "auth.login", "user", user.id);
     saveStore();
     return send(res, 200, { token, user: publicUser(user), expires_in_seconds: SESSION_TTL_MS / 1000 });
+  }
+
+  if (req.method === "POST" && url.pathname.endsWith("/auth/verify/send")) {
+    const body = await readBody(req);
+    const user = store.users.find((item) => item.email === String(body.email || "").trim().toLowerCase() || item.phone === String(body.phone || "").trim());
+    if (!user) return sendError(res, 404, "User not found");
+    const event = { id: randomUUID(), user_id: user.id, country_id: user.country_id, channel: body.phone ? "sms" : "email", status: "simulated_sent", created_at: new Date().toISOString() };
+    store.verification_events.push(event);
+    saveStore();
+    return send(res, 201, { event, message: "Verification code simulated. Production must integrate SMS/email provider." });
+  }
+
+  if (req.method === "POST" && url.pathname.endsWith("/auth/password-reset/request")) {
+    const body = await readBody(req);
+    const user = store.users.find((item) => item.email === String(body.email || "").trim().toLowerCase() || item.phone === String(body.phone || "").trim());
+    const request = { id: randomUUID(), user_id: user ? user.id : null, country_id: countryId, status: "simulated_requested", created_at: new Date().toISOString() };
+    store.password_reset_requests.push(request);
+    saveStore();
+    return send(res, 202, { request, message: "Password reset request logged. Production must send a verified reset link/code." });
   }
 
   if (req.method === "POST" && url.pathname.endsWith("/auth/register")) {
@@ -1157,6 +1220,98 @@ async function handleApi(req, res, url) {
 
   if (req.method === "GET" && url.pathname.endsWith("/products")) {
     return send(res, 200, { products: store.products.filter((product) => product.country_id === countryId) });
+  }
+
+  if (req.method === "GET" && url.pathname.endsWith("/favorites")) {
+    const user = requireUser(req, res, ["customer", "admin"]);
+    if (!user) return;
+    return send(res, 200, {
+      favorites: store.favorites
+        .filter((favorite) => favorite.country_id === countryId && (favorite.user_id === user.id || user.role === "admin"))
+        .map((favorite) => ({ ...favorite, merchant: store.merchants.find((merchant) => merchant.id === favorite.merchant_id) || null }))
+    });
+  }
+
+  if (req.method === "POST" && url.pathname.endsWith("/favorites")) {
+    const user = requireUser(req, res, ["customer", "admin"]);
+    if (!user) return;
+    const body = await readBody(req);
+    const merchant = store.merchants.find((item) => item.id === body.merchant_id && item.country_id === countryId);
+    if (!merchant) return sendError(res, 404, "Merchant not found");
+    let favorite = store.favorites.find((item) => item.user_id === user.id && item.merchant_id === merchant.id);
+    if (!favorite) {
+      favorite = { id: randomUUID(), user_id: user.id, country_id: countryId, merchant_id: merchant.id, created_at: new Date().toISOString() };
+      store.favorites.push(favorite);
+    }
+    saveStore();
+    return send(res, 201, { favorite });
+  }
+
+  if (req.method === "GET" && url.pathname.endsWith("/addresses")) {
+    const user = requireUser(req, res, ["customer", "admin"]);
+    if (!user) return;
+    return send(res, 200, { addresses: store.saved_addresses.filter((address) => address.country_id === countryId && (address.user_id === user.id || user.role === "admin")) });
+  }
+
+  if (req.method === "POST" && url.pathname.endsWith("/addresses")) {
+    const user = requireUser(req, res, ["customer", "admin"]);
+    if (!user) return;
+    const body = await readBody(req);
+    const address = {
+      id: randomUUID(),
+      user_id: user.id,
+      country_id: countryId,
+      city_id: body.city_id || user.city_id,
+      label: body.label || "Saved address",
+      sub_city: body.sub_city || "Bole",
+      woreda: body.woreda || "",
+      neighborhood: body.neighborhood || "",
+      landmark: body.landmark || "",
+      gps_pin: { lat: Number(body.lat || HQ_COORDS.lat), lng: Number(body.lng || HQ_COORDS.lng) },
+      delivery_instructions: body.delivery_instructions || "",
+      created_at: new Date().toISOString()
+    };
+    store.saved_addresses.push(address);
+    saveStore();
+    return send(res, 201, { address });
+  }
+
+  if (req.method === "POST" && url.pathname.endsWith("/promos/validate")) {
+    const body = await readBody(req);
+    const code = String(body.code || "").trim().toUpperCase();
+    const promo = store.promo_codes.find((item) => item.country_id === countryId && item.code === code && item.active);
+    if (!promo) return sendError(res, 404, "Promo code is not active");
+    const subtotal = Number(body.subtotal || 0);
+    const discount = promo.type === "percent" ? Math.round(subtotal * (promo.value / 100)) : Number(promo.value);
+    return send(res, 200, { promo, discount, final_subtotal: Math.max(0, subtotal - discount) });
+  }
+
+  if (req.method === "GET" && url.pathname.endsWith("/reviews")) {
+    return send(res, 200, { reviews: store.reviews.filter((review) => review.country_id === countryId) });
+  }
+
+  if (req.method === "POST" && url.pathname.endsWith("/reviews")) {
+    const user = requireUser(req, res, ["customer", "admin"]);
+    if (!user) return;
+    const body = await readBody(req);
+    const merchant = store.merchants.find((item) => item.id === body.merchant_id && item.country_id === countryId);
+    if (!merchant) return sendError(res, 404, "Merchant not found");
+    const review = {
+      id: randomUUID(),
+      user_id: user.id,
+      country_id: countryId,
+      merchant_id: merchant.id,
+      order_id: body.order_id || null,
+      rating: Math.max(1, Math.min(5, Number(body.rating || 5))),
+      comment: body.comment || "",
+      created_at: new Date().toISOString()
+    };
+    store.reviews.push(review);
+    const merchantReviews = store.reviews.filter((item) => item.merchant_id === merchant.id);
+    merchant.review_count = merchantReviews.length;
+    merchant.rating = Number((merchantReviews.reduce((sum, item) => sum + item.rating, 0) / merchantReviews.length).toFixed(1));
+    saveStore();
+    return send(res, 201, { review, merchant });
   }
 
   if (req.method === "POST" && url.pathname.endsWith("/menu-requests")) {
