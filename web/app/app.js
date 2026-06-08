@@ -966,13 +966,33 @@ function selectedMapOrigin() {
   return { lat, lng };
 }
 
+function setMapNotice(message, type = "") {
+  const notice = $("#mapNotice");
+  if (!notice) return;
+  notice.textContent = message;
+  notice.className = `map-notice ${type}`.trim();
+}
+
+function mapIcon(label, color) {
+  if (!window.L) return null;
+  return L.divIcon({
+    className: "leaflet-label-marker",
+    html: `<span style="background:${color}">${label}</span>`,
+    iconSize: [34, 34],
+    iconAnchor: [17, 17],
+    popupAnchor: [0, -16]
+  });
+}
+
 function renderLeafletMap(data) {
   const mapEl = $("#leafletMap");
   if (!mapEl || !window.L) {
     if (mapEl) mapEl.innerHTML = "<div class='map-fallback'>OpenStreetMap is unavailable. Showing local marker fallback.</div>";
+    setMapNotice("OpenStreetMap/Leaflet is unavailable. Showing the local fallback marker overlay.", "warning");
     return;
   }
   const origin = data.origin || selectedMapOrigin();
+  setMapNotice(`OpenStreetMap active. Customer location ${Number(origin.lat).toFixed(4)}, ${Number(origin.lng).toFixed(4)} with merchants, radius, and live driver markers.`);
   if (!state.map) {
     state.map = L.map("leafletMap", { zoomControl: true }).setView([origin.lat, origin.lng], 15);
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -988,15 +1008,15 @@ function renderLeafletMap(data) {
     state.mapLayers.push(layer);
     layer.addTo(state.map);
   };
-  addLayer(L.marker([origin.lat, origin.lng]).bindPopup("Customer fallback/GPS location"));
+  addLayer(L.marker([origin.lat, origin.lng], { icon: mapIcon("You", "#0f5132") }).bindPopup("Customer location"));
   addLayer(L.circle([origin.lat, origin.lng], {
     radius: Number($("#nearbyRadius")?.value || 5) * 1000,
     color: "#0f5132",
     fillColor: "#0f5132",
     fillOpacity: 0.06
-  }).bindPopup("Delivery radius"));
+  }).bindPopup(`Delivery radius: ${$("#nearbyRadius")?.value || 5} km`));
   (data.merchants || []).slice(0, 8).forEach((merchant) => {
-    addLayer(L.marker([merchant.latitude, merchant.longitude]).bindPopup(`${merchant.name}<br>${merchant.category} - ${merchant.distance_km} km`));
+    addLayer(L.marker([merchant.latitude, merchant.longitude], { icon: mapIcon("Shop", "#b97818") }).bindPopup(`${merchant.name}<br>${merchant.category} - ${merchant.distance_km} km<br>${merchant.address_note || ""}`));
   });
   (data.drivers || []).slice(0, 8).forEach((driver) => {
     addLayer(L.circleMarker([driver.latitude, driver.longitude], {
@@ -1004,25 +1024,37 @@ function renderLeafletMap(data) {
       color: "#236cb3",
       fillColor: "#236cb3",
       fillOpacity: 0.85
-    }).bindPopup(`${driver.vehicle_type} ${driver.vehicle_plate || ""}<br>${driver.distance_km} km - ${driver.eta_minutes} min`));
+    }).bindPopup(`Live driver later<br>${driver.vehicle_type} ${driver.vehicle_plate || ""}<br>${driver.distance_km} km - ${driver.eta_minutes} min ETA`));
   });
 }
 
 async function refreshGpsAndMap() {
-  if (!navigator.geolocation) return loadNearbyMap();
+  if (!navigator.geolocation) {
+    setMapNotice("GPS is not available in this browser. Using selected customer fallback location.", "warning");
+    return loadNearbyMap();
+  }
+  setMapNotice("Requesting GPS permission. If denied, HabeshaGo will keep using the selected fallback location.", "warning");
   $("#realtimeLocationPanel").innerHTML = "<strong>Refreshing GPS...</strong><span>Waiting for browser location or fallback.</span>";
+  let gpsDenied = false;
   await new Promise((resolve) => {
     navigator.geolocation.getCurrentPosition(
       (position) => {
         $("#nearbyLocation").value = "8.994|38.789";
         $("#destLat").value = position.coords.latitude.toFixed(4);
         $("#destLng").value = position.coords.longitude.toFixed(4);
+        setMapNotice(`GPS shared. Customer marker updated from browser location ${position.coords.latitude.toFixed(4)}, ${position.coords.longitude.toFixed(4)}.`);
         resolve();
       },
-      () => resolve(),
+      (error) => {
+        gpsDenied = true;
+        const reason = error?.code === 1 ? "GPS permission denied" : "GPS unavailable";
+        setMapNotice(`${reason}. Using selected customer fallback location and still showing nearby merchants, delivery radius, and driver markers.`, "error");
+        resolve();
+      },
       { enableHighAccuracy: true, timeout: 2500, maximumAge: 60000 }
     );
   });
+  if (gpsDenied) $("#realtimeLocationPanel").innerHTML = "<strong>GPS fallback active</strong><span>Permission was denied or unavailable. Showing selected customer location with OpenStreetMap markers.</span>";
   await loadNearbyMap();
 }
 
