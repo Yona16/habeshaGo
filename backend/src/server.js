@@ -11,7 +11,10 @@ const { notFound, errorHandler } = require("./middleware/errorHandler");
 const app = express();
 
 app.use(helmet());
-app.use(cors());
+app.use(cors({
+  origin: env.corsOrigin === "*" ? true : env.corsOrigin.split(",").map((item) => item.trim()),
+  credentials: true
+}));
 app.use(express.json({ limit: "1mb" }));
 app.use(morgan(env.nodeEnv === "production" ? "combined" : "dev"));
 app.use(rateLimit({ windowMs: 60 * 1000, max: 120 }));
