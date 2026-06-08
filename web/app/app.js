@@ -43,11 +43,13 @@ async function api(path, options = {}) {
   const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
   if (state.token) headers.Authorization = `Bearer ${state.token}`;
   const url = path.startsWith("http") ? path : `${LOCAL_API_ORIGIN}${path}`;
-  console.debug("[HabeshaGo API request]", options.method || "GET", url, options.body ? JSON.parse(options.body) : "");
+  console.log("API URL:", url);
+  console.log("Payload:", options.body ? JSON.parse(options.body) : null);
   const response = await fetch(url, { ...options, headers });
   const data = await response.json().catch(() => ({}));
-  console.debug("[HabeshaGo API response]", response.status, data);
-  if (!response.ok) throw new Error(data.error || "Request failed");
+  console.log("Status:", response.status);
+  console.log("Response:", data);
+  if (!response.ok) throw new Error(`Status ${response.status}: ${data.error || "Request failed"}`);
   return data;
 }
 
@@ -67,7 +69,7 @@ function addLiveLog(message) {
 }
 
 function updateTracker(status) {
-  const order = ["placed", "accepted", "preparing", "ready_for_pickup", "driver_requested", "driver_accepted", "picked_up", "delivered"];
+  const order = ["placed", "accepted", "preparing", "ready_for_pickup", "driver_requested", "driver_accepted", "picked_up", "on_the_way", "delivered", "cancelled"];
   const index = order.indexOf(status);
   document.querySelectorAll("[data-track-status]").forEach((step) => {
     const stepIndex = order.indexOf(step.dataset.trackStatus);
@@ -114,13 +116,47 @@ async function startLiveDemo() {
   $("#liveEventLog").innerHTML = "";
   updateTracker("");
   try {
-    const data = await api(`/api/${state.country}/v1/live-demo/start`, { method: "POST", body: "{}" });
-    $("#liveDemoSummary").textContent = `Live order ${data.order.id.slice(0, 8)} started. Watch it move automatically.`;
-    updateTracker(data.order.status);
-    addLiveLog("Live demo started");
-    toast("Live demo started");
+    const stamp = Date.now();
+    const signupPayload = {
+      name: `Live Demo Customer ${String(stamp).slice(-5)}`,
+      email: `live-demo-${stamp}@habeshago.local`,
+      phone: `+2519${String(stamp).slice(-8)}`,
+      password: "Customer123!",
+      role: "customer",
+      city_id: "bole"
+    };
+    const signup = await api(`${API_BASE_URL}/auth/signup`, { method: "POST", body: JSON.stringify(signupPayload) });
+    addLiveLog("Created live demo customer");
+    const login = await api(`${API_BASE_URL}/auth/login`, { method: "POST", body: JSON.stringify({ email: signupPayload.email, password: signupPayload.password }) });
+    setSession(login.token, login.user);
+    addLiveLog("Logged in live demo customer");
+    const merchants = await api(`${API_BASE_URL}/merchants`);
+    addLiveLog(`Loaded ${merchants.merchants.length} merchants`);
+    const products = await api(`${API_BASE_URL}/products`);
+    addLiveLog(`Loaded ${products.products.length} products`);
+    const product = products.products.find((item) => item.available) || products.products[0];
+    if (!product) throw new Error("No products available for live demo");
+    await api(`${API_BASE_URL}/cart`, {
+      method: "POST",
+      body: JSON.stringify({ product_id: product.id, quantity: 1 })
+    });
+    addLiveLog(`Added ${product.name} to cart`);
+    const orderData = await api(`${API_BASE_URL}/orders`, {
+      method: "POST",
+      body: JSON.stringify({
+        payment_method: "cash",
+        address_note: "Live demo address near Bole Medhanealem",
+        destination: { lat: 8.997, lng: 38.786 }
+      })
+    });
+    const order = orderData.order;
+    updateTracker(order.status);
+    addLiveLog(`Placed order ${order.id.slice(0, 8)}: ${order.status}`);
+    const loadedOrder = await api(`${API_BASE_URL}/orders/${order.id}`);
+    $("#liveDemoSummary").textContent = `Success: order ${loadedOrder.order.id.slice(0, 8)} is ${loadedOrder.order.status}.`;
+    toast("Live demo order created");
   } finally {
-    setTimeout(() => { $("#startLiveDemoBtn").disabled = false; }, 12000);
+    setTimeout(() => { $("#startLiveDemoBtn").disabled = false; }, 1200);
   }
 }
 

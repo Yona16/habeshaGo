@@ -1433,7 +1433,7 @@ async function handleApi(req, res, url) {
     return send(res, 201, { cart, bundle });
   }
 
-  if (req.method === "POST" && url.pathname.endsWith("/cart/items")) {
+  if (req.method === "POST" && (url.pathname.endsWith("/cart/items") || url.pathname.endsWith("/cart"))) {
     const user = requireUser(req, res, ["customer", "admin"]);
     if (!user) return;
     const body = await readBody(req);
@@ -1616,6 +1616,24 @@ async function handleApi(req, res, url) {
       return true;
     });
     return send(res, 200, { orders: orders.map(enrichOrder) });
+  }
+
+  const orderDetailMatch = url.pathname.match(/^\/api\/[^/]+\/v1\/orders\/([^/]+)$/);
+  if (req.method === "GET" && orderDetailMatch) {
+    const user = requireUser(req, res);
+    if (!user) return;
+    const order = store.orders.find((item) => item.id === orderDetailMatch[1] && item.country_id === countryId);
+    if (!order) return sendError(res, 404, "Order not found");
+    if (user.role === "customer" && order.customer_user_id !== user.id) return sendError(res, 403, "Cannot view this order");
+    if (user.role === "merchant") {
+      const merchant = store.merchants.find((item) => item.id === order.merchant_id);
+      if (!merchant || merchant.owner_user_id !== user.id) return sendError(res, 403, "Cannot view this order");
+    }
+    if (user.role === "driver" && order.driver_id) {
+      const driver = store.drivers.find((item) => item.id === order.driver_id);
+      if (driver && driver.user_id !== user.id) return sendError(res, 403, "Cannot view this order");
+    }
+    return send(res, 200, { order: enrichOrder(order) });
   }
 
   const requestDriverMatch = url.pathname.match(/^\/api\/[^/]+\/v1\/orders\/([^/]+)\/request-driver$/);

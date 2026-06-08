@@ -123,6 +123,47 @@ async function main() {
     assert(me.response.ok && me.data.user.email === signup.data.user.email, "Configured auth /me failed");
   });
 
+  await step("configured live demo backend flow works", async () => {
+    const stamp = Date.now();
+    const signup = await authRequest("/auth/signup", {
+      method: "POST",
+      body: JSON.stringify({
+        name: "Live Demo Smoke",
+        email: `live-demo-smoke-${stamp}@habeshago.local`,
+        phone: `+2519${String(stamp).slice(-8)}`,
+        password: "Customer123!",
+        role: "customer",
+        city_id: "bole"
+      })
+    });
+    assert(signup.response.status === 201, "Live demo signup failed");
+    const login = await authRequest("/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email: signup.data.user.email, password: "Customer123!" })
+    });
+    assert(login.response.ok && login.data.token, "Live demo login failed");
+    const headers = { Authorization: `Bearer ${login.data.token}` };
+    const merchants = await authRequest("/merchants", { headers });
+    assert(merchants.response.ok && (merchants.data.merchants || []).length > 0, "Live demo merchants failed");
+    const products = await authRequest("/products", { headers });
+    const product = (products.data.products || []).find((item) => item.available) || (products.data.products || [])[0];
+    assert(products.response.ok && product, "Live demo products failed");
+    const cart = await authRequest("/cart", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ product_id: product.id, quantity: 1 })
+    });
+    assert(cart.response.status === 201, "Live demo cart add failed");
+    const order = await authRequest("/orders", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ payment_method: "cash", address_note: "Live demo smoke address", destination: { lat: 8.997, lng: 38.786 } })
+    });
+    assert(order.response.status === 201 && order.data.order.status === "placed", "Live demo order failed");
+    const detail = await authRequest(`/orders/${order.data.order.id}`, { headers });
+    assert(detail.response.ok && detail.data.order.id === order.data.order.id, "Live demo order status failed");
+  });
+
   await step("sample cart can be created", async () => {
     const { response, data } = await request("/api/ET/v1/cart/sample", {
       method: "POST",
