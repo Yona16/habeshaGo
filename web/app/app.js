@@ -7,7 +7,8 @@ const state = {
   locations: null,
   map: null,
   mapLayers: [],
-  events: null
+  events: null,
+  lastApi: null
 };
 
 const API_BASE_URL = "http://localhost:4000/api/et/v1";
@@ -57,6 +58,7 @@ async function api(path, options = {}) {
   console.log("Payload:", options.body ? JSON.parse(options.body) : null);
   const response = await fetch(url, { ...options, headers });
   const data = await response.json().catch(() => ({}));
+  state.lastApi = { status: response.status, body: data, url };
   console.log("Status:", response.status);
   console.log("Response:", data);
   if (!response.ok) throw new Error(`Status ${response.status}: ${data.error || "Request failed"}`);
@@ -68,6 +70,54 @@ function toast(message) {
   el.textContent = message;
   el.classList.add("show");
   setTimeout(() => el.classList.remove("show"), 2600);
+}
+
+function actionPanel() {
+  let panel = $("#actionStatus");
+  if (!panel) {
+    panel = document.createElement("section");
+    panel.id = "actionStatus";
+    panel.className = "action-status";
+    panel.hidden = true;
+    document.body.appendChild(panel);
+  }
+  return panel;
+}
+
+function showActionStatus({ title, message, type = "", response = state.lastApi }) {
+  const panel = actionPanel();
+  panel.hidden = false;
+  panel.className = `action-status ${type}`.trim();
+  panel.innerHTML = `
+    <strong>${title}</strong>
+    <div>${message}</div>
+    <div>Backend response status: ${response?.status ?? "No backend request yet"}</div>
+    <pre>Backend response body: ${JSON.stringify(response?.body ?? {}, null, 2)}</pre>
+  `;
+}
+
+async function runButtonAction(button, label, action) {
+  const originalText = button?.textContent;
+  try {
+    if (button) {
+      button.disabled = true;
+      button.textContent = "Loading...";
+    }
+    showActionStatus({ title: label, message: "Loading...", response: null });
+    const result = await action();
+    showActionStatus({ title: label, message: "Success", type: "success" });
+    toast(`${label}: success`);
+    return result;
+  } catch (error) {
+    showActionStatus({ title: label, message: `Error: ${error.message}`, type: "error" });
+    toast(error.message);
+    throw error;
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = originalText;
+    }
+  }
 }
 
 function addLiveLog(message) {
@@ -447,7 +497,7 @@ function renderMerchants() {
   renderMerchantDetails();
 
   document.querySelectorAll("[data-add]").forEach((button) => {
-    button.addEventListener("click", () => addToCart(button.dataset.add));
+    button.addEventListener("click", () => runButtonAction(button, "Add item to cart", () => addToCart(button.dataset.add)).catch(() => {}));
   });
 }
 
@@ -599,7 +649,7 @@ function driverActions(order) {
 
 function bindStatusButtons() {
   document.querySelectorAll("[data-status]").forEach((button) => {
-    button.addEventListener("click", async () => {
+    button.addEventListener("click", () => runButtonAction(button, "Update order status", async () => {
       const [id, status] = button.dataset.status.split("|");
       await api(`/api/${state.country}/v1/orders/${id}/status`, {
         method: "PATCH",
@@ -607,30 +657,30 @@ function bindStatusButtons() {
       });
       toast(`Order moved to ${status}`);
       await refreshAll();
-    });
+    }).catch(() => {}));
   });
   document.querySelectorAll("[data-pay]").forEach((button) => {
-    button.addEventListener("click", async () => {
+    button.addEventListener("click", () => runButtonAction(button, "Record dummy payment", async () => {
       const [id, provider] = button.dataset.pay.split("|");
       await simulatePayment(id, provider);
-    });
+    }).catch(() => {}));
   });
   document.querySelectorAll("[data-dispatch]").forEach((button) => {
-    button.addEventListener("click", async () => {
+    button.addEventListener("click", () => runButtonAction(button, "Request driver", async () => {
       await api(`/api/${state.country}/v1/orders/${button.dataset.dispatch}/request-driver`, {
         method: "POST",
         body: JSON.stringify({ pickup_note: "Ready at merchant counter" })
       });
       toast("Driver request sent");
       await refreshAll();
-    });
+    }).catch(() => {}));
   });
   document.querySelectorAll("[data-accept-request]").forEach((button) => {
-    button.addEventListener("click", async () => {
+    button.addEventListener("click", () => runButtonAction(button, "Accept driver request", async () => {
       await api(`/api/${state.country}/v1/drivers/requests/${button.dataset.acceptRequest}/accept`, { method: "POST", body: "{}" });
       toast("Driver request accepted");
       await refreshAll();
-    });
+    }).catch(() => {}));
   });
 }
 
@@ -1055,19 +1105,19 @@ async function refreshAll() {
 }
 
 document.querySelectorAll(".tab").forEach((button) => {
-  button.addEventListener("click", () => {
+  button.addEventListener("click", () => runButtonAction(button, `Open ${button.dataset.view} view`, async () => {
     document.querySelectorAll(".tab, .view").forEach((el) => el.classList.remove("active"));
     button.classList.add("active");
     $(`#${button.dataset.view}`).classList.add("active");
     window.location.hash = button.dataset.view;
-    if (button.dataset.view === "admin") loadAdmin().catch((error) => toast(error.message));
-  });
+    if (button.dataset.view === "admin") await loadAdmin();
+  }).catch(() => {}));
 });
 
 document.body.dataset.authMode = "login";
 document.body.dataset.authRole = "customer";
 document.querySelectorAll(".auth-tab").forEach((button) => {
-  button.addEventListener("click", () => setAuthMode(button.dataset.authMode));
+  button.addEventListener("click", () => runButtonAction(button, `Switch to ${button.dataset.authMode}`, async () => setAuthMode(button.dataset.authMode)).catch(() => {}));
 });
 $("#authRole").addEventListener("change", () => setRole($("#authRole").value));
 document.querySelectorAll("[data-demo]").forEach((button) => {
@@ -1075,33 +1125,35 @@ document.querySelectorAll("[data-demo]").forEach((button) => {
     setAuthMode("login");
     setRole(button.dataset.demo);
     const demo = demoAccounts[button.dataset.demo];
-    if (demo) loginWithCredentials(demo.email, demo.password).catch((error) => toast(error.message));
+    if (demo) runButtonAction(button, `Demo ${button.dataset.demo} login`, () => loginWithCredentials(demo.email, demo.password)).catch(() => {});
   });
 });
-$("#authForm").addEventListener("submit", (event) => submitAuth(event).catch((error) => toast(error.message)));
-$("#logoutBtn").addEventListener("click", () => { clearSession(); refreshAll(); });
-$("#placeOrderBtn").addEventListener("click", () => placeOrder().catch((error) => toast(error.message)));
-$("#menuRequestBtn").addEventListener("click", () => sendMenuRequest().catch((error) => toast(error.message)));
-$("#adjustWalletBtn").addEventListener("click", () => adjustWallet().catch((error) => toast(error.message)));
-$("#sendSmsBtn").addEventListener("click", () => sendSampleSms().catch((error) => toast(error.message)));
-$("#quoteMapBtn").addEventListener("click", () => quoteMap().catch((error) => toast(error.message)));
-$("#validatePromoBtn").addEventListener("click", () => validatePromo().catch((error) => toast(error.message)));
-$("#saveAddressBtn").addEventListener("click", () => saveCustomerAddress().catch((error) => toast(error.message)));
-$("#favoriteMerchantBtn").addEventListener("click", () => favoriteFirstMerchant().catch((error) => toast(error.message)));
-$("#reviewMerchantBtn").addEventListener("click", () => reviewFirstMerchant().catch((error) => toast(error.message)));
-$("#startLiveDemoBtn").addEventListener("click", () => startLiveDemo().catch((error) => {
-  $("#startLiveDemoBtn").disabled = false;
-  toast(error.message);
-}));
-$("#refreshRecommendationsBtn").addEventListener("click", () => loadRecommendations().catch((error) => toast(error.message)));
-$("#refreshReadinessBtn").addEventListener("click", () => loadProductionReadiness().catch((error) => toast(error.message)));
-$("#refreshNotificationsBtn").addEventListener("click", () => loadNotifications().catch((error) => toast(error.message)));
-$("#refreshNearbyMapBtn").addEventListener("click", () => refreshGpsAndMap().catch((error) => toast(error.message)));
-document.querySelectorAll("[data-sample-cart]").forEach((button) => {
-  button.addEventListener("click", () => addSampleCart(button.dataset.sampleCart).catch((error) => toast(error.message)));
+$("#authForm").addEventListener("submit", (event) => {
+  event.preventDefault();
+  runButtonAction($("#authSubmit"), document.body.dataset.authMode === "signup" ? "Create account" : "Login", () => submitAuth(event)).catch(() => {});
 });
-$("#applyDiscoveryBtn").addEventListener("click", () => loadCatalog().catch((error) => toast(error.message)));
-document.querySelectorAll("[data-refresh]").forEach((button) => button.addEventListener("click", () => refreshAll().catch((error) => toast(error.message))));
+$("#logoutBtn").addEventListener("click", () => runButtonAction($("#logoutBtn"), "Logout", async () => { clearSession(); await refreshAll(); }).catch(() => {}));
+$("#placeOrderBtn").addEventListener("click", () => runButtonAction($("#placeOrderBtn"), "Place order", placeOrder).catch(() => {}));
+$("#menuRequestBtn").addEventListener("click", () => runButtonAction($("#menuRequestBtn"), "Send menu request", sendMenuRequest).catch(() => {}));
+$("#adjustWalletBtn").addEventListener("click", () => runButtonAction($("#adjustWalletBtn"), "Adjust wallet", adjustWallet).catch(() => {}));
+$("#sendSmsBtn").addEventListener("click", () => runButtonAction($("#sendSmsBtn"), "Log sample SMS", sendSampleSms).catch(() => {}));
+$("#quoteMapBtn").addEventListener("click", () => runButtonAction($("#quoteMapBtn"), "Get map quote", quoteMap).catch(() => {}));
+$("#validatePromoBtn").addEventListener("click", () => runButtonAction($("#validatePromoBtn"), "Validate promo", validatePromo).catch(() => {}));
+$("#saveAddressBtn").addEventListener("click", () => runButtonAction($("#saveAddressBtn"), "Save address", saveCustomerAddress).catch(() => {}));
+$("#favoriteMerchantBtn").addEventListener("click", () => runButtonAction($("#favoriteMerchantBtn"), "Favorite merchant", favoriteFirstMerchant).catch(() => {}));
+$("#reviewMerchantBtn").addEventListener("click", () => runButtonAction($("#reviewMerchantBtn"), "Review merchant", reviewFirstMerchant).catch(() => {}));
+$("#startLiveDemoBtn").addEventListener("click", () => runButtonAction($("#startLiveDemoBtn"), "Run live end-to-end demo", startLiveDemo).catch(() => {
+  $("#startLiveDemoBtn").disabled = false;
+}));
+$("#refreshRecommendationsBtn").addEventListener("click", () => runButtonAction($("#refreshRecommendationsBtn"), "Refresh recommendations", loadRecommendations).catch(() => {}));
+$("#refreshReadinessBtn").addEventListener("click", () => runButtonAction($("#refreshReadinessBtn"), "Refresh production readiness", loadProductionReadiness).catch(() => {}));
+$("#refreshNotificationsBtn").addEventListener("click", () => runButtonAction($("#refreshNotificationsBtn"), "Refresh notifications", loadNotifications).catch(() => {}));
+$("#refreshNearbyMapBtn").addEventListener("click", () => runButtonAction($("#refreshNearbyMapBtn"), "Refresh nearby map", refreshGpsAndMap).catch(() => {}));
+document.querySelectorAll("[data-sample-cart]").forEach((button) => {
+  button.addEventListener("click", () => runButtonAction(button, "Add sample cart", () => addSampleCart(button.dataset.sampleCart)).catch(() => {}));
+});
+$("#applyDiscoveryBtn").addEventListener("click", () => runButtonAction($("#applyDiscoveryBtn"), "Apply nearby discovery", loadCatalog).catch(() => {}));
+document.querySelectorAll("[data-refresh]").forEach((button) => button.addEventListener("click", () => runButtonAction(button, "Refresh dashboard", refreshAll).catch(() => {})));
 
 renderSession();
 setAuthMode("login");

@@ -39,6 +39,11 @@
       .status.success { border-color:rgba(15,81,50,.35); background:#f0faf4; color:#0f5132; }
       #toast { position:fixed; right:16px; bottom:16px; background:#172026; color:white; padding:10px 12px; border-radius:8px; opacity:0; transition:.2s; }
       #toast.show { opacity:1; }
+      .action-status { position:fixed; left:16px; right:16px; bottom:16px; z-index:30; max-height:220px; overflow:auto; border:1px solid var(--line); border-radius:8px; background:white; box-shadow:0 12px 30px rgba(23,32,38,.18); padding:12px; font-size:13px; }
+      .action-status strong { display:block; margin-bottom:4px; }
+      .action-status pre { white-space:pre-wrap; margin:6px 0 0; color:var(--muted); }
+      .action-status.success { border-color:rgba(15,81,50,.35); }
+      .action-status.error { border-color:rgba(155,28,28,.4); background:#fff7f7; }
     </style>
   </head>
   <body>
@@ -114,7 +119,7 @@
     <div id="toast"></div>
     <script>
       const API_BASE_URL = "http://localhost:4000/api/et/v1";
-      const state = { country:"ET", token:localStorage.getItem("hg_admin_token") || "", user:JSON.parse(localStorage.getItem("hg_admin_user") || "null"), data:null };
+      const state = { country:"ET", token:localStorage.getItem("hg_admin_token") || "", user:JSON.parse(localStorage.getItem("hg_admin_user") || "null"), data:null, lastApi:null };
       const $ = (id) => document.querySelector(id);
       const money = (n, c = "ETB") => `${Number(n || 0).toLocaleString()} ${c}`;
       function toast(message) { const el = $("#toast"); el.textContent = message; el.classList.add("show"); setTimeout(() => el.classList.remove("show"), 2200); }
@@ -137,10 +142,45 @@
         console.log("Payload:", options.body ? JSON.parse(options.body) : null);
         const response = await fetch(url, { ...options, headers });
         const data = await response.json().catch(() => ({}));
+        state.lastApi = { status: response.status, body: data, url };
         console.log("Status:", response.status);
         console.log("Response:", data);
         if (!response.ok) throw new Error(`Status ${response.status}: ${data.error || "Request failed"}`);
         return data;
+      }
+      function actionPanel() {
+        let panel = $("#actionStatus");
+        if (!panel) {
+          panel = document.createElement("section");
+          panel.id = "actionStatus";
+          panel.className = "action-status";
+          panel.hidden = true;
+          document.body.appendChild(panel);
+        }
+        return panel;
+      }
+      function showActionStatus({ title, message, type = "", response = state.lastApi }) {
+        const panel = actionPanel();
+        panel.hidden = false;
+        panel.className = `action-status ${type}`.trim();
+        panel.innerHTML = `<strong>${title}</strong><div>${message}</div><div>Backend response status: ${response?.status ?? "No backend request yet"}</div><pre>Backend response body: ${JSON.stringify(response?.body ?? {}, null, 2)}</pre>`;
+      }
+      async function runButtonAction(button, label, action) {
+        const originalText = button?.textContent;
+        try {
+          if (button) { button.disabled = true; button.textContent = "Loading..."; }
+          showActionStatus({ title: label, message: "Loading...", response: null });
+          const result = await action();
+          showActionStatus({ title: label, message: "Success", type: "success" });
+          toast(`${label}: success`);
+          return result;
+        } catch (error) {
+          showActionStatus({ title: label, message: `Error: ${error.message}`, type: "error" });
+          toast(error.message);
+          throw error;
+        } finally {
+          if (button) { button.disabled = false; button.textContent = originalText; }
+        }
       }
       function table(rows, columns, actions) {
         if (!rows.length) return "<p>No records yet.</p>";
@@ -298,49 +338,49 @@
         bind();
       }
       function bind() {
-        document.querySelectorAll("[data-merchant]").forEach(btn => btn.onclick = async () => {
+        document.querySelectorAll("[data-merchant]").forEach(btn => btn.onclick = () => runButtonAction(btn, "Update merchant approval", async () => {
           const [id, status, verified] = btn.dataset.merchant.split("|");
           await api(`/api/${state.country}/v1/admin/merchants/${id}/status`, { method:"PATCH", body:JSON.stringify({ status, verified: verified === "true" }) });
           toast("Merchant updated"); await load();
-        });
-        document.querySelectorAll("[data-driver]").forEach(btn => btn.onclick = async () => {
+        }).catch(() => {}));
+        document.querySelectorAll("[data-driver]").forEach(btn => btn.onclick = () => runButtonAction(btn, "Update driver approval", async () => {
           const [id, frozen, online] = btn.dataset.driver.split("|");
           await api(`/api/${state.country}/v1/admin/drivers/${id}/status`, { method:"PATCH", body:JSON.stringify({ frozen: frozen === "true", online: online === "true" }) });
           toast("Driver updated"); await load();
-        });
-        document.querySelectorAll("[data-order]").forEach(btn => btn.onclick = async () => {
+        }).catch(() => {}));
+        document.querySelectorAll("[data-order]").forEach(btn => btn.onclick = () => runButtonAction(btn, "Update order status", async () => {
           const [id, status] = btn.dataset.order.split("|");
           await api(`/api/${state.country}/v1/orders/${id}/status`, { method:"PATCH", body:JSON.stringify({ status }) });
           toast("Order updated"); await load();
-        });
-        document.querySelectorAll("[data-pay]").forEach(btn => btn.onclick = async () => {
+        }).catch(() => {}));
+        document.querySelectorAll("[data-pay]").forEach(btn => btn.onclick = () => runButtonAction(btn, "Review payment", async () => {
           const [order_id, provider] = btn.dataset.pay.split("|");
           await api(`/api/${state.country}/v1/payments/simulate`, { method:"POST", body:JSON.stringify({ order_id, provider }) });
           toast("Payment review logged"); await load();
-        });
-        document.querySelectorAll("[data-flag]").forEach(btn => btn.onclick = async () => {
+        }).catch(() => {}));
+        document.querySelectorAll("[data-flag]").forEach(btn => btn.onclick = () => runButtonAction(btn, "Toggle feature flag", async () => {
           const [key, enabled] = btn.dataset.flag.split("|");
           await api(`/api/${state.country}/v1/admin/feature-flags/${encodeURIComponent(key)}`, { method:"PATCH", body:JSON.stringify({ enabled: enabled === "true" }) });
           toast("Feature flag updated"); await load();
-        });
-        document.querySelectorAll("[data-commission]").forEach(btn => btn.onclick = async () => {
+        }).catch(() => {}));
+        document.querySelectorAll("[data-commission]").forEach(btn => btn.onclick = () => runButtonAction(btn, "Update commission", async () => {
           const rate = prompt("Commission rate, for example 0.12");
           if (rate) await api(`/api/${state.country}/v1/admin/commission-settings/${btn.dataset.commission}`, { method:"PATCH", body:JSON.stringify({ commission_rate:Number(rate) }) });
           await load();
-        });
-        document.querySelectorAll("[data-admin-user]").forEach(btn => btn.onclick = async () => {
+        }).catch(() => {}));
+        document.querySelectorAll("[data-admin-user]").forEach(btn => btn.onclick = () => runButtonAction(btn, "Update admin user", async () => {
           const [id, status] = btn.dataset.adminUser.split("|");
           await api(`/api/admin/users/${id}`, { method:"PATCH", body:JSON.stringify({ status }) });
           toast("Admin user updated"); await load();
-        });
+        }).catch(() => {}));
       }
-      document.querySelectorAll("[data-tab]").forEach(btn => btn.onclick = () => {
+      document.querySelectorAll("[data-tab]").forEach(btn => btn.onclick = () => runButtonAction(btn, `Open ${btn.dataset.tab}`, async () => {
         document.querySelectorAll(".tab").forEach(el => el.classList.toggle("active", el === btn));
         document.querySelectorAll(".admin-section").forEach(el => el.classList.toggle("active", el.dataset.section === btn.dataset.tab));
-      });
-      $("#loginBtn").onclick = () => login().catch(error => { setLoading(false); setStatus(error.message, "error"); toast(error.message); });
-      $("#refreshBtn").onclick = () => load().catch(e => toast(e.message));
-      $("#logoutBtn").onclick = () => {
+      }).catch(() => {}));
+      $("#loginBtn").onclick = () => runButtonAction($("#loginBtn"), "Admin login", login).catch(error => { setLoading(false); setStatus(error.message, "error"); });
+      $("#refreshBtn").onclick = () => runButtonAction($("#refreshBtn"), "Refresh admin dashboard", load).catch(() => {});
+      $("#logoutBtn").onclick = () => runButtonAction($("#logoutBtn"), "Admin logout", async () => {
         state.token = "";
         state.user = null;
         localStorage.removeItem("hg_admin_token");
@@ -348,7 +388,7 @@
         $("#session").textContent = "Not signed in";
         $("#logoutBtn").hidden = true;
         setStatus("Logged out.");
-      };
+      }).catch(() => {});
       if (state.user) { $("#session").textContent = `${state.user.name} (${state.user.role})`; $("#logoutBtn").hidden = false; }
       if (state.token) load().catch(e => toast(e.message));
     </script>
