@@ -647,10 +647,27 @@ async function loadRecommendations() {
 
 async function loadProductionReadiness() {
   const report = await api(`/api/${state.country}/v1/production-readiness`);
+  const gateResponse = await fetch(`/api/${state.country}/v1/launch-gate`);
+  const gate = await gateResponse.json().catch(() => ({}));
   $("#productionReadinessSummary").innerHTML = `
     <strong>${report.score}/100 - ${report.production_ready ? "Production ready" : "Not production ready"}</strong>
     <p>${report.summary}</p>
     <p>${report.launch_recommendation}</p>
+  `;
+  $("#productionLaunchGate").innerHTML = `
+    <div>
+      <strong>${gate.launch_allowed ? "Launch gate passed" : "Launch gate blocking production"}</strong>
+      <span>Mode: ${gate.mode || "local-demo"} - status: ${gate.launch_allowed ? "allowed" : "blocked"}</span>
+      <p>${gate.launch_allowed ? "All required production checks are currently satisfied." : "This local app is usable for testing, but the production gate is intentionally blocking real customer launch."}</p>
+    </div>
+    <div>
+      <strong>Missing production environment</strong>
+      <p>${(gate.missing_environment || []).length ? gate.missing_environment.join(", ") : "No missing production environment values reported."}</p>
+    </div>
+    <div>
+      <strong>Required launch actions</strong>
+      <ul>${(gate.required_actions || []).map((item) => `<li>${item}</li>`).join("")}</ul>
+    </div>
   `;
   $("#productionReadiness").innerHTML = report.checks.map((check) => `
     <div class="severity-${check.severity}">

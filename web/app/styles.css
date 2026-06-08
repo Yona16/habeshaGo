@@ -606,6 +606,35 @@ th { color: var(--muted); font-size: 12px; text-transform: uppercase; }
   font-size: 24px;
 }
 
+.launch-gate {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+  margin: 12px 0 18px;
+}
+
+.launch-gate div {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px;
+  background: #f8fafc;
+}
+
+.launch-gate strong {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.launch-gate span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.launch-gate ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
+
 .severity-critical {
   border-left-color: var(--danger) !important;
 }

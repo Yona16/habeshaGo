@@ -37,3 +37,52 @@ HabeshaGo is ready for local product demos and workflow validation. It is not re
 ## Launch Rule
 
 Do not launch to real customers until all critical and high-severity readiness checks are cleared or explicitly accepted by the business, legal, and engineering owners.
+
+## Local Production-Readiness Runbook
+
+Start the local validation server:
+
+```powershell
+cd backend
+node src/demoServer.js
+```
+
+Open the app:
+
+```text
+http://localhost:3000
+```
+
+Run the smoke test from another terminal:
+
+```powershell
+cd backend
+node scripts/smoke-test.js
+```
+
+The local smoke test verifies the web app, health endpoint, launch gate, nearby merchant search, customer login, sample cart, and order placement.
+
+## Launch Gate
+
+The app exposes a production launch gate:
+
+```text
+GET /ready
+GET /api/ET/v1/launch-gate
+```
+
+In `APP_MODE=local-demo`, the gate intentionally returns blocked/not ready. That is correct. For a real production launch, `APP_MODE=production` is not enough by itself. The following production environment values and operational approvals must exist:
+
+- `DATABASE_URL`
+- `JWT_SECRET`
+- `PAYMENT_PROVIDER_MODE`
+- `SMS_PROVIDER_MODE`
+- `MAPS_PROVIDER_MODE`
+- `PUSH_PROVIDER_MODE`
+- `LEGAL_APPROVAL_REFERENCE`
+
+Production must also clear critical and high-severity readiness checks for database, authentication, payments, SMS/push, maps, compliance, security, mobile apps, observability, testing, and deployment.
+
+## Current Practical Status
+
+Use this version for local testing, stakeholder demos, and a controlled internal pilot with fake money. Do not use it for real customer orders, real payment collection, real driver payouts, or legal/financial transactions until the launch gate passes with real providers, audited infrastructure, and documented legal approval.

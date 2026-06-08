@@ -4,6 +4,7 @@ const path = require("path");
 const { randomUUID, pbkdf2Sync, timingSafeEqual } = require("crypto");
 
 const port = Number(process.env.PORT || 3000);
+const appMode = process.env.APP_MODE || "local-demo";
 const rootDir = path.resolve(__dirname, "..", "..");
 const webDir = path.resolve(rootDir, "web", "app");
 const dataFile = path.resolve(__dirname, "..", "data", "local-store.json");
@@ -285,6 +286,9 @@ function send(res, status, payload, headers = {}) {
     "access-control-allow-methods": "GET,POST,PATCH,DELETE,OPTIONS",
     "access-control-allow-headers": "Content-Type,Authorization",
     "x-content-type-options": "nosniff",
+    "x-frame-options": "DENY",
+    "referrer-policy": "no-referrer",
+    "content-security-policy": "default-src 'self'; connect-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data:",
     ...headers
   });
   res.end(JSON.stringify(payload, null, 2));
@@ -391,6 +395,36 @@ function productionReadiness(countryId) {
     summary: "Ready for local demo and product validation, not ready for real customer production launch.",
     launch_recommendation: "Run a controlled internal pilot only after PostgreSQL, real auth hardening, provider integrations, monitoring, and legal review are complete.",
     checks
+  };
+}
+
+function launchGate(countryId) {
+  const readiness = productionReadiness(countryId);
+  const blockers = readiness.checks.filter((check) => ["critical", "high"].includes(check.severity) && !["ready_for_demo", "done"].includes(check.status));
+  const requiredEnv = [
+    "DATABASE_URL",
+    "JWT_SECRET",
+    "PAYMENT_PROVIDER_MODE",
+    "SMS_PROVIDER_MODE",
+    "MAPS_PROVIDER_MODE",
+    "PUSH_PROVIDER_MODE",
+    "LEGAL_APPROVAL_REFERENCE"
+  ];
+  const missingEnv = requiredEnv.filter((key) => !process.env[key]);
+  return {
+    mode: appMode,
+    launch_allowed: appMode === "production" && blockers.length === 0 && missingEnv.length === 0,
+    production_ready: readiness.production_ready,
+    readiness_score: readiness.score,
+    blockers,
+    missing_environment: missingEnv,
+    required_actions: [
+      "Run PostgreSQL-backed API, not local JSON demo storage.",
+      "Set all production secrets in a secrets manager, never in source code.",
+      "Connect real payment, SMS, push, and maps providers.",
+      "Complete legal approval for wallet, float, cash reconciliation, child delivery, and any fintech-like feature.",
+      "Pass automated test suite, security review, and load test before public traffic."
+    ]
   };
 }
 
@@ -708,9 +742,18 @@ async function handleApi(req, res, url) {
     return send(res, 200, {
       status: "ok",
       service: "HabeshaGo local production-readiness MVP",
+      mode: appMode,
       persistence: path.relative(rootDir, dataFile),
       countries: store.countries.length,
       orders: store.orders.length
+    });
+  }
+
+  if (req.method === "GET" && url.pathname === "/ready") {
+    const gate = launchGate(countryId);
+    return send(res, gate.launch_allowed ? 200 : 503, {
+      status: gate.launch_allowed ? "ready" : "not_ready",
+      ...gate
     });
   }
 
@@ -725,6 +768,10 @@ async function handleApi(req, res, url) {
   }
   if (req.method === "GET" && url.pathname.endsWith("/production-readiness")) {
     return send(res, 200, productionReadiness(countryId));
+  }
+  if (req.method === "GET" && url.pathname.endsWith("/launch-gate")) {
+    const gate = launchGate(countryId);
+    return send(res, gate.launch_allowed ? 200 : 409, gate);
   }
 
   if (req.method === "POST" && url.pathname.endsWith("/live-demo/start")) {
@@ -1387,7 +1434,7 @@ async function handleApi(req, res, url) {
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
   if (req.method === "OPTIONS") return send(res, 200, {});
-  if (url.pathname.startsWith("/api/") || url.pathname === "/health") {
+  if (url.pathname.startsWith("/api/") || url.pathname === "/health" || url.pathname === "/ready") {
     try {
       return await handleApi(req, res, url);
     } catch (error) {

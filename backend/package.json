@@ -7,7 +7,10 @@
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
     "start:demo": "node src/demoServer.js",
-    "check": "node --check src/server.js"
+    "start:local": "node src/demoServer.js",
+    "check": "node --check src/server.js",
+    "check:demo": "node --check src/demoServer.js",
+    "smoke": "node scripts/smoke-test.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
