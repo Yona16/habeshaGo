@@ -369,13 +369,12 @@
       </section>
 
       <section class="panel">
-        <h2>Production Readiness Tracker</h2>
-        <div class="readiness">
-          <div><strong>Local MVP</strong><span>Runnable and testable</span></div>
-          <div><strong>Persistent data</strong><span>JSON-backed for local testing</span></div>
-          <div><strong>Production database</strong><span>Schema ready, API integration still needed</span></div>
-          <div><strong>Payments/SMS/Maps</strong><span>Provider integrations still needed</span></div>
+        <div class="section-head">
+          <h2>Production Readiness</h2>
+          <button id="refreshReadinessBtn" class="secondary">Refresh</button>
         </div>
+        <div id="productionReadinessSummary" class="readiness-summary"></div>
+        <div id="productionReadiness" class="readiness"></div>
       </section>
     </main>
 

@@ -645,6 +645,22 @@ async function loadRecommendations() {
   `).join("");
 }
 
+async function loadProductionReadiness() {
+  const report = await api(`/api/${state.country}/v1/production-readiness`);
+  $("#productionReadinessSummary").innerHTML = `
+    <strong>${report.score}/100 - ${report.production_ready ? "Production ready" : "Not production ready"}</strong>
+    <p>${report.summary}</p>
+    <p>${report.launch_recommendation}</p>
+  `;
+  $("#productionReadiness").innerHTML = report.checks.map((check) => `
+    <div class="severity-${check.severity}">
+      <strong>${check.area}</strong>
+      <span>${check.status} - ${check.severity}</span>
+      <p>${check.detail}</p>
+    </div>
+  `).join("");
+}
+
 async function loadNearbyMap() {
   const [lat, lng] = ($("#nearbyLocation")?.value || "8.994|38.789").split("|");
   const radius = $("#nearbyRadius")?.value || 5;
@@ -742,6 +758,7 @@ async function loadDriver() {
 async function refreshAll() {
   await loadMetrics();
   await loadRecommendations();
+  await loadProductionReadiness();
   await loadNotifications();
   await loadProfiles();
   await loadCatalog();
@@ -785,6 +802,7 @@ $("#startLiveDemoBtn").addEventListener("click", () => startLiveDemo().catch((er
   toast(error.message);
 }));
 $("#refreshRecommendationsBtn").addEventListener("click", () => loadRecommendations().catch((error) => toast(error.message)));
+$("#refreshReadinessBtn").addEventListener("click", () => loadProductionReadiness().catch((error) => toast(error.message)));
 $("#refreshNotificationsBtn").addEventListener("click", () => loadNotifications().catch((error) => toast(error.message)));
 $("#refreshNearbyMapBtn").addEventListener("click", () => loadNearbyMap().catch((error) => toast(error.message)));
 document.querySelectorAll("[data-sample-cart]").forEach((button) => {

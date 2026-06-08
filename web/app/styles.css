@@ -593,6 +593,31 @@ th { color: var(--muted); font-size: 12px; text-transform: uppercase; }
 .readiness strong { display: block; }
 .readiness span { color: var(--muted); font-size: 13px; }
 
+.readiness-summary {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px;
+  margin: 12px 0;
+  background: #fffaf0;
+}
+
+.readiness-summary strong {
+  display: block;
+  font-size: 24px;
+}
+
+.severity-critical {
+  border-left-color: var(--danger) !important;
+}
+
+.severity-high {
+  border-left-color: var(--gold) !important;
+}
+
+.severity-low {
+  border-left-color: var(--green) !important;
+}
+
 #toast {
   position: fixed;
   right: 18px;

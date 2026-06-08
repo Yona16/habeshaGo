@@ -365,6 +365,35 @@ function recommendationsFor(user, countryId) {
   ];
 }
 
+function productionReadiness(countryId) {
+  const legalHolds = store.compliance_reviews.filter((review) => review.legal_hold);
+  const checks = [
+    { area: "Core local MVP", status: "ready_for_demo", severity: "low", detail: "Customer, merchant, driver, admin, cart, order, live demo, nearby search, notifications, and simulated payments are testable locally." },
+    { area: "Database", status: "blocked_for_production", severity: "critical", detail: "Local JSON persistence must be replaced by PostgreSQL-backed APIs, migrations, transactions, backups, and restore drills." },
+    { area: "Authentication", status: "needs_hardening", severity: "high", detail: "Add refresh tokens, password reset, device/session tracking, stronger rate limits, admin MFA, and production JWT secrets." },
+    { area: "Payments", status: "blocked_for_production", severity: "critical", detail: "Current payments are dummy records only. Telebirr, Chapa, M-Pesa, cash reconciliation, webhooks, refunds, and settlement must be integrated and audited." },
+    { area: "SMS and push", status: "blocked_for_production", severity: "high", detail: "Current SMS is simulated. Add SMS provider, Firebase push, delivery receipts, retry handling, and opt-out controls." },
+    { area: "Maps and dispatch", status: "needs_provider", severity: "high", detail: "Current map uses sample coordinates and distance math. Add Google Maps or equivalent geocoding, routing, ETA, zones, and dispatch optimization." },
+    { area: "Compliance", status: "legal_review_required", severity: "critical", detail: `${legalHolds.length} regulated features remain on legal hold. Wallet, driver float, advances, diaspora funding, and cross-border transfers need legal sign-off.` },
+    { area: "Security", status: "needs_audit", severity: "critical", detail: "Run dependency scanning, penetration testing, RBAC review, secret management review, PII controls, audit log review, and incident response planning." },
+    { area: "Mobile apps", status: "prototype_only", severity: "high", detail: "Flutter customer and driver apps are placeholders. Build full offline-first mobile flows with SQLite sync and push notifications." },
+    { area: "Observability", status: "missing", severity: "high", detail: "Add structured logs, metrics, traces, uptime checks, alerting, error tracking, and business dashboards." },
+    { area: "Testing", status: "needs_suite", severity: "high", detail: "Add unit, integration, E2E, load, security, payment webhook, offline sync, and cash reconciliation tests." },
+    { area: "Deployment", status: "needs_pipeline", severity: "high", detail: "Add CI/CD, Docker production image, environment separation, deploy runbooks, rollback plan, and DigitalOcean infrastructure configuration." }
+  ];
+  const critical = checks.filter((check) => check.severity === "critical" && check.status !== "ready_for_demo").length;
+  const high = checks.filter((check) => check.severity === "high" && !["ready_for_demo", "done"].includes(check.status)).length;
+  const score = Math.max(10, Math.round(100 - critical * 14 - high * 6));
+  return {
+    country_id: countryId,
+    production_ready: false,
+    score,
+    summary: "Ready for local demo and product validation, not ready for real customer production launch.",
+    launch_recommendation: "Run a controlled internal pilot only after PostgreSQL, real auth hardening, provider integrations, monitoring, and legal review are complete.",
+    checks
+  };
+}
+
 function readBody(req) {
   return new Promise((resolve) => {
     let body = "";
@@ -693,6 +722,9 @@ async function handleApi(req, res, url) {
   if (req.method === "GET" && url.pathname.endsWith("/recommendations")) {
     const user = userFromRequest(req);
     return send(res, 200, { recommendations: recommendationsFor(user, countryId), role: user ? user.role : "guest" });
+  }
+  if (req.method === "GET" && url.pathname.endsWith("/production-readiness")) {
+    return send(res, 200, productionReadiness(countryId));
   }
 
   if (req.method === "POST" && url.pathname.endsWith("/live-demo/start")) {
