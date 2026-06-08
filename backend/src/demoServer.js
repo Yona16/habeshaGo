@@ -118,6 +118,8 @@ function seedData() {
         float_balance: 1200,
         cash_collected: 0,
         earnings: 0,
+        latitude: 8.993,
+        longitude: 38.788,
         vehicle_type: "motorbike",
         vehicle_plate: "AA-2-34567",
         license_number: "ET-DRV-001",
@@ -235,6 +237,14 @@ function normalizeDetails(data) {
     product.dietary_tags = product.dietary_tags || fallback.dietary_tags || [];
     product.stock_quantity = product.stock_quantity ?? fallback.stock_quantity ?? 10;
     product.popular = product.popular ?? fallback.popular ?? false;
+  }
+  for (const driver of data.drivers || []) {
+    const fallback = seeded.drivers.find((item) => item.id === driver.id) || {};
+    driver.latitude = driver.latitude ?? fallback.latitude ?? 8.993;
+    driver.longitude = driver.longitude ?? fallback.longitude ?? 38.788;
+    driver.assigned_zone = driver.assigned_zone || fallback.assigned_zone || "Bole";
+    driver.vehicle_type = driver.vehicle_type || fallback.vehicle_type || "motorbike";
+    driver.vehicle_plate = driver.vehicle_plate || fallback.vehicle_plate || "";
   }
 }
 
@@ -656,6 +666,8 @@ async function handleApi(req, res, url) {
         float_balance: 0,
         cash_collected: 0,
         earnings: 0,
+        latitude: Number(body.latitude || 8.993),
+        longitude: Number(body.longitude || 38.788),
         vehicle_type: body.vehicle_type || "motorbike",
         vehicle_plate: body.vehicle_plate || "",
         license_number: body.license_number || "",
@@ -1075,7 +1087,19 @@ async function handleApi(req, res, url) {
   }
 
   if (req.method === "GET" && url.pathname.endsWith("/drivers/available")) {
-    return send(res, 200, { drivers: store.drivers.filter((driver) => driver.country_id === countryId && driver.online && !driver.frozen) });
+    const lat = Number(url.searchParams.get("lat") || HQ_COORDS.lat);
+    const lng = Number(url.searchParams.get("lng") || HQ_COORDS.lng);
+    const radiusKm = Number(url.searchParams.get("radius_km") || 999);
+    const drivers = store.drivers
+      .filter((driver) => driver.country_id === countryId && driver.online && !driver.frozen)
+      .map((driver) => ({
+        ...driver,
+        distance_km: Number(distanceKm({ lat, lng }, { lat: driver.latitude, lng: driver.longitude }).toFixed(2)),
+        eta_minutes: Math.max(4, Math.round(3 + distanceKm({ lat, lng }, { lat: driver.latitude, lng: driver.longitude }) * 5))
+      }))
+      .filter((driver) => driver.distance_km <= radiusKm)
+      .sort((a, b) => a.distance_km - b.distance_km);
+    return send(res, 200, { drivers });
   }
 
   if (req.method === "GET" && url.pathname.endsWith("/drivers/requests")) {

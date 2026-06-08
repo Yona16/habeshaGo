@@ -190,6 +190,7 @@ async function loadCatalog() {
   state.merchants = merchants.merchants;
   state.products = products.products;
   renderMerchants();
+  await loadNearbyMap();
 }
 
 function detail(label, value) {
@@ -604,6 +605,36 @@ async function loadRecommendations() {
   `).join("");
 }
 
+async function loadNearbyMap() {
+  const [lat, lng] = ($("#nearbyLocation")?.value || "8.994|38.789").split("|");
+  const radius = $("#nearbyRadius")?.value || 5;
+  const restaurantData = await api(`/api/${state.country}/v1/merchants?lat=${lat}&lng=${lng}&radius_km=${radius}&category=restaurant&sort=nearest`);
+  const cafeData = await api(`/api/${state.country}/v1/merchants?lat=${lat}&lng=${lng}&radius_km=${radius}&category=cafe&sort=nearest`);
+  const supermarketData = await api(`/api/${state.country}/v1/merchants?lat=${lat}&lng=${lng}&radius_km=${radius}&category=supermarket&sort=nearest`);
+  const driverData = await api(`/api/${state.country}/v1/drivers/available?lat=${lat}&lng=${lng}&radius_km=${radius}`);
+  const merchants = [...restaurantData.merchants, ...cafeData.merchants, ...supermarketData.merchants].slice(0, 6);
+  $("#nearbyRestaurants").innerHTML = `
+    <h3>Nearby restaurants, cafes, supermarkets</h3>
+    ${merchants.length ? merchants.map((merchant) => `
+      <article class="map-marker restaurant">
+        <strong>${merchant.name}</strong>
+        <span>${merchant.category} - ${merchant.distance_km} km - ${merchant.rating} rating - ${merchant.review_count || 0} reviews</span>
+        <span>${merchant.address_note}</span>
+      </article>
+    `).join("") : "<article class='map-marker restaurant'><strong>No nearby merchants</strong><span>Try increasing radius.</span></article>"}
+  `;
+  $("#nearbyDrivers").innerHTML = `
+    <h3>Nearby drivers</h3>
+    ${driverData.drivers.length ? driverData.drivers.slice(0, 6).map((driver) => `
+      <article class="map-marker driver">
+        <strong>${driver.badge_level || "Driver"} - ${driver.vehicle_type}</strong>
+        <span>${driver.distance_km} km away - ${driver.eta_minutes} min ETA - safety ${driver.safety_score}</span>
+        <span>Zone ${driver.assigned_zone} - plate ${driver.vehicle_plate || "not set"}</span>
+      </article>
+    `).join("") : "<article class='map-marker driver'><strong>No nearby drivers</strong><span>Try increasing radius.</span></article>"}
+  `;
+}
+
 async function loadNotifications() {
   if (!state.token) {
     $("#notifications").innerHTML = "<div class='card'>Login to see order notifications.</div>";
@@ -711,6 +742,7 @@ $("#sendSmsBtn").addEventListener("click", () => sendSampleSms().catch((error) =
 $("#quoteMapBtn").addEventListener("click", () => quoteMap().catch((error) => toast(error.message)));
 $("#refreshRecommendationsBtn").addEventListener("click", () => loadRecommendations().catch((error) => toast(error.message)));
 $("#refreshNotificationsBtn").addEventListener("click", () => loadNotifications().catch((error) => toast(error.message)));
+$("#refreshNearbyMapBtn").addEventListener("click", () => loadNearbyMap().catch((error) => toast(error.message)));
 document.querySelectorAll("[data-sample-cart]").forEach((button) => {
   button.addEventListener("click", () => addSampleCart(button.dataset.sampleCart).catch((error) => toast(error.message)));
 });

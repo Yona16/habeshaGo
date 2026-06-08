@@ -429,6 +429,71 @@ th { color: var(--muted); font-size: 12px; text-transform: uppercase; }
   align-items: end;
 }
 
+.map-panel {
+  padding: 14px;
+}
+
+.map-canvas {
+  position: relative;
+  min-height: 280px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 48px 12px 12px;
+  background:
+    linear-gradient(90deg, rgba(36,67,95,.08) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(36,67,95,.08) 1px, transparent 1px),
+    #f8fbfc;
+  background-size: 40px 40px;
+}
+
+.map-origin {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--green);
+  color: white;
+  border-radius: 999px;
+  padding: 7px 12px;
+  font-weight: 700;
+}
+
+.map-list {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+}
+
+.map-marker {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  padding: 10px;
+  box-shadow: 0 4px 12px rgba(22,32,39,.06);
+}
+
+.map-marker strong {
+  display: block;
+}
+
+.map-marker span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 3px;
+}
+
+.map-marker.driver {
+  border-left: 4px solid var(--blue);
+}
+
+.map-marker.restaurant {
+  border-left: 4px solid var(--gold);
+}
+
 .admin-actions label { width: 220px; }
 
 .map-box {
@@ -495,4 +560,5 @@ th { color: var(--muted); font-size: 12px; text-transform: uppercase; }
   .topbar, .login-panel, .section-head { align-items: stretch; flex-direction: column; }
   .login-form, .auth-form, .demo-buttons, .catalog-layout, .coords { grid-template-columns: 1fr; }
   .tabs { overflow-x: auto; }
+  .map-canvas { grid-template-columns: 1fr; }
 }
