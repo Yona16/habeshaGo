@@ -123,6 +123,51 @@ async function main() {
     assert(me.response.ok && me.data.user.email === signup.data.user.email, "Configured auth /me failed");
   });
 
+  await step("all role auth endpoints work", async () => {
+    const roles = ["customer", "driver", "merchant", "admin"];
+    const endpoints = ["/auth/signup", "/auth/register"];
+    for (const endpoint of endpoints) {
+      for (const role of roles) {
+        const stamp = `${Date.now()}${Math.floor(Math.random() * 1000)}`;
+        const password = `${role[0].toUpperCase()}${role.slice(1)}123!`;
+        const payload = {
+          name: `Auth ${role}`,
+          email: `${role}-${endpoint.includes("signup") ? "signup" : "register"}-${stamp}@habeshago.local`,
+          phone: `+2519${stamp.slice(-8)}`,
+          password,
+          role,
+          city_id: "bole",
+          vehicle_type: "motorbike",
+          vehicle_plate: `AA-2-${stamp.slice(-5)}`,
+          license_number: `LIC-${stamp}`,
+          assigned_zone: "Bole",
+          business_name: `Auth ${role} Business`,
+          category: "restaurant",
+          manager_name: "Auth Manager",
+          merchant_phone: `+251911${stamp.slice(-6)}`,
+          merchant_address: "Bole demo address",
+          preferred_address: "Bole customer address",
+          landmark_note: "Near main road"
+        };
+        const created = await authRequest(endpoint, {
+          method: "POST",
+          body: JSON.stringify(payload)
+        });
+        assert(created.response.status === 201, `${endpoint} failed for ${role}`);
+        assert(created.data.token && created.data.user && created.data.user.role === role, `${endpoint} returned wrong user for ${role}`);
+        const login = await authRequest("/auth/login", {
+          method: "POST",
+          body: JSON.stringify({ email: payload.email, password })
+        });
+        assert(login.response.ok && login.data.token && login.data.user.role === role, `/auth/login failed for ${role}`);
+        const me = await authRequest("/auth/me", {
+          headers: { Authorization: `Bearer ${login.data.token}` }
+        });
+        assert(me.response.ok && me.data.user.email === payload.email, `/auth/me failed for ${role}`);
+      }
+    }
+  });
+
   await step("configured live demo backend flow works", async () => {
     const stamp = Date.now();
     const signup = await authRequest("/auth/signup", {
