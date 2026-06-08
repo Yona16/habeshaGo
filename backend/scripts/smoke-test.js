@@ -55,6 +55,13 @@ async function main() {
     assert((data.merchants || []).length > 0, "Nearby merchant search returned no cafes");
   });
 
+  await step("marketplace nearby compatibility API works", async () => {
+    const { response, data } = await request("/api/marketplace/nearby?lat=8.994&lng=38.789&radiusKm=5&minimumReview=0&sortBy=nearest");
+    assert(response.ok, "Marketplace nearby compatibility endpoint failed");
+    assert((data.merchants || []).length > 0, "Marketplace nearby returned no merchants");
+    assert(Array.isArray(data.drivers), "Marketplace nearby missing drivers");
+  });
+
   await step("real-time sample locations are available", async () => {
     const { response, data } = await request("/api/ET/v1/locations/live?lat=8.994&lng=38.789");
     assert(response.ok, "Live location endpoint failed");
@@ -181,18 +188,26 @@ async function main() {
   });
 
   await step("admin portal controls work", async () => {
-    const [roles, providers, audit, support, commissions] = await Promise.all([
+    const [roles, providers, audit, support, commissions, pendingMerchants, pendingDrivers, refunds, safety] = await Promise.all([
       request("/api/ET/v1/admin/security-roles", { headers: { Authorization: `Bearer ${adminToken}` } }),
       request("/api/ET/v1/admin/payment-providers", { headers: { Authorization: `Bearer ${adminToken}` } }),
       request("/api/ET/v1/admin/audit-logs", { headers: { Authorization: `Bearer ${adminToken}` } }),
-      request("/api/ET/v1/admin/support-tickets", { headers: { Authorization: `Bearer ${adminToken}` } }),
-      request("/api/ET/v1/admin/commission-settings", { headers: { Authorization: `Bearer ${adminToken}` } })
+      request("/api/admin/support/tickets", { headers: { Authorization: `Bearer ${adminToken}` } }),
+      request("/api/ET/v1/admin/commission-settings", { headers: { Authorization: `Bearer ${adminToken}` } }),
+      request("/api/admin/merchants/pending", { headers: { Authorization: `Bearer ${adminToken}` } }),
+      request("/api/admin/drivers/pending", { headers: { Authorization: `Bearer ${adminToken}` } }),
+      request("/api/admin/refunds", { headers: { Authorization: `Bearer ${adminToken}` } }),
+      request("/api/admin/safety-controls", { headers: { Authorization: `Bearer ${adminToken}` } })
     ]);
     assert(roles.response.ok && (roles.data.roles || []).length >= 4, "Admin security roles failed");
     assert(providers.response.ok && (providers.data.providers || []).length === 4, "Admin payment providers failed");
     assert(audit.response.ok && Array.isArray(audit.data.logs), "Admin audit logs failed");
     assert(support.response.ok && Array.isArray(support.data.tickets), "Admin support tickets failed");
     assert(commissions.response.ok && Array.isArray(commissions.data.settings), "Admin commission settings failed");
+    assert(pendingMerchants.response.ok && Array.isArray(pendingMerchants.data.merchants), "Pending merchants failed");
+    assert(pendingDrivers.response.ok && Array.isArray(pendingDrivers.data.drivers), "Pending drivers failed");
+    assert(refunds.response.ok && Array.isArray(refunds.data.refunds), "Refunds failed");
+    assert(safety.response.ok && Array.isArray(safety.data.controls), "Safety controls failed");
   });
 
   console.log("Smoke test complete.");

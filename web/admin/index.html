@@ -20,13 +20,23 @@
       input { border:1px solid var(--line); border-radius:6px; padding:9px; }
       button { border:0; border-radius:6px; background:var(--blue); color:white; padding:8px 11px; cursor:pointer; }
       button.secondary { background:#345c75; }
+      button.ghost { background:transparent; border:1px solid rgba(255,255,255,.65); }
       button.warn { background:var(--gold); }
       button.danger { background:var(--danger); }
+      button:disabled { opacity:.55; cursor:not-allowed; }
       table { width:100%; border-collapse:collapse; font-size:14px; }
       th,td { text-align:left; border-bottom:1px solid #e8edf1; padding:8px; vertical-align:top; }
       th { color:var(--muted); font-size:12px; text-transform:uppercase; }
       nav { display:flex; flex-wrap:wrap; gap:8px; }
       nav a { color:white; }
+      .tabs { display:flex; flex-wrap:wrap; gap:8px; }
+      .tab { background:#e8edf1; color:var(--ink); }
+      .tab.active { background:var(--blue); color:white; }
+      .admin-section { display:none; }
+      .admin-section.active { display:block; }
+      .status { border:1px solid var(--line); border-radius:8px; padding:10px 12px; background:#f8fafc; color:var(--muted); }
+      .status.error { border-color:rgba(155,28,28,.35); background:#fff5f5; color:var(--danger); }
+      .status.success { border-color:rgba(15,81,50,.35); background:#f0faf4; color:#0f5132; }
       #toast { position:fixed; right:16px; bottom:16px; background:#172026; color:white; padding:10px 12px; border-radius:8px; opacity:0; transition:.2s; }
       #toast.show { opacity:1; }
     </style>
@@ -40,6 +50,7 @@
       <nav>
         <a href="/">Customer app</a>
         <a href="/merchant">Merchant portal</a>
+        <button id="logoutBtn" class="ghost" hidden>Logout</button>
       </nav>
     </header>
     <main>
@@ -50,46 +61,74 @@
         <button id="refreshBtn" class="secondary">Refresh</button>
         <span id="session">Not signed in</span>
       </section>
-      <section id="metrics" class="grid"></section>
-      <section class="grid">
+      <section id="adminStatus" class="status">Dashboard protected. Login as Admin to load data.</section>
+      <section class="tabs" aria-label="Admin navigation">
+        <button class="tab active" data-tab="dashboard">Dashboard</button>
+        <button class="tab" data-tab="orders">Orders</button>
+        <button class="tab" data-tab="merchants">Merchants</button>
+        <button class="tab" data-tab="drivers">Drivers</button>
+        <button class="tab" data-tab="customers">Customers</button>
+        <button class="tab" data-tab="payments">Payments</button>
+        <button class="tab" data-tab="wallet">Wallet</button>
+        <button class="tab" data-tab="support">Support</button>
+        <button class="tab" data-tab="settings">Settings</button>
+      </section>
+      <section id="metrics" class="grid admin-section active" data-section="dashboard"></section>
+      <section class="grid admin-section active" data-section="dashboard">
         <div class="card"><h2>Production Gate</h2><div id="launchGate"></div></div>
         <div class="card"><h2>Admin Security Roles</h2><div id="roles"></div></div>
         <div class="card"><h2>Payment Integrations</h2><div id="paymentProviders"></div></div>
       </section>
-      <section><h2>Order Monitoring</h2><div id="orders"></div></section>
-      <section class="grid">
+      <section class="admin-section" data-section="orders"><h2>Order Monitoring</h2><div id="orders"></div></section>
+      <section class="grid admin-section" data-section="merchants">
         <div class="card"><h2>Merchant Approval</h2><div id="merchants"></div></div>
-        <div class="card"><h2>Driver Approval</h2><div id="drivers"></div></div>
+        <div class="card"><h2>Pending Merchants</h2><div id="pendingMerchants"></div></div>
       </section>
-      <section class="grid">
+      <section class="grid admin-section" data-section="drivers">
+        <div class="card"><h2>Driver Approval</h2><div id="drivers"></div></div>
+        <div class="card"><h2>Pending Drivers</h2><div id="pendingDrivers"></div></div>
+      </section>
+      <section class="grid admin-section" data-section="customers">
         <div class="card"><h2>Customer Management</h2><div id="customers"></div></div>
         <div class="card"><h2>City/Neighborhood Management</h2><div id="neighborhoods"></div></div>
       </section>
-      <section class="grid">
+      <section class="grid admin-section" data-section="payments">
         <div class="card"><h2>Refund/Payment Review</h2><div id="payments"></div></div>
+        <div class="card"><h2>Refund Queue</h2><div id="refunds"></div></div>
+      </section>
+      <section class="grid admin-section" data-section="wallet">
         <div class="card"><h2>Wallet Audit</h2><div id="wallets"></div></div>
+        <div class="card"><h2>Cash Reconciliation</h2><div id="safetyControls"></div></div>
       </section>
-      <section class="grid">
-        <div class="card"><h2>Commission Settings</h2><div id="commissions"></div></div>
+      <section class="grid admin-section" data-section="support">
         <div class="card"><h2>Support Tickets</h2><div id="support"></div></div>
-      </section>
-      <section class="grid">
-        <div class="card"><h2>Feature Flags</h2><div id="flags"></div></div>
         <div class="card"><h2>Safety/Trust Controls</h2><div id="trust"></div></div>
       </section>
-      <section><h2>Audit Logs</h2><div id="audit"></div></section>
+      <section class="grid admin-section" data-section="settings">
+        <div class="card"><h2>Commission Settings</h2><div id="commissions"></div></div>
+        <div class="card"><h2>Feature Flags</h2><div id="flags"></div></div>
+        <div class="card"><h2>Admin Users</h2><div id="adminUsers"></div></div>
+      </section>
+      <section class="admin-section active" data-section="dashboard"><h2>Audit Logs</h2><div id="audit"></div></section>
     </main>
     <div id="toast"></div>
     <script>
-      const state = { country:"ET", token:localStorage.getItem("hg_admin_token") || "", data:null };
+      const API_BASE_URL = "http://localhost:3000/api";
+      const API_ORIGIN = API_BASE_URL.replace(/\/api$/, "");
+      const state = { country:"ET", token:localStorage.getItem("hg_admin_token") || "", user:JSON.parse(localStorage.getItem("hg_admin_user") || "null"), data:null };
       const $ = (id) => document.querySelector(id);
       const money = (n, c = "ETB") => `${Number(n || 0).toLocaleString()} ${c}`;
       function toast(message) { const el = $("#toast"); el.textContent = message; el.classList.add("show"); setTimeout(() => el.classList.remove("show"), 2200); }
+      function setStatus(message, type = "") { const el = $("#adminStatus"); el.textContent = message; el.className = `status ${type}`.trim(); }
+      function setLoading(loading) { $("#refreshBtn").disabled = loading; $("#loginBtn").disabled = loading; if (loading) setStatus("Loading admin dashboard..."); }
       async function api(path, options = {}) {
         const headers = { "Content-Type":"application/json", ...(options.headers || {}) };
         if (state.token) headers.Authorization = `Bearer ${state.token}`;
-        const response = await fetch(path, { ...options, headers });
+        const url = path.startsWith("http") ? path : `${API_ORIGIN}${path}`;
+        console.debug("[HabeshaGo Admin API request]", options.method || "GET", url, options.body ? JSON.parse(options.body) : "");
+        const response = await fetch(url, { ...options, headers });
         const data = await response.json().catch(() => ({}));
+        console.debug("[HabeshaGo Admin API response]", response.status, data);
         if (!response.ok) throw new Error(data.error || "Request failed");
         return data;
       }
@@ -98,35 +137,54 @@
         return `<table><thead><tr>${columns.map(c => `<th>${c.label}</th>`).join("")}<th>Actions</th></tr></thead><tbody>${rows.map(row => `<tr>${columns.map(c => `<td>${c.render ? c.render(row) : row[c.key]}</td>`).join("")}<td><div class="actions">${actions ? actions(row) : ""}</div></td></tr>`).join("")}</tbody></table>`;
       }
       async function login() {
-        const data = await api(`/api/${state.country}/v1/auth/login`, { method:"POST", body:JSON.stringify({ email:$("#email").value, password:$("#password").value }) });
+        setLoading(true);
+        const data = await api(`/api/auth/login`, { method:"POST", body:JSON.stringify({ email:$("#email").value, password:$("#password").value }) });
+        if (!["admin", "super_admin", "country_admin", "city_admin", "support_agent", "finance_admin", "operations_admin"].includes(data.user.role)) throw new Error("Only admin roles can access this portal");
         state.token = data.token;
+        state.user = data.user;
         localStorage.setItem("hg_admin_token", state.token);
+        localStorage.setItem("hg_admin_user", JSON.stringify(state.user));
         $("#session").textContent = `${data.user.name} (${data.user.role})`;
+        $("#logoutBtn").hidden = false;
         await load();
       }
       async function load() {
-        if (!state.token) return;
-        const [reports, details, orders, merchants, drivers, payments, wallets, sms, flags, trust, support, audit, roles, providers, commissions, neighborhoods, gate] = await Promise.all([
-          api(`/api/${state.country}/v1/admin/reports`),
-          api(`/api/${state.country}/v1/admin/details`),
-          api(`/api/${state.country}/v1/admin/orders`),
-          api(`/api/${state.country}/v1/admin/merchants`),
-          api(`/api/${state.country}/v1/admin/drivers`),
-          api(`/api/${state.country}/v1/admin/payment-transactions`),
-          api(`/api/${state.country}/v1/admin/wallet-transactions`),
-          api(`/api/${state.country}/v1/admin/sms-messages`),
-          api(`/api/${state.country}/v1/feature-flags`),
-          api(`/api/${state.country}/v1/admin/trust-verifications`),
-          api(`/api/${state.country}/v1/admin/support-tickets`),
-          api(`/api/${state.country}/v1/admin/audit-logs`),
-          api(`/api/${state.country}/v1/admin/security-roles`),
-          api(`/api/${state.country}/v1/admin/payment-providers`),
-          api(`/api/${state.country}/v1/admin/commission-settings`),
-          api(`/api/${state.country}/v1/admin/neighborhoods`),
-          fetch(`/api/${state.country}/v1/launch-gate`).then(r => r.json())
-        ]);
-        state.data = { reports, details, orders, merchants, drivers, payments, wallets, sms, flags, trust, support, audit, roles, providers, commissions, neighborhoods, gate };
-        render();
+        if (!state.token) { setStatus("Dashboard protected. Login as Admin to load data."); return; }
+        setLoading(true);
+        try {
+          const [reports, details, orders, merchants, pendingMerchants, drivers, pendingDrivers, payments, refunds, wallets, sms, flags, trust, support, audit, roles, providers, commissions, neighborhoods, safety, adminUsers, gate] = await Promise.all([
+            api(`/api/admin/reports`),
+            api(`/api/admin/details`),
+            api(`/api/admin/orders`),
+            api(`/api/admin/merchants`),
+            api(`/api/admin/merchants/pending`),
+            api(`/api/admin/drivers`),
+            api(`/api/admin/drivers/pending`),
+            api(`/api/admin/payment-transactions`),
+            api(`/api/admin/refunds`),
+            api(`/api/admin/wallet-transactions`),
+            api(`/api/admin/sms-messages`),
+            api(`/api/${state.country}/v1/feature-flags`),
+            api(`/api/admin/trust-verifications`),
+            api(`/api/admin/support/tickets`),
+            api(`/api/admin/audit-logs`),
+            api(`/api/admin/security-roles`),
+            api(`/api/admin/payment-providers`),
+            api(`/api/admin/commission-settings`),
+            api(`/api/admin/neighborhoods`),
+            api(`/api/admin/safety-controls`),
+            api(`/api/admin/users`),
+            fetch(`${API_ORIGIN}/api/${state.country}/v1/launch-gate`).then(r => r.json())
+          ]);
+          state.data = { reports, details, orders, merchants, pendingMerchants, drivers, pendingDrivers, payments, refunds, wallets, sms, flags, trust, support, audit, roles, providers, commissions, neighborhoods, safety, adminUsers, gate };
+          render();
+          setStatus("Admin dashboard loaded successfully.", "success");
+        } catch (error) {
+          setStatus(error.message, "error");
+          toast(error.message);
+        } finally {
+          setLoading(false);
+        }
       }
       function render() {
         const d = state.data;
@@ -141,6 +199,18 @@
         $("#launchGate").innerHTML = `<p>${d.gate.launch_allowed ? "Allowed" : "Blocked"} - mode ${d.gate.mode}</p><small>${(d.gate.missing_environment || []).join(", ")}</small>`;
         $("#roles").innerHTML = d.roles.roles.map(r => `<p><strong>${r.role}</strong><br><small>${r.permissions.join(", ")}</small></p>`).join("");
         $("#paymentProviders").innerHTML = d.providers.providers.map(p => `<p>${p.provider}: ${p.status} (${p.mode})</p>`).join("");
+        $("#pendingMerchants").innerHTML = table(d.pendingMerchants.merchants, [
+          { label:"Merchant", key:"name" },
+          { label:"Status", key:"status" },
+          { label:"Verification", key:"verification_status" },
+          { label:"Commission", render:m => `${Math.round(Number(m.commission_rate || 0) * 100)}%` }
+        ], m => `<button data-merchant="${m.id}|open|true">Approve</button><button class="danger" data-merchant="${m.id}|rejected|false">Reject</button>`);
+        $("#pendingDrivers").innerHTML = table(d.pendingDrivers.drivers, [
+          { label:"Driver", key:"id" },
+          { label:"License", key:"license_number" },
+          { label:"Vehicle", render:x => `${x.vehicle_type || ""} ${x.vehicle_plate || ""}` },
+          { label:"Training", key:"training_status" }
+        ], x => `<button data-driver="${x.id}|false|true">Approve</button><button class="danger" data-driver="${x.id}|true|false">Reject</button>`);
         $("#orders").innerHTML = table(d.orders.orders, [
           { label:"Order", render:o => o.id.slice(0,8) },
           { label:"Customer", key:"customer_name" },
@@ -174,6 +244,12 @@
           { label:"Amount", render:p => money(p.amount, p.currency) },
           { label:"Real money", render:p => p.real_money_moved ? "Yes" : "No" }
         ]);
+        $("#refunds").innerHTML = table(d.refunds.refunds, [
+          { label:"Refund", key:"id" },
+          { label:"Order", key:"orderId" },
+          { label:"Amount", render:r => money(r.amount, r.currency) },
+          { label:"Status", key:"status" }
+        ]);
         $("#wallets").innerHTML = table(d.wallets.transactions, [
           { label:"Type", key:"type" },
           { label:"Amount", render:w => money(w.amount, w.currency) },
@@ -189,6 +265,7 @@
           { label:"Priority", key:"priority" },
           { label:"Status", key:"status" }
         ]);
+        $("#safetyControls").innerHTML = d.safety.controls.map(c => `<p><strong>${c.key}</strong>: ${c.status}<br><small>${c.detail}</small></p>`).join("");
         $("#flags").innerHTML = d.flags.flags.map(f => `<p><strong>${f.key}</strong> - ${f.legal_hold ? "Legal hold" : f.enabled ? "Enabled" : "Disabled"} ${f.legal_hold ? "" : `<button data-flag="${f.key}|${!f.enabled}">Toggle</button>`}</p>`).join("");
         $("#trust").innerHTML = table(d.trust.verifications, [
           { label:"Entity", render:t => `${t.entity_type} ${t.entity_id}` },
@@ -202,6 +279,12 @@
           { label:"Actor", key:"actor_user_id" },
           { label:"When", render:a => new Date(a.created_at).toLocaleString() }
         ]);
+        $("#adminUsers").innerHTML = table(d.adminUsers.users, [
+          { label:"Name", key:"name" },
+          { label:"Email", key:"email" },
+          { label:"Role", key:"role" },
+          { label:"Status", key:"status" }
+        ], u => `<button data-admin-user="${u.id}|active">Activate</button><button class="danger" data-admin-user="${u.id}|inactive">Deactivate</button>`);
         bind();
       }
       function bind() {
@@ -235,9 +318,28 @@
           if (rate) await api(`/api/${state.country}/v1/admin/commission-settings/${btn.dataset.commission}`, { method:"PATCH", body:JSON.stringify({ commission_rate:Number(rate) }) });
           await load();
         });
+        document.querySelectorAll("[data-admin-user]").forEach(btn => btn.onclick = async () => {
+          const [id, status] = btn.dataset.adminUser.split("|");
+          await api(`/api/admin/users/${id}`, { method:"PATCH", body:JSON.stringify({ status }) });
+          toast("Admin user updated"); await load();
+        });
       }
-      $("#loginBtn").onclick = login;
+      document.querySelectorAll("[data-tab]").forEach(btn => btn.onclick = () => {
+        document.querySelectorAll(".tab").forEach(el => el.classList.toggle("active", el === btn));
+        document.querySelectorAll(".admin-section").forEach(el => el.classList.toggle("active", el.dataset.section === btn.dataset.tab));
+      });
+      $("#loginBtn").onclick = () => login().catch(error => { setLoading(false); setStatus(error.message, "error"); toast(error.message); });
       $("#refreshBtn").onclick = () => load().catch(e => toast(e.message));
+      $("#logoutBtn").onclick = () => {
+        state.token = "";
+        state.user = null;
+        localStorage.removeItem("hg_admin_token");
+        localStorage.removeItem("hg_admin_user");
+        $("#session").textContent = "Not signed in";
+        $("#logoutBtn").hidden = true;
+        setStatus("Logged out.");
+      };
+      if (state.user) { $("#session").textContent = `${state.user.name} (${state.user.role})`; $("#logoutBtn").hidden = false; }
       if (state.token) load().catch(e => toast(e.message));
     </script>
   </body>

@@ -4,6 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>HabeshaGo Local MVP</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
@@ -268,6 +269,7 @@
             </div>
             <div class="map-canvas">
               <div class="map-origin">You</div>
+              <div id="leafletMap"></div>
               <div id="realtimeMap" class="realtime-map"></div>
               <div id="nearbyRestaurants" class="map-list"><h3>Nearby restaurants, cafes, supermarkets</h3></div>
               <div id="nearbyDrivers" class="map-list"><h3>Nearby drivers</h3></div>
@@ -392,6 +394,7 @@
     </main>
 
     <div id="toast" role="status"></div>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="/app.js"></script>
   </body>
 </html>

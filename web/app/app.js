@@ -5,9 +5,13 @@ const state = {
   products: [],
   merchants: [],
   locations: null,
+  map: null,
+  mapLayers: [],
   events: null
 };
 
+const API_BASE_URL = "http://localhost:3000/api";
+const API_ORIGIN = API_BASE_URL.replace(/\/api$/, "");
 const $ = (selector) => document.querySelector(selector);
 const money = (amount, currency = "ETB") => `${Number(amount || 0).toLocaleString()} ${currency}`;
 const demoAccounts = {
@@ -38,8 +42,11 @@ function signupDefaults(role) {
 async function api(path, options = {}) {
   const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
   if (state.token) headers.Authorization = `Bearer ${state.token}`;
-  const response = await fetch(path, { ...options, headers });
+  const url = path.startsWith("http") ? path : `${API_ORIGIN}${path}`;
+  console.debug("[HabeshaGo API request]", options.method || "GET", url, options.body ? JSON.parse(options.body) : "");
+  const response = await fetch(url, { ...options, headers });
   const data = await response.json().catch(() => ({}));
+  console.debug("[HabeshaGo API response]", response.status, data);
   if (!response.ok) throw new Error(data.error || "Request failed");
   return data;
 }
@@ -286,7 +293,7 @@ async function loadCatalog() {
   const sort = $("#merchantSort")?.value || "nearest";
   const category = encodeURIComponent($("#merchantCategory")?.value || "");
   const search = encodeURIComponent($("#merchantSearch")?.value || "");
-  const merchants = await api(`/api/${state.country}/v1/merchants?lat=${lat}&lng=${lng}&radius_km=${radius}&min_rating=${minRating}&sort=${sort}&category=${category}&search=${search}`);
+  const merchants = await api(`/api/marketplace/nearby?lat=${lat}&lng=${lng}&radiusKm=${radius}&minimumReview=${minRating}&sortBy=${sort}&type=${category}&search=${search}`);
   const products = await api(`/api/${state.country}/v1/products`);
   state.merchants = merchants.merchants;
   state.products = products.products;
@@ -847,6 +854,72 @@ async function loadRealtimeLocations() {
       <p>${driver.badge_level}: ${driver.latitude.toFixed(5)}, ${driver.longitude.toFixed(5)} - ${driver.eta_minutes} min ETA - accuracy ${driver.accuracy_m}m</p>
     `).join("")}
   `;
+  renderLeafletMap(data);
+}
+
+function selectedMapOrigin() {
+  const [lat, lng] = ($("#nearbyLocation")?.value || "8.994|38.789").split("|").map(Number);
+  return { lat, lng };
+}
+
+function renderLeafletMap(data) {
+  const mapEl = $("#leafletMap");
+  if (!mapEl || !window.L) {
+    if (mapEl) mapEl.innerHTML = "<div class='map-fallback'>OpenStreetMap is unavailable. Showing local marker fallback.</div>";
+    return;
+  }
+  const origin = data.origin || selectedMapOrigin();
+  if (!state.map) {
+    state.map = L.map("leafletMap", { zoomControl: true }).setView([origin.lat, origin.lng], 15);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: "&copy; OpenStreetMap"
+    }).addTo(state.map);
+    setTimeout(() => state.map.invalidateSize(), 150);
+  }
+  state.map.setView([origin.lat, origin.lng], 15);
+  state.mapLayers.forEach((layer) => state.map.removeLayer(layer));
+  state.mapLayers = [];
+  const addLayer = (layer) => {
+    state.mapLayers.push(layer);
+    layer.addTo(state.map);
+  };
+  addLayer(L.marker([origin.lat, origin.lng]).bindPopup("Customer fallback/GPS location"));
+  addLayer(L.circle([origin.lat, origin.lng], {
+    radius: Number($("#nearbyRadius")?.value || 5) * 1000,
+    color: "#0f5132",
+    fillColor: "#0f5132",
+    fillOpacity: 0.06
+  }).bindPopup("Delivery radius"));
+  (data.merchants || []).slice(0, 8).forEach((merchant) => {
+    addLayer(L.marker([merchant.latitude, merchant.longitude]).bindPopup(`${merchant.name}<br>${merchant.category} - ${merchant.distance_km} km`));
+  });
+  (data.drivers || []).slice(0, 8).forEach((driver) => {
+    addLayer(L.circleMarker([driver.latitude, driver.longitude], {
+      radius: 8,
+      color: "#236cb3",
+      fillColor: "#236cb3",
+      fillOpacity: 0.85
+    }).bindPopup(`${driver.vehicle_type} ${driver.vehicle_plate || ""}<br>${driver.distance_km} km - ${driver.eta_minutes} min`));
+  });
+}
+
+async function refreshGpsAndMap() {
+  if (!navigator.geolocation) return loadNearbyMap();
+  $("#realtimeLocationPanel").innerHTML = "<strong>Refreshing GPS...</strong><span>Waiting for browser location or fallback.</span>";
+  await new Promise((resolve) => {
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        $("#nearbyLocation").value = "8.994|38.789";
+        $("#destLat").value = position.coords.latitude.toFixed(4);
+        $("#destLng").value = position.coords.longitude.toFixed(4);
+        resolve();
+      },
+      () => resolve(),
+      { enableHighAccuracy: true, timeout: 2500, maximumAge: 60000 }
+    );
+  });
+  await loadNearbyMap();
 }
 
 async function loadNotifications() {
@@ -970,7 +1043,7 @@ $("#startLiveDemoBtn").addEventListener("click", () => startLiveDemo().catch((er
 $("#refreshRecommendationsBtn").addEventListener("click", () => loadRecommendations().catch((error) => toast(error.message)));
 $("#refreshReadinessBtn").addEventListener("click", () => loadProductionReadiness().catch((error) => toast(error.message)));
 $("#refreshNotificationsBtn").addEventListener("click", () => loadNotifications().catch((error) => toast(error.message)));
-$("#refreshNearbyMapBtn").addEventListener("click", () => loadNearbyMap().catch((error) => toast(error.message)));
+$("#refreshNearbyMapBtn").addEventListener("click", () => refreshGpsAndMap().catch((error) => toast(error.message)));
 document.querySelectorAll("[data-sample-cart]").forEach((button) => {
   button.addEventListener("click", () => addSampleCart(button.dataset.sampleCart).catch((error) => toast(error.message)));
 });

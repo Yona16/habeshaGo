@@ -176,7 +176,10 @@ function seedData() {
       { key: "SOCIAL_FEED_ENABLED", enabled: false, legal_hold: false },
       { key: "VOICE_ORDERING_ENABLED", enabled: false, legal_hold: false },
       { key: "NIGHT_SAFETY_ENABLED", enabled: false, legal_hold: false },
-      { key: "CHILD_DELIVERY_ENABLED", enabled: false, legal_hold: false }
+      { key: "CHILD_DELIVERY_ENABLED", enabled: false, legal_hold: false },
+      { key: "DIASPORA_ORDERING_ENABLED", enabled: false, legal_hold: false },
+      { key: "REFERRAL_PROGRAM_ENABLED", enabled: false, legal_hold: false },
+      { key: "PROMO_CODES_ENABLED", enabled: true, legal_hold: false }
     ],
     sessions: {}
   };
@@ -242,6 +245,9 @@ function normalizeDetails(data) {
   }
   for (const product of seeded.products) {
     if (!data.products.some((item) => item.id === product.id)) data.products.push(product);
+  }
+  for (const flag of seeded.feature_flags) {
+    if (!data.feature_flags.some((item) => item.key === flag.key)) data.feature_flags.push(flag);
   }
   for (const merchant of data.merchants || []) {
     const fallback = seeded.merchants.find((item) => item.id === merchant.id) || {};
@@ -876,6 +882,44 @@ async function handleApi(req, res, url) {
   const countryId = countryFromPath(url.pathname);
   const country = store.countries.find((item) => item.id === countryId);
   if (!country && url.pathname !== "/api/v1/countries") return sendError(res, 404, "Unsupported country");
+
+  if (req.method === "GET" && url.pathname === "/api/marketplace/nearby") {
+    const lat = Number(url.searchParams.get("lat") || url.searchParams.get("latitude") || HQ_COORDS.lat);
+    const lng = Number(url.searchParams.get("lng") || url.searchParams.get("longitude") || HQ_COORDS.lng);
+    const radiusKm = Number(url.searchParams.get("radiusKm") || url.searchParams.get("radius_km") || 5);
+    const category = String(url.searchParams.get("type") || url.searchParams.get("category") || "").toLowerCase();
+    const search = String(url.searchParams.get("search") || "").toLowerCase();
+    const minRating = Number(url.searchParams.get("minimumReview") || url.searchParams.get("min_rating") || 0);
+    const sortBy = String(url.searchParams.get("sortBy") || url.searchParams.get("sort") || "nearest");
+    let merchants = store.merchants
+      .filter((merchant) => merchant.country_id === countryId && merchant.status !== "closed")
+      .filter((merchant) => !category || merchant.category === category)
+      .filter((merchant) => !search || [merchant.name, merchant.category, merchant.address_note, merchant.support_notes].join(" ").toLowerCase().includes(search))
+      .map((merchant) => ({
+        ...merchant,
+        distance_km: Number(distanceKm({ lat, lng }, { lat: merchant.latitude, lng: merchant.longitude }).toFixed(2)),
+        delivery_fee: quoteDelivery({ lat: merchant.latitude, lng: merchant.longitude }).fee,
+        open_now: merchant.status === "open"
+      }))
+      .filter((merchant) => merchant.distance_km <= radiusKm && Number(merchant.rating || 0) >= minRating);
+    if (sortBy === "nearest") merchants = merchants.sort((a, b) => a.distance_km - b.distance_km);
+    if (sortBy === "rating") merchants = merchants.sort((a, b) => Number(b.rating || 0) - Number(a.rating || 0));
+    if (sortBy === "reviews") merchants = merchants.sort((a, b) => Number(b.review_count || 0) - Number(a.review_count || 0));
+    return send(res, 200, { merchants, drivers: liveLocationSnapshot(countryId, { lat, lng }).drivers });
+  }
+
+  const apiMerchantAlias = url.pathname.match(/^\/api\/merchants\/([^/]+)$/);
+  if (req.method === "GET" && apiMerchantAlias) {
+    const merchant = store.merchants.find((item) => item.id === apiMerchantAlias[1] && item.country_id === countryId);
+    if (!merchant) return sendError(res, 404, "Merchant not found");
+    const products = store.products.filter((item) => item.merchant_id === merchant.id && item.country_id === countryId);
+    const trust = store.trust_verifications.filter((item) => item.entity_type === "merchant" && item.entity_id === merchant.id);
+    return send(res, 200, { merchant, products, trust });
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/products" && url.searchParams.get("merchantId")) {
+    return send(res, 200, { products: store.products.filter((product) => product.country_id === countryId && product.merchant_id === url.searchParams.get("merchantId")) });
+  }
 
   if (req.method === "GET" && url.pathname.endsWith("/events")) {
     res.writeHead(200, {
@@ -1753,15 +1797,77 @@ async function handleApi(req, res, url) {
     if (req.method === "GET" && url.pathname.endsWith("/admin/payment-transactions")) return send(res, 200, { transactions: store.payment_transactions.filter((tx) => tx.country_id === countryId) });
     if (req.method === "GET" && url.pathname.endsWith("/admin/sms-messages")) return send(res, 200, { messages: store.sms_messages.filter((message) => message.country_id === countryId) });
     if (req.method === "GET" && url.pathname.endsWith("/admin/trust-verifications")) return send(res, 200, { verifications: store.trust_verifications });
-    if (req.method === "GET" && url.pathname.endsWith("/admin/support-tickets")) return send(res, 200, { tickets: store.support_tickets.filter((ticket) => ticket.country_id === countryId) });
+    if (req.method === "GET" && (url.pathname.endsWith("/admin/support-tickets") || url.pathname.endsWith("/admin/support/tickets"))) return send(res, 200, { tickets: store.support_tickets.filter((ticket) => ticket.country_id === countryId) });
+    if (req.method === "GET" && url.pathname.endsWith("/admin/merchants/pending")) return send(res, 200, { merchants: store.merchants.filter((merchant) => merchant.country_id === countryId && (!merchant.verified || merchant.status === "pending")) });
+    if (req.method === "GET" && url.pathname.endsWith("/admin/drivers/pending")) return send(res, 200, { drivers: store.drivers.filter((driver) => driver.country_id === countryId && driver.verification_status !== "verified") });
+    if (req.method === "GET" && url.pathname.endsWith("/admin/refunds")) {
+      return send(res, 200, {
+        refunds: store.payment_transactions
+          .filter((tx) => tx.country_id === countryId && ["refund_requested", "refunded_simulated", "failed"].includes(tx.status))
+          .map((tx) => ({ id: tx.id, orderId: tx.order_id, paymentId: tx.id, amount: tx.amount, currency: tx.currency, reason: tx.status, status: tx.status }))
+      });
+    }
+    if (req.method === "GET" && url.pathname.endsWith("/admin/safety-controls")) {
+      return send(res, 200, {
+        controls: [
+          { key: "fraud_flags", status: "monitored", detail: "Demo fraud queue uses audit logs, failed payments, and support tickets." },
+          { key: "cash_reconciliation_alerts", status: store.drivers.some((driver) => driver.cash_collected > driver.float_balance) ? "attention_required" : "clear", detail: "Flags drivers whose collected cash exceeds float balance." },
+          { key: "night_delivery_rules", status: "feature_flagged", detail: "Night safety is held behind feature flags until policy review." },
+          { key: "customer_abuse_reports", status: "support_queue", detail: "Use support tickets and audit logs for pilot review." }
+        ]
+      });
+    }
+    if (req.method === "GET" && url.pathname.endsWith("/admin/users")) {
+      return send(res, 200, {
+        users: store.users.filter((item) => ["admin", "support_agent", "finance_admin", "operations_admin"].includes(item.role)).map(publicUser)
+      });
+    }
+    if (req.method === "POST" && url.pathname.endsWith("/admin/users")) {
+      const body = await readBody(req);
+      const role = ["super_admin", "country_admin", "city_admin", "support_agent", "finance_admin", "operations_admin", "admin"].includes(body.role) ? body.role : "admin";
+      const newUser = {
+        id: randomUUID(),
+        name: body.name || "Admin User",
+        email: String(body.email || `admin-${Date.now()}@habeshago.local`).toLowerCase(),
+        phone: body.phone || `+2519${String(Date.now()).slice(-8)}`,
+        role,
+        country_id: countryId,
+        city_id: body.city_id || "bole",
+        currency: country.currency,
+        language: body.language || "en",
+        timezone: country.timezone,
+        password_hash: hashPassword(body.password || "Admin123!"),
+        status: "active",
+        created_at: new Date().toISOString()
+      };
+      if (store.users.some((item) => item.email === newUser.email || item.phone === newUser.phone)) return sendError(res, 409, "Admin email or phone already exists");
+      store.users.push(newUser);
+      audit(user, "admin.user_created", "user", newUser.id, { role });
+      saveStore();
+      return send(res, 201, { user: publicUser(newUser) });
+    }
+    const adminUserMatch = url.pathname.match(/^\/api(?:\/[^/]+\/v1)?\/admin\/users\/([^/]+)$/);
+    if (req.method === "PATCH" && adminUserMatch) {
+      const body = await readBody(req);
+      const target = store.users.find((item) => item.id === adminUserMatch[1]);
+      if (!target) return sendError(res, 404, "Admin user not found");
+      if (body.role) target.role = body.role;
+      if (body.status) target.status = body.status;
+      if (body.name) target.name = body.name;
+      audit(user, "admin.user_updated", "user", target.id, { role: target.role, status: target.status });
+      saveStore();
+      return send(res, 200, { user: publicUser(target) });
+    }
     if (req.method === "GET" && url.pathname.endsWith("/admin/audit-logs")) return send(res, 200, { logs: store.audit_logs.filter((log) => log.country_id === countryId).slice(-100).reverse() });
     if (req.method === "GET" && url.pathname.endsWith("/admin/security-roles")) {
       return send(res, 200, {
         roles: [
-          { role: "admin", permissions: ["orders:read", "orders:update", "merchants:approve", "drivers:approve", "payments:review", "wallet:adjust", "feature_flags:update", "audit:read"] },
-          { role: "merchant", permissions: ["merchant:profile:update", "products:update", "orders:accept", "orders:prepare", "support:create"] },
-          { role: "driver", permissions: ["dispatch:accept", "orders:pickup", "orders:deliver", "location:update"] },
-          { role: "customer", permissions: ["cart:update", "orders:create", "orders:read", "support:create"] }
+          { role: "SUPER_ADMIN", permissions: ["*"] },
+          { role: "COUNTRY_ADMIN", permissions: ["orders:read", "orders:update", "merchants:approve", "drivers:approve", "payments:review", "wallet:adjust", "feature_flags:update", "audit:read"] },
+          { role: "CITY_ADMIN", permissions: ["orders:read", "orders:update", "merchants:approve", "drivers:approve", "support:manage"] },
+          { role: "SUPPORT_AGENT", permissions: ["customers:read", "orders:read", "support:manage", "safety:review"] },
+          { role: "FINANCE_ADMIN", permissions: ["payments:review", "refunds:approve", "wallet:adjust", "payouts:manage", "cash:reconcile"] },
+          { role: "OPERATIONS_ADMIN", permissions: ["dispatch:manage", "drivers:approve", "merchants:approve", "cities:manage"] }
         ],
         mfa_required_for_admin: true,
         session_policy: "Local demo sessions. Production requires signed JWT, refresh rotation, MFA, and device/session audit."
