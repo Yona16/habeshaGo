@@ -53,7 +53,7 @@ function verifyPassword(password, stored) {
 
 function seedData() {
   const countries = [
-    { id: "ET", name: "Ethiopia", currency: "ETB", timezone: "Africa/Addis_Ababa", languages: ["am", "en", "om", "ti"], payments: ["Telebirr", "Chapa", "Cash"] },
+    { id: "ET", name: "Ethiopia", currency: "ETB", timezone: "Africa/Addis_Ababa", languages: ["am", "en", "om", "ti"], payments: ["Telebirr", "CBE Birr", "Chapa", "SantimPay", "Cash"] },
     { id: "KE", name: "Kenya", currency: "KES", timezone: "Africa/Nairobi", languages: ["en", "sw"], payments: ["M-Pesa", "Airtel Money", "Card", "Cash"] },
     { id: "TZ", name: "Tanzania", currency: "TZS", timezone: "Africa/Dar_es_Salaam", languages: ["sw", "en"], payments: ["M-Pesa", "Tigo Pesa", "Airtel Money"] },
     { id: "UG", name: "Uganda", currency: "UGX", timezone: "Africa/Kampala", languages: ["en", "lg", "sw"], payments: ["MTN MoMo", "Airtel Money"] },
@@ -80,7 +80,11 @@ function seedData() {
       { id: "admin-1", name: "HabeshaGo Admin", email: "admin@habeshago.local", phone: "+251900000001", role: "admin", country_id: "ET", city_id: "bole", currency: "ETB", language: "en", timezone: "Africa/Addis_Ababa", password_hash: hashPassword("Admin123!"), status: "active" },
       { id: "customer-1", name: "Demo Customer", email: "customer@habeshago.local", phone: "+251900000002", role: "customer", country_id: "ET", city_id: "bole", currency: "ETB", language: "am", timezone: "Africa/Addis_Ababa", password_hash: hashPassword("Customer123!"), status: "active" },
       { id: "merchant-user-1", name: "Demo Merchant", email: "merchant@habeshago.local", phone: "+251900000003", role: "merchant", country_id: "ET", city_id: "bole", currency: "ETB", language: "am", timezone: "Africa/Addis_Ababa", password_hash: hashPassword("Merchant123!"), status: "active" },
-      { id: "driver-user-1", name: "Demo Driver", email: "driver@habeshago.local", phone: "+251900000004", role: "driver", country_id: "ET", city_id: "bole", currency: "ETB", language: "am", timezone: "Africa/Addis_Ababa", password_hash: hashPassword("Driver123!"), status: "active" }
+      { id: "driver-user-1", name: "Demo Driver", email: "driver@habeshago.local", phone: "+251900000004", role: "driver", country_id: "ET", city_id: "bole", currency: "ETB", language: "am", timezone: "Africa/Addis_Ababa", password_hash: hashPassword("Driver123!"), status: "active" },
+      { id: "admin-test-1", name: "Test Admin", email: "admin@test.com", phone: "+251900000011", role: "admin", country_id: "ET", city_id: "bole", currency: "ETB", language: "en", timezone: "Africa/Addis_Ababa", password_hash: hashPassword("Admin123!"), status: "active" },
+      { id: "customer-test-1", name: "Test Customer", email: "customer@test.com", phone: "+251900000012", role: "customer", country_id: "ET", city_id: "bole", currency: "ETB", language: "en", timezone: "Africa/Addis_Ababa", password_hash: hashPassword("Customer123!"), status: "active" },
+      { id: "merchant-test-user-1", name: "Test Merchant", email: "merchant@test.com", phone: "+251900000013", role: "merchant", country_id: "ET", city_id: "bole", currency: "ETB", language: "en", timezone: "Africa/Addis_Ababa", password_hash: hashPassword("Merchant123!"), status: "active" },
+      { id: "driver-test-user-1", name: "Test Driver", email: "driver@test.com", phone: "+251900000014", role: "driver", country_id: "ET", city_id: "bole", currency: "ETB", language: "en", timezone: "Africa/Addis_Ababa", password_hash: hashPassword("Driver123!"), status: "active" }
     ],
     customers: [
       {
@@ -99,6 +103,23 @@ function seedData() {
         emergency_contact_name: "Family Contact",
         emergency_contact_phone: "+251900000099",
         support_preference: "phone"
+      },
+      {
+        id: "customer-test-1",
+        user_id: "customer-test-1",
+        country_id: "ET",
+        city_id: "bole",
+        currency: "ETB",
+        language: "en",
+        timezone: "Africa/Addis_Ababa",
+        wallet_balance: 750,
+        senior_mode: false,
+        family_account: false,
+        preferred_address: "Test address near Bole Medhanealem",
+        landmark_note: "Test account landmark",
+        emergency_contact_name: "Test Family",
+        emergency_contact_phone: "+251900000019",
+        support_preference: "app"
       }
     ],
     merchants: [
@@ -106,7 +127,8 @@ function seedData() {
       { id: "merchant-2", owner_user_id: "merchant-user-1", country_id: "ET", city_id: "bole", currency: "ETB", language: "en", timezone: "Africa/Addis_Ababa", name: "Bole Fresh Grocery", category: "grocery", women_owned: false, verified: true, status: "open", commission_rate: 0.08, rating: 4.5, review_count: 86, latitude: 8.991, longitude: 38.792, address_note: "Friendship area", contact_phone: "+251922222222", manager_name: "Dawit Bekele", opening_hours: "Mon-Sat 7:00 AM - 9:00 PM", prep_time_minutes: 12, delivery_radius_km: 3, payout_schedule: "weekly", trust_score: 89, verification_status: "verified", support_notes: "Grocery substitutions allowed after customer confirmation." },
       { id: "merchant-3", owner_user_id: "merchant-user-1", country_id: "ET", city_id: "bole", currency: "ETB", language: "am", timezone: "Africa/Addis_Ababa", name: "Almaz Injera House", category: "marketplace", women_owned: true, verified: false, status: "open", commission_rate: 0.07, rating: 4.4, review_count: 42, latitude: 8.999, longitude: 38.782, address_note: "Woreda 03, yellow door near school", contact_phone: "+251933333333", manager_name: "Almaz Tesfaye", opening_hours: "Mon-Fri 6:00 AM - 7:00 PM", prep_time_minutes: 25, delivery_radius_km: 2, payout_schedule: "weekly", trust_score: 81, verification_status: "pending", support_notes: "Home-based seller; verify quantity before accepting bulk orders." },
       { id: "merchant-4", owner_user_id: "merchant-user-1", country_id: "ET", city_id: "bole", currency: "ETB", language: "en", timezone: "Africa/Addis_Ababa", name: "Bole Buna Cafe", category: "cafe", women_owned: false, verified: true, status: "open", commission_rate: 0.1, rating: 4.8, review_count: 212, latitude: 8.995, longitude: 38.790, address_note: "Across from Edna Mall", contact_phone: "+251944444444", manager_name: "Sara Coffee", opening_hours: "Mon-Sun 6:30 AM - 11:00 PM", prep_time_minutes: 9, delivery_radius_km: 3, payout_schedule: "weekly", trust_score: 94, verification_status: "verified", support_notes: "Popular coffee and pastry spot near Bole." },
-      { id: "merchant-5", owner_user_id: "merchant-user-1", country_id: "ET", city_id: "bole", currency: "ETB", language: "en", timezone: "Africa/Addis_Ababa", name: "Bole Supermarket Express", category: "supermarket", women_owned: false, verified: true, status: "open", commission_rate: 0.08, rating: 4.6, review_count: 167, latitude: 8.990, longitude: 38.785, address_note: "Near airport road", contact_phone: "+251955555555", manager_name: "Hana Market", opening_hours: "Mon-Sun 7:00 AM - 12:00 AM", prep_time_minutes: 11, delivery_radius_km: 5, payout_schedule: "weekly", trust_score: 90, verification_status: "verified", support_notes: "Good for household staples and fast grocery baskets." }
+      { id: "merchant-5", owner_user_id: "merchant-user-1", country_id: "ET", city_id: "bole", currency: "ETB", language: "en", timezone: "Africa/Addis_Ababa", name: "Bole Supermarket Express", category: "supermarket", women_owned: false, verified: true, status: "open", commission_rate: 0.08, rating: 4.6, review_count: 167, latitude: 8.990, longitude: 38.785, address_note: "Near airport road", contact_phone: "+251955555555", manager_name: "Hana Market", opening_hours: "Mon-Sun 7:00 AM - 12:00 AM", prep_time_minutes: 11, delivery_radius_km: 5, payout_schedule: "weekly", trust_score: 90, verification_status: "verified", support_notes: "Good for household staples and fast grocery baskets." },
+      { id: "merchant-test-1", owner_user_id: "merchant-test-user-1", country_id: "ET", city_id: "bole", currency: "ETB", language: "en", timezone: "Africa/Addis_Ababa", name: "Test Merchant Kitchen", category: "restaurant", women_owned: false, verified: true, status: "open", commission_rate: 0.1, rating: 4.5, review_count: 10, latitude: 8.9965, longitude: 38.7885, address_note: "Test merchant address in Bole", contact_phone: "+251900000013", manager_name: "Test Manager", opening_hours: "Mon-Sun 8:00 AM - 9:00 PM", prep_time_minutes: 15, delivery_radius_km: 4, payout_schedule: "weekly", trust_score: 88, verification_status: "verified", support_notes: "Ready seeded merchant account for local testing." }
     ],
     products: [
       { id: "product-1", merchant_id: "merchant-1", country_id: "ET", city_id: "bole", currency: "ETB", language: "am", timezone: "Africa/Addis_Ababa", name: "Kitfo", category: "food", price: 350, available: true, description: "Minced lean beef with mitmita, ayib, and kocho.", prep_time_minutes: 18, dietary_tags: ["spicy", "beef"], stock_quantity: 24, popular: true },
@@ -143,6 +165,33 @@ function seedData() {
         emergency_contact_phone: "+251900000088",
         verification_status: "verified",
         training_status: "night_safety_pending"
+      }
+      ,
+      {
+        id: "driver-test-1",
+        user_id: "driver-test-user-1",
+        country_id: "ET",
+        city_id: "bole",
+        currency: "ETB",
+        language: "en",
+        timezone: "Africa/Addis_Ababa",
+        online: true,
+        frozen: false,
+        safety_score: 95,
+        badge_level: "Test Driver",
+        float_balance: 1000,
+        cash_collected: 0,
+        earnings: 0,
+        latitude: 8.992,
+        longitude: 38.786,
+        vehicle_type: "motorbike",
+        vehicle_plate: "AA-2-TEST",
+        license_number: "ET-DRV-TEST",
+        assigned_zone: "Bole",
+        emergency_contact_name: "Test Driver Family",
+        emergency_contact_phone: "+251900000018",
+        verification_status: "verified",
+        training_status: "complete"
       }
     ],
     carts: [],
@@ -251,6 +300,20 @@ function loadStore() {
 
 function normalizeDetails(data) {
   const seeded = seedData();
+  for (const country of seeded.countries) {
+    const current = data.countries.find((item) => item.id === country.id);
+    if (!current) data.countries.push(country);
+    else current.payments = country.payments;
+  }
+  for (const user of seeded.users) {
+    if (!data.users.some((item) => item.id === user.id || item.email === user.email || item.phone === user.phone)) data.users.push(user);
+  }
+  for (const customer of seeded.customers) {
+    if (!data.customers.some((item) => item.id === customer.id || item.user_id === customer.user_id)) data.customers.push(customer);
+  }
+  for (const driver of seeded.drivers) {
+    if (!data.drivers.some((item) => item.id === driver.id || item.user_id === driver.user_id)) data.drivers.push(driver);
+  }
   for (const merchant of seeded.merchants) {
     if (!data.merchants.some((item) => item.id === merchant.id)) data.merchants.push(merchant);
   }
@@ -485,6 +548,24 @@ function launchGate(countryId) {
   };
 }
 
+function productionChecklist(countryId) {
+  const orders = store.orders.filter((order) => order.country_id === countryId);
+  return {
+    generated_at: new Date().toISOString(),
+    score: productionReadiness(countryId).score,
+    items: [
+      { area: "auth", status: "demo_ready", detail: "Signup/login, role checks, and /auth/me work locally. Production still needs refresh-token rotation and admin MFA." },
+      { area: "database", status: process.env.DATABASE_URL ? "configured" : "not_runtime_active", detail: "PostgreSQL schema/seed/Docker config exist. Demo server currently uses local JSON for dependency-free testing." },
+      { area: "payments", status: "dummy_only", detail: "Cash, Telebirr, and Chapa are simulated. Real provider webhooks and reconciliation are not live." },
+      { area: "orders", status: orders.length ? "demo_ready" : "ready_no_orders", detail: `${orders.length} backend orders stored with lifecycle history.` },
+      { area: "wallet", status: "demo_audited", detail: `${store.wallet_transactions.filter((tx) => tx.country_id === countryId).length} immutable local wallet ledger records are available to Admin.` },
+      { area: "map", status: "demo_ready", detail: "OpenStreetMap/Leaflet frontend plus backend sample coordinates, ETA, radius, and live driver locations are available." },
+      { area: "security", status: "needs_production_hardening", detail: "Helmet/CORS/rate-limit foundations exist in Express. Production needs secrets manager, MFA, WAF, review, and load testing." },
+      { area: "deployment", status: "not_deployed", detail: "Docker and env templates exist. Domain, SSL, managed Postgres, backups, monitoring, and CI/CD are still required." }
+    ]
+  };
+}
+
 function readBody(req) {
   return new Promise((resolve) => {
     let body = "";
@@ -539,6 +620,25 @@ function audit(actor, action, entity_type, entity_id, metadata = {}) {
     metadata,
     created_at: new Date().toISOString()
   });
+}
+
+function recordWalletTransaction({ user_id, country_id, city_id, currency, type, amount, reason, order_id, actor_user_id }) {
+  const transaction = {
+    id: randomUUID(),
+    user_id,
+    actor_user_id: actor_user_id || user_id,
+    country_id,
+    city_id,
+    currency,
+    type,
+    amount,
+    reason,
+    order_id,
+    immutable: true,
+    created_at: new Date().toISOString()
+  };
+  store.wallet_transactions.push(transaction);
+  return transaction;
 }
 
 function getCart(userId, countryId) {
@@ -808,6 +908,17 @@ function createDemoOrder(country, customerUser) {
     created_at: new Date().toISOString()
   };
   store.orders.push(order);
+  recordWalletTransaction({
+    user_id: customerUser.id,
+    actor_user_id: customerUser.id,
+    country_id: country.id,
+    city_id: order.city_id,
+    currency: country.currency,
+    type: "order_authorization",
+    amount: -order.total,
+    reason: "live_demo_order_created",
+    order_id: order.id
+  });
   notifyUser({
     user_id: customerUser.id,
     country_id: country.id,
@@ -819,6 +930,48 @@ function createDemoOrder(country, customerUser) {
   audit(customerUser, "live_demo.order_created", "order", order.id, { total: order.total });
   broadcast("live.step", { step: "Order placed", order_id: order.id, status: order.status });
   return order;
+}
+
+function createLiveDemoCustomer(country) {
+  const stamp = Date.now();
+  const user = {
+    id: `live-customer-${stamp}`,
+    name: `Live Demo Customer ${String(stamp).slice(-5)}`,
+    email: `live-demo-${stamp}@habeshago.local`,
+    phone: `+2519${String(stamp).slice(-8)}`,
+    role: "customer",
+    country_id: country.id,
+    city_id: "bole",
+    currency: country.currency,
+    language: "en",
+    timezone: country.timezone,
+    password_hash: hashPassword("Customer123!"),
+    status: "active",
+    created_at: new Date().toISOString()
+  };
+  store.users.push(user);
+  store.customers.push({
+    id: `live-customer-profile-${stamp}`,
+    user_id: user.id,
+    country_id: country.id,
+    city_id: "bole",
+    currency: country.currency,
+    language: "en",
+    timezone: country.timezone,
+    wallet_balance: 0,
+    senior_mode: false,
+    family_account: false,
+    preferred_address: "Live demo address near Bole Medhanealem",
+    landmark_note: "Blue gate, call before arrival",
+    emergency_contact_name: "Live Demo Contact",
+    emergency_contact_phone: "+251900000099",
+    support_preference: "app"
+  });
+  const token = randomUUID();
+  store.sessions[token] = { user_id: user.id, created_at: Date.now(), expires_at: Date.now() + SESSION_TTL_MS };
+  audit(user, "auth.register", "user", user.id, { role: "customer", source: "live_demo" });
+  audit(user, "auth.login", "user", user.id, { source: "live_demo" });
+  return { user, token };
 }
 
 function runLiveDemo(order, actors) {
@@ -865,11 +1018,51 @@ function runLiveDemo(order, actors) {
         }
         order.driver_id = driver.id;
         transitionOrder(order, "driver_accepted", driverUser, "live_demo_driver_accept");
+        recordDriverLocation(driver, { lat: 8.9935, lng: 38.7875, source: "live_demo_assignment" });
+        recordWalletTransaction({
+          user_id: driverUser.id,
+          actor_user_id: driverUser.id,
+          country_id: order.country_id,
+          city_id: order.city_id,
+          currency: order.currency,
+          type: "driver_delivery_reserved",
+          amount: order.delivery_fee,
+          reason: "live_demo_driver_assigned",
+          order_id: order.id
+        });
         broadcast("dispatch.accepted", { request_id: request ? request.id : null, order_id: order.id, driver_id: driver.id });
       }
     },
     { delay: 9000, label: "Picked up", run: () => transitionOrder(order, "picked_up", driverUser, "live_demo_pickup") },
-    { delay: 11200, label: "Delivered", run: () => transitionOrder(order, "delivered", driverUser, "live_demo_delivered") }
+    {
+      delay: 11200,
+      label: "Delivered",
+      run: () => {
+        transitionOrder(order, "delivered", driverUser, "live_demo_delivered");
+        recordWalletTransaction({
+          user_id: order.customer_user_id,
+          actor_user_id: driverUser.id,
+          country_id: order.country_id,
+          city_id: order.city_id,
+          currency: order.currency,
+          type: "order_captured",
+          amount: -order.total,
+          reason: "live_demo_delivered_customer_debit",
+          order_id: order.id
+        });
+        recordWalletTransaction({
+          user_id: merchantUser.id,
+          actor_user_id: driverUser.id,
+          country_id: order.country_id,
+          city_id: order.city_id,
+          currency: order.currency,
+          type: "merchant_sale_credit",
+          amount: order.subtotal,
+          reason: "live_demo_delivered_merchant_credit",
+          order_id: order.id
+        });
+      }
+    }
   ];
   for (const step of steps) {
     setTimeout(() => {
@@ -997,22 +1190,57 @@ async function handleApi(req, res, url) {
   if (req.method === "GET" && url.pathname.endsWith("/production-readiness")) {
     return send(res, 200, productionReadiness(countryId));
   }
+  if (req.method === "GET" && url.pathname.endsWith("/production-checklist")) {
+    return send(res, 200, productionChecklist(countryId));
+  }
   if (req.method === "GET" && url.pathname.endsWith("/launch-gate")) {
     const gate = launchGate(countryId);
     return send(res, gate.launch_allowed ? 200 : 409, gate);
   }
 
   if (req.method === "POST" && url.pathname.endsWith("/live-demo/start")) {
-    const customerUser = store.users.find((item) => item.id === "customer-1");
     const merchantUser = store.users.find((item) => item.id === "merchant-user-1");
     const driverUser = store.users.find((item) => item.id === "driver-user-1");
-    if (!customerUser || !merchantUser || !driverUser) return sendError(res, 500, "Demo actors are missing");
+    const adminUser = store.users.find((item) => item.id === "admin-1");
+    if (!merchantUser || !driverUser || !adminUser) return sendError(res, 500, "Demo actors are missing");
+    const { user: customerUser, token } = createLiveDemoCustomer(country);
+    const merchants = store.merchants.filter((merchant) => merchant.country_id === countryId && merchant.status === "open");
+    const products = store.products.filter((product) => product.country_id === countryId && product.available);
+    const cart = getCart(customerUser.id, countryId);
+    const product = products.find((item) => item.merchant_id === "merchant-1") || products[0];
+    if (!product) return sendError(res, 500, "No demo product is available");
+    cart.items = calculateItems([{ product_id: product.id, quantity: 1 }], countryId);
     const order = createDemoOrder(country, customerUser);
     saveStore();
     runLiveDemo(order, { merchantUser, driverUser });
     return send(res, 201, {
+      token,
+      user: publicUser(customerUser),
       order: enrichOrder(order),
-      message: "Live demo started. Watch the live event feed, tracker, notifications, merchant, and driver panels update."
+      flow: [
+        "customer_created",
+        "customer_logged_in",
+        "merchants_loaded",
+        "products_loaded",
+        "item_added_to_cart",
+        "order_placed",
+        "merchant_accepting",
+        "driver_assignment_pending",
+        "delivery_in_progress",
+        "admin_dashboard_will_reflect_order"
+      ],
+      catalog: { merchants: merchants.length, products: products.length, cart_items: cart.items.length },
+      actors: {
+        merchant: publicUser(merchantUser),
+        driver: publicUser(driverUser),
+        admin: publicUser(adminUser)
+      },
+      admin_summary: {
+        orders_total: store.orders.filter((item) => item.country_id === countryId).length,
+        wallet_transactions: store.wallet_transactions.filter((item) => item.country_id === countryId).length,
+        audit_logs: store.audit_logs.filter((item) => item.country_id === countryId).length
+      },
+      message: "Live demo started. Watch the tracker move through merchant acceptance, driver assignment, delivery, wallet audit, and admin monitoring."
     });
   }
 
@@ -1524,6 +1752,17 @@ async function handleApi(req, res, url) {
       created_at: new Date().toISOString()
     };
     store.orders.push(order);
+    recordWalletTransaction({
+      user_id: user.id,
+      actor_user_id: user.id,
+      country_id: countryId,
+      city_id: order.city_id,
+      currency: order.currency,
+      type: "order_authorization",
+      amount: -order.total,
+      reason: "order_created",
+      order_id: order.id
+    });
     store.map_quotes.push({ id: randomUUID(), order_id: order.id, country_id: countryId, ...mapQuote, created_at: new Date().toISOString() });
     logSms({
       to: user.phone,
@@ -1574,6 +1813,17 @@ async function handleApi(req, res, url) {
     };
     store.payment_transactions.push(payment);
     order.payment_status = payment.status;
+    recordWalletTransaction({
+      user_id: order.customer_user_id,
+      actor_user_id: user.id,
+      country_id: countryId,
+      city_id: order.city_id,
+      currency: order.currency,
+      type: "payment_authorized",
+      amount: -payment.amount,
+      reason: `payment_${payment.status}`,
+      order_id: order.id
+    });
     audit(user, "payment.simulated", "payment_transaction", payment.id, { provider, amount: payment.amount });
     saveStore();
     return send(res, 201, { payment });

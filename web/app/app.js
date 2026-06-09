@@ -183,45 +183,27 @@ async function startLiveDemo() {
   $("#liveEventLog").innerHTML = "";
   updateTracker("");
   try {
-    const stamp = Date.now();
-    const signupPayload = {
-      name: `Live Demo Customer ${String(stamp).slice(-5)}`,
-      email: `live-demo-${stamp}@habeshago.local`,
-      phone: `+2519${String(stamp).slice(-8)}`,
-      password: "Customer123!",
-      role: "customer",
-      city_id: "bole"
-    };
-    const signup = await api(`${API_BASE_URL}/auth/signup`, { method: "POST", body: JSON.stringify(signupPayload) });
-    addLiveLog("Created live demo customer");
-    const login = await api(`${API_BASE_URL}/auth/login`, { method: "POST", body: JSON.stringify({ email: signupPayload.email, password: signupPayload.password }) });
-    setSession(login.token, login.user);
-    addLiveLog("Logged in live demo customer");
-    const merchants = await api(`${API_BASE_URL}/merchants`);
-    addLiveLog(`Loaded ${merchants.merchants.length} merchants`);
-    const products = await api(`${API_BASE_URL}/products`);
-    addLiveLog(`Loaded ${products.products.length} products`);
-    const product = products.products.find((item) => item.available) || products.products[0];
-    if (!product) throw new Error("No products available for live demo");
-    await api(`${API_BASE_URL}/cart`, {
-      method: "POST",
-      body: JSON.stringify({ product_id: product.id, quantity: 1 })
-    });
-    addLiveLog(`Added ${product.name} to cart`);
-    const orderData = await api(`${API_BASE_URL}/orders`, {
-      method: "POST",
-      body: JSON.stringify({
-        payment_method: "Cash",
-        address_note: "Live demo address near Bole Medhanealem",
-        destination: { lat: 8.997, lng: 38.786 }
-      })
-    });
-    const order = orderData.order;
+    const demo = await api(`${API_BASE_URL}/live-demo/start`, { method: "POST", body: "{}" });
+    setSession(demo.token, demo.user);
+    addLiveLog(`Created and logged in ${demo.user.name}`);
+    addLiveLog(`Loaded ${demo.catalog.merchants} merchants and ${demo.catalog.products} products`);
+    addLiveLog(`Added ${demo.catalog.cart_items} item to cart and placed order`);
+    addLiveLog(`Admin monitor: ${demo.admin_summary.orders_total} orders, ${demo.admin_summary.wallet_transactions} wallet tx, ${demo.admin_summary.audit_logs} audit logs`);
+    const order = demo.order;
     updateTracker(order.status);
-    addLiveLog(`Placed order ${order.id.slice(0, 8)}: ${order.status}`);
-    const loadedOrder = await api(`${API_BASE_URL}/orders/${order.id}`);
-    $("#liveDemoSummary").textContent = `Success: order ${loadedOrder.order.id.slice(0, 8)} is ${loadedOrder.order.status}.`;
-    toast("Live demo order created");
+    $("#liveDemoSummary").textContent = `Live flow running: order ${order.id.slice(0, 8)} is ${order.status}.`;
+    toast("Live demo started");
+    for (let attempt = 0; attempt < 18; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 900));
+      const loadedOrder = await api(`${API_BASE_URL}/orders/${order.id}`);
+      updateTracker(loadedOrder.order.status);
+      $("#liveDemoSummary").textContent = `Live order ${loadedOrder.order.id.slice(0, 8)} is ${loadedOrder.order.status}. Admin, wallet, merchant, and driver data are refreshing from backend.`;
+      if (loadedOrder.order.status === "delivered") {
+        addLiveLog("Order delivered. Admin dashboard reflects the full order and wallet ledger.");
+        await refreshAll();
+        break;
+      }
+    }
   } finally {
     setTimeout(() => { $("#startLiveDemoBtn").disabled = false; }, 1200);
   }
@@ -241,6 +223,19 @@ function clearSession() {
   localStorage.removeItem("hg_token");
   localStorage.removeItem("hg_user");
   renderSession();
+}
+
+async function restoreSession() {
+  if (!state.token) return;
+  try {
+    const data = await api(`${API_BASE_URL}/auth/me`);
+    state.user = data.user;
+    localStorage.setItem("hg_user", JSON.stringify(data.user));
+    renderSession();
+  } catch {
+    clearSession();
+    setAuthStatus("Session expired. Please log in again.", "error");
+  }
 }
 
 function renderSession() {
@@ -891,7 +886,13 @@ async function loadRecommendations() {
 
 async function loadProductionReadiness() {
   const report = await api(`/api/${state.country}/v1/production-readiness`);
-  const gate = await api(`/api/${state.country}/v1/launch-gate`);
+  let gate;
+  try {
+    gate = await api(`/api/${state.country}/v1/launch-gate`);
+  } catch {
+    gate = state.lastApi?.body || { launch_allowed: false, mode: "local-demo", missing_environment: ["production gate blocked"] };
+  }
+  const checklist = await api(`/api/${state.country}/v1/production-checklist`);
   $("#productionReadinessSummary").innerHTML = `
     <strong>${report.score}/100 - ${report.production_ready ? "Production ready" : "Not production ready"}</strong>
     <p>${report.summary}</p>
@@ -917,6 +918,12 @@ async function loadProductionReadiness() {
       <strong>${check.area}</strong>
       <span>${check.status} - ${check.severity}</span>
       <p>${check.detail}</p>
+    </div>
+  `).join("") + checklist.items.map((item) => `
+    <div class="severity-${item.status.includes("not") || item.status.includes("needs") || item.status.includes("dummy") ? "high" : "low"}">
+      <strong>${item.area}</strong>
+      <span>${item.status}</span>
+      <p>${item.detail}</p>
     </div>
   `).join("");
 }
@@ -1208,4 +1215,6 @@ renderSession();
 setAuthMode("login");
 setRole("customer");
 connectEvents();
-refreshAll().catch((error) => toast(error.message));
+restoreSession()
+  .then(() => refreshAll())
+  .catch((error) => toast(error.message));

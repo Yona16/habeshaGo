@@ -45,6 +45,20 @@ INSERT INTO cities (country_id, name, launch_phase, active, currency, language, 
 
 INSERT INTO roles (name) VALUES ('admin'), ('customer'), ('driver'), ('merchant') ON CONFLICT DO NOTHING;
 
+INSERT INTO users (country_id, city_id, currency, language, timezone, role, name, email, phone, password_hash, status)
+SELECT 'ET', c.id, 'ETB', 'en', 'Africa/Addis_Ababa', v.role, v.name, v.email, v.phone, crypt(v.password, gen_salt('bf')), 'active'
+FROM (
+  VALUES
+    ('customer', 'Test Customer', 'customer@test.com', '+251900000012', 'Customer123!'),
+    ('merchant', 'Test Merchant', 'merchant@test.com', '+251900000013', 'Merchant123!'),
+    ('driver', 'Test Driver', 'driver@test.com', '+251900000014', 'Driver123!'),
+    ('admin', 'Test Admin', 'admin@test.com', '+251900000011', 'Admin123!')
+) AS v(role, name, email, phone, password)
+CROSS JOIN LATERAL (
+  SELECT id FROM cities WHERE country_id = 'ET' AND name = 'Bole' ORDER BY created_at LIMIT 1
+) c
+ON CONFLICT (email) DO NOTHING;
+
 INSERT INTO feature_flags (key, enabled, legal_hold, description) VALUES
 ('DRIVER_AGENT_ENABLED', false, true, 'Driver agent cash-in/cash-out must wait for compliance approval.'),
 ('MERCHANT_ADVANCE_ENABLED', false, true, 'Merchant advance product is disabled until legal approval.'),

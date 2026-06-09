@@ -211,6 +211,23 @@
         $("#logoutBtn").hidden = false;
         await load();
       }
+      async function restoreSession() {
+        if (!state.token) return;
+        try {
+          const data = await api(`${API_BASE_URL}/auth/me`);
+          state.user = data.user;
+          localStorage.setItem("hg_admin_user", JSON.stringify(data.user));
+          $("#session").textContent = `${data.user.name} (${data.user.role})`;
+          $("#logoutBtn").hidden = false;
+        } catch {
+          state.token = "";
+          state.user = null;
+          localStorage.removeItem("hg_admin_token");
+          localStorage.removeItem("hg_admin_user");
+          $("#session").textContent = "Session expired";
+          $("#logoutBtn").hidden = true;
+        }
+      }
       async function load() {
         if (!state.token) { setStatus("Dashboard protected. Login as Admin to load data."); return; }
         setLoading(true);
@@ -431,7 +448,7 @@
         setStatus("Logged out.");
       }).catch(() => {});
       if (state.user) { $("#session").textContent = `${state.user.name} (${state.user.role})`; $("#logoutBtn").hidden = false; }
-      if (state.token) load().catch(e => toast(e.message));
+      if (state.token) restoreSession().then(() => load()).catch(e => toast(e.message));
     </script>
   </body>
 </html>

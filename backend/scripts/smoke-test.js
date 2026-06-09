@@ -38,6 +38,10 @@ async function step(name, run) {
   console.log(`PASS ${name}`);
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function main() {
   let token = "";
   let adminToken = "";
@@ -95,6 +99,22 @@ async function main() {
     assert(response.ok, "Customer login failed");
     assert(data.token, "Customer login did not return token");
     token = data.token;
+  });
+
+  await step("ready test accounts work", async () => {
+    const accounts = [
+      ["customer@test.com", "Customer123!", "customer"],
+      ["merchant@test.com", "Merchant123!", "merchant"],
+      ["driver@test.com", "Driver123!", "driver"],
+      ["admin@test.com", "Admin123!", "admin"]
+    ];
+    for (const [email, password, role] of accounts) {
+      const login = await request("/api/ET/v1/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ email, password })
+      });
+      assert(login.response.ok && login.data.user.role === role, `${email} login failed`);
+    }
   });
 
   await step("configured frontend auth backend works", async () => {
@@ -170,7 +190,7 @@ async function main() {
     }
   });
 
-  await step("configured live demo backend flow works", async () => {
+  await step("manual configured live demo backend flow works", async () => {
     const stamp = Date.now();
     const signup = await authRequest("/auth/signup", {
       method: "POST",
@@ -209,6 +229,37 @@ async function main() {
     assert(order.response.status === 201 && order.data.order.status === "placed", "Live demo order failed");
     const detail = await authRequest(`/orders/${order.data.order.id}`, { headers });
     assert(detail.response.ok && detail.data.order.id === order.data.order.id, "Live demo order status failed");
+  });
+
+  await step("one-click live end-to-end demo delivers and reaches admin", async () => {
+    const started = await request("/api/ET/v1/live-demo/start", {
+      method: "POST",
+      body: "{}"
+    });
+    assert(started.response.status === 201 && started.data.token && started.data.order, "Live demo start failed");
+    assert((started.data.flow || []).includes("admin_dashboard_will_reflect_order"), "Live demo missing admin flow step");
+    const orderId = started.data.order.id;
+    const headers = { Authorization: `Bearer ${started.data.token}` };
+    let detail;
+    for (let attempt = 0; attempt < 18; attempt += 1) {
+      await sleep(850);
+      detail = await request(`/api/ET/v1/orders/${orderId}`, { headers });
+      if (detail.data.order?.status === "delivered") break;
+    }
+    assert(detail.response.ok && detail.data.order.status === "delivered", "Live demo did not deliver order");
+    const adminLogin = await request("/api/ET/v1/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email: "admin@test.com", password: "Admin123!" })
+    });
+    assert(adminLogin.response.ok, "Admin test login failed after live demo");
+    const adminOrders = await request("/api/ET/v1/admin/orders", {
+      headers: { Authorization: `Bearer ${adminLogin.data.token}` }
+    });
+    assert((adminOrders.data.orders || []).some((order) => order.id === orderId && order.status === "delivered"), "Admin dashboard did not reflect delivered live order");
+    const wallet = await request("/api/ET/v1/admin/wallet-transactions", {
+      headers: { Authorization: `Bearer ${adminLogin.data.token}` }
+    });
+    assert((wallet.data.transactions || []).some((tx) => tx.order_id === orderId), "Wallet ledger did not track live order");
   });
 
   await step("sample cart can be created", async () => {
@@ -483,6 +534,14 @@ async function main() {
       headers: { Authorization: `Bearer ${adminToken}` }
     });
     assert(tx.response.ok && (tx.data.transactions || []).some((item) => item.reason === "smoke_wallet_audit"), "Wallet audit transaction not found");
+  });
+
+  await step("production checklist is backend-driven", async () => {
+    const checklist = await request("/api/ET/v1/production-checklist");
+    assert(checklist.response.ok, "Production checklist failed");
+    for (const area of ["auth", "database", "payments", "orders", "wallet", "map", "security", "deployment"]) {
+      assert((checklist.data.items || []).some((item) => item.area === area), `Checklist missing ${area}`);
+    }
   });
 
   await step("admin portal controls work", async () => {

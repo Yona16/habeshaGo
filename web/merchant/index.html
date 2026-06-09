@@ -194,6 +194,21 @@
         $("#session").textContent = `${data.user.name} (${data.user.role})`;
         await load();
       }
+      async function restoreSession() {
+        if (!state.token) return;
+        try {
+          const data = await api(`${API_BASE_URL}/auth/me`);
+          state.user = data.user;
+          localStorage.setItem("hg_merchant_user", JSON.stringify(data.user));
+          $("#session").textContent = `${data.user.name} (${data.user.role})`;
+        } catch {
+          state.token = "";
+          state.user = null;
+          localStorage.removeItem("hg_merchant_token");
+          localStorage.removeItem("hg_merchant_user");
+          $("#session").textContent = "Session expired";
+        }
+      }
       async function load() {
         if (!state.token) return;
         const data = await api(`/api/${state.country}/v1/merchant/dashboard`);
@@ -305,7 +320,7 @@
         await load();
       }).catch(() => {});
       if (state.user) $("#session").textContent = `${state.user.name} (${state.user.role})`;
-      if (state.token) load().catch(e => toast(e.message));
+      if (state.token) restoreSession().then(() => load()).catch(e => toast(e.message));
     </script>
   </body>
 </html>
