@@ -110,7 +110,12 @@
     </main>
     <div id="toast"></div>
     <script>
-      const API_BASE_URL = "http://localhost:4000/api/et/v1";
+      function resolveApiBaseUrl() {
+        const host = window.location.hostname;
+        if (host === "localhost" || host === "127.0.0.1") return "http://localhost:4000/api/ET/v1";
+        return "https://api.habeshago.com/api/ET/v1";
+      }
+      const API_BASE_URL = resolveApiBaseUrl();
       const state = { country: "ET", token: localStorage.getItem("hg_merchant_token") || "", user: JSON.parse(localStorage.getItem("hg_merchant_user") || "null"), merchant: null, data: null, lastApi: null };
       const $ = (id) => document.querySelector(id);
       const money = (n, c = "ETB") => `${Number(n || 0).toLocaleString()} ${c}`;

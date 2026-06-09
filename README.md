@@ -16,17 +16,43 @@ This first build gives you a runnable backend foundation, PostgreSQL schema, see
 
 ## Quick Start
 
-Immediate dependency-free demo API:
+Backend API:
 
 ```bash
-cd outputs/habeshago/backend
-node src/demoServer.js
+cd C:\habeshaGo\backend
+npm install
+node src\server.js
 ```
 
-Then open:
+Dependency-free local demo backend:
+
+```bash
+cd C:\habeshaGo
+set PORT=4000
+node backend\src\demoServer.js
+```
+
+Local apps:
 
 ```text
-http://localhost:3000
+Backend API: http://localhost:4000
+Customer App: http://localhost:8080 or fallback http://localhost:8085
+Admin Portal: http://localhost:8081
+Merchant Portal: http://localhost:8082
+API base URL: http://localhost:4000/api/ET/v1
+```
+
+Static app commands:
+
+```bash
+cd C:\habeshaGo\web\app
+python -m http.server 8085
+
+cd C:\habeshaGo\web\admin
+python -m http.server 8081
+
+cd C:\habeshaGo\web\merchant
+python -m http.server 8082
 ```
 
 This exposes a local browser MVP for customer ordering, real-time live updates, customer special menu requests, merchant order flow, driver dispatch requests, driver pickup/delivery flow, admin reporting, dummy payments, simulated SMS logs, map/ETA quotes, wallet adjustment, feature flags, and legal/compliance gates.
@@ -56,13 +82,13 @@ backend/data/local-store.json
 The browser listens for live events from:
 
 ```text
-http://localhost:3000/api/ET/v1/events
+http://localhost:4000/api/ET/v1/events
 ```
 
 Full Express API:
 
 ```bash
-cd outputs/habeshago/backend
+cd C:\habeshaGo\backend
 cp .env.example .env
 npm install
 npm run dev
@@ -71,7 +97,7 @@ npm run dev
 Open:
 
 ```text
-http://localhost:3000/health
+http://localhost:4000/health
 ```
 
 Demo accounts:
@@ -86,11 +112,11 @@ merchant@habeshago.local / Merchant123!
 ## Docker
 
 ```bash
-cd outputs/habeshago
+cd C:\habeshaGo
 docker compose up --build
 ```
 
-The API starts on port `3000`, and PostgreSQL starts on port `5432`.
+The API starts on port `4000`, and PostgreSQL starts on port `5432`.
 
 ## Important Compliance Position
 
@@ -99,15 +125,15 @@ Ye HabeshaGo Bank is only a technical foundation. Lending, merchant advances, di
 ## First API Calls
 
 ```bash
-curl http://localhost:3000/api/v1/countries
-curl http://localhost:3000/api/ET/v1/cities
-curl http://localhost:3000/api/ET/v1/merchants
+curl http://localhost:4000/api/v1/countries
+curl http://localhost:4000/api/ET/v1/cities
+curl http://localhost:4000/api/ET/v1/merchants
 ```
 
 Login:
 
 ```bash
-curl -X POST http://localhost:3000/api/ET/v1/auth/login \
+curl -X POST http://localhost:4000/api/ET/v1/auth/login \
   -H "Content-Type: application/json" \
   -d "{\"email\":\"customer@habeshago.local\",\"password\":\"Customer123!\"}"
 ```

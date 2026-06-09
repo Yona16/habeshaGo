@@ -141,7 +141,7 @@
             </label>
             <button id="authSubmit" type="submit">Login</button>
           </form>
-          <div id="authStatus" class="auth-status">Auth API ready: http://localhost:4000/api/et/v1/auth/login and /auth/signup</div>
+          <div id="authStatus" class="auth-status">Auth API ready: http://localhost:4000/api/ET/v1/auth/login and /auth/signup</div>
           <div id="signupRoleDetails" class="signup-details"></div>
           <div class="demo-buttons" aria-label="Demo logins">
             <button type="button" data-demo="customer">Demo Customer</button>
@@ -313,12 +313,26 @@
                 <button id="quoteMapBtn" class="secondary">Get ETA/Fee</button>
                 <div id="mapQuote"></div>
               </div>
-              <label>
-                Landmark address note
-                <input id="addressNote" value="Blue gate next to Medhanealem Church" />
-              </label>
               <div class="map-box">
-                <h3>Customer Tools</h3>
+                <h3>Checkout</h3>
+                <label>
+                  Saved address label
+                  <input id="savedAddressLabel" value="Home - Bole Medhanealem" />
+                </label>
+                <label>
+                  Landmark address note
+                  <input id="addressNote" value="Blue gate next to Medhanealem Church" />
+                </label>
+                <label>
+                  Payment method
+                  <select id="paymentMethod">
+                    <option value="Cash">Cash on delivery</option>
+                    <option value="Telebirr">Telebirr dummy auth</option>
+                    <option value="Chapa">Chapa dummy auth</option>
+                    <option value="CBE Birr" disabled>CBE Birr planned</option>
+                    <option value="SantimPay" disabled>SantimPay planned</option>
+                  </select>
+                </label>
                 <label>Promo code <input id="promoCode" value="BOLE10" /></label>
                 <button id="validatePromoBtn" class="secondary">Validate promo</button>
                 <button id="saveAddressBtn" class="secondary">Save address</button>

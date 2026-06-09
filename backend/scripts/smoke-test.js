@@ -1,5 +1,5 @@
 const baseUrl = process.env.BASE_URL || "http://localhost:3000";
-const authBaseUrl = process.env.AUTH_BASE_URL || "http://localhost:4000/api/et/v1";
+const authBaseUrl = process.env.AUTH_BASE_URL || "http://localhost:4000/api/ET/v1";
 
 async function request(path, options = {}) {
   const response = await fetch(`${baseUrl}${path}`, {
@@ -50,6 +50,8 @@ async function main() {
     const html = await response.text();
     assert(response.ok, "Home page did not load");
     assert(html.includes("HabeshaGo"), "Home page did not include app name");
+    assert(html.includes("paymentMethod"), "Customer checkout payment method is missing");
+    assert(html.includes("savedAddressLabel"), "Customer saved address checkout field is missing");
   });
 
   await step("health endpoint is ok", async () => {
@@ -202,7 +204,7 @@ async function main() {
     const order = await authRequest("/orders", {
       method: "POST",
       headers,
-      body: JSON.stringify({ payment_method: "cash", address_note: "Live demo smoke address", destination: { lat: 8.997, lng: 38.786 } })
+      body: JSON.stringify({ payment_method: "Cash", address_note: "Live demo smoke address", destination: { lat: 8.997, lng: 38.786 } })
     });
     assert(order.response.status === 201 && order.data.order.status === "placed", "Live demo order failed");
     const detail = await authRequest(`/orders/${order.data.order.id}`, { headers });
@@ -246,19 +248,32 @@ async function main() {
     assert(review.response.status === 201, "Merchant review failed");
   });
 
-  await step("customer can place an order", async () => {
+  await step("customer can checkout with saved address, promo, payment, and track order", async () => {
     const { response, data } = await request("/api/ET/v1/orders", {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify({
-        payment_method: "cash",
+        payment_method: "Telebirr",
+        promo_code: "BOLE10",
+        address_label: "Smoke saved address",
         address_note: "Smoke test address near Bole",
         destination: { lat: 8.994, lng: 38.789 }
       })
     });
     assert(response.status === 201, "Order placement failed");
     assert(data.order && data.order.status === "placed", "Order was not placed");
+    assert(data.order.payment_method === "Telebirr", "Order did not keep selected payment method");
     flowOrderId = data.order.id;
+    const payment = await request("/api/ET/v1/payments/simulate", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ order_id: flowOrderId, provider: "Telebirr" })
+    });
+    assert(payment.response.status === 201 && payment.data.payment.status === "authorized_simulated", "Selected payment simulation failed");
+    const tracked = await request(`/api/ET/v1/orders/${flowOrderId}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    assert(tracked.response.ok && tracked.data.order.id === flowOrderId, "Customer order tracking failed");
   });
 
   await step("merchant portal dashboard works", async () => {
@@ -376,7 +391,7 @@ async function main() {
     const order = await request("/api/ET/v1/orders", {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ payment_method: "cash", address_note: "Reject flow address", destination: { lat: 8.994, lng: 38.789 } })
+      body: JSON.stringify({ payment_method: "Cash", address_note: "Reject flow address", destination: { lat: 8.994, lng: 38.789 } })
     });
     assert(order.response.status === 201, "Reject-order placement failed");
     const rejected = await request(`/api/ET/v1/orders/${order.data.order.id}/status`, {
@@ -471,7 +486,7 @@ async function main() {
   });
 
   await step("admin portal controls work", async () => {
-    const [roles, providers, audit, support, commissions, pendingMerchants, pendingDrivers, refunds, safety] = await Promise.all([
+    const [roles, providers, audit, support, commissions, pendingMerchants, pendingDrivers, refunds, safety, details] = await Promise.all([
       request("/api/ET/v1/admin/security-roles", { headers: { Authorization: `Bearer ${adminToken}` } }),
       request("/api/ET/v1/admin/payment-providers", { headers: { Authorization: `Bearer ${adminToken}` } }),
       request("/api/ET/v1/admin/audit-logs", { headers: { Authorization: `Bearer ${adminToken}` } }),
@@ -480,7 +495,8 @@ async function main() {
       request("/api/admin/merchants/pending", { headers: { Authorization: `Bearer ${adminToken}` } }),
       request("/api/admin/drivers/pending", { headers: { Authorization: `Bearer ${adminToken}` } }),
       request("/api/admin/refunds", { headers: { Authorization: `Bearer ${adminToken}` } }),
-      request("/api/admin/safety-controls", { headers: { Authorization: `Bearer ${adminToken}` } })
+      request("/api/admin/safety-controls", { headers: { Authorization: `Bearer ${adminToken}` } }),
+      request("/api/ET/v1/admin/details", { headers: { Authorization: `Bearer ${adminToken}` } })
     ]);
     assert(roles.response.ok && (roles.data.roles || []).length >= 4, "Admin security roles failed");
     assert(providers.response.ok && (providers.data.providers || []).length === 4, "Admin payment providers failed");
@@ -491,6 +507,25 @@ async function main() {
     assert(pendingDrivers.response.ok && Array.isArray(pendingDrivers.data.drivers), "Pending drivers failed");
     assert(refunds.response.ok && Array.isArray(refunds.data.refunds), "Refunds failed");
     assert(safety.response.ok && Array.isArray(safety.data.controls), "Safety controls failed");
+    assert(details.response.ok && Array.isArray(details.data.customers) && Array.isArray(details.data.users), "Admin customer search data failed");
+    if ((pendingMerchants.data.merchants || []).length) {
+      const merchant = pendingMerchants.data.merchants[0];
+      const approved = await request(`/api/ET/v1/admin/merchants/${merchant.id}/status`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${adminToken}` },
+        body: JSON.stringify({ status: "open", verified: true })
+      });
+      assert(approved.response.ok && approved.data.merchant.verified === true, "Admin merchant approval failed");
+    }
+    if ((pendingDrivers.data.drivers || []).length) {
+      const driver = pendingDrivers.data.drivers[0];
+      const approved = await request(`/api/ET/v1/admin/drivers/${driver.id}/status`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${adminToken}` },
+        body: JSON.stringify({ frozen: false, online: true, verification_status: "verified" })
+      });
+      assert(approved.response.ok && approved.data.driver.verification_status === "verified", "Admin driver approval failed");
+    }
   });
 
   console.log("Smoke test complete.");

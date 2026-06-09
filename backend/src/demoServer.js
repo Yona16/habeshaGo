@@ -16,7 +16,12 @@ const CORS_ALLOWED_ORIGINS = new Set([
   "http://localhost:3000",
   "http://localhost:8080",
   "http://localhost:8081",
-  "http://localhost:8082"
+  "http://localhost:8082",
+  "http://localhost:8085",
+  "http://127.0.0.1:8080",
+  "http://127.0.0.1:8081",
+  "http://127.0.0.1:8082",
+  "http://127.0.0.1:8085"
 ]);
 const ORDER_TRANSITIONS = {
   placed: ["accepted", "cancelled", "rejected"],
@@ -1958,6 +1963,7 @@ async function handleApi(req, res, url) {
         products: store.products.filter((product) => product.country_id === countryId),
         drivers: store.drivers.filter((driver) => driver.country_id === countryId),
         customers: store.customers.filter((customer) => customer.country_id === countryId),
+        users: store.users.filter((item) => item.country_id === countryId).map(publicUser),
         compliance_reviews: store.compliance_reviews,
         trust_verifications: store.trust_verifications
       });

@@ -11,7 +11,13 @@ const state = {
   lastApi: null
 };
 
-const API_BASE_URL = "http://localhost:4000/api/et/v1";
+function resolveApiBaseUrl() {
+  const host = window.location.hostname;
+  if (host === "localhost" || host === "127.0.0.1") return "http://localhost:4000/api/ET/v1";
+  return "https://api.habeshago.com/api/ET/v1";
+}
+
+const API_BASE_URL = resolveApiBaseUrl();
 const $ = (selector) => document.querySelector(selector);
 const money = (amount, currency = "ETB") => `${Number(amount || 0).toLocaleString()} ${currency}`;
 const demoAccounts = {
@@ -205,7 +211,7 @@ async function startLiveDemo() {
     const orderData = await api(`${API_BASE_URL}/orders`, {
       method: "POST",
       body: JSON.stringify({
-        payment_method: "cash",
+        payment_method: "Cash",
         address_note: "Live demo address near Bole Medhanealem",
         destination: { lat: 8.997, lng: 38.786 }
       })
@@ -561,16 +567,26 @@ async function renderCart() {
 
 async function placeOrder() {
   if (!state.user) return toast("Login as customer first");
+  const paymentMethod = $("#paymentMethod")?.value || "Cash";
+  const promoCode = $("#promoCode")?.value.trim();
   const data = await api(`/api/${state.country}/v1/orders`, {
     method: "POST",
     body: JSON.stringify({
-      payment_method: "cash",
+      payment_method: paymentMethod,
+      promo_code: promoCode,
+      address_label: $("#savedAddressLabel")?.value || "Bole delivery address",
       address_note: $("#addressNote").value,
       safety_mode: $("#safetyMode").value,
       community_delivery: $("#communityDelivery").checked,
       destination: { lat: Number($("#destLat").value), lng: Number($("#destLng").value) }
     })
   });
+  if (paymentMethod !== "Cash") {
+    await api(`/api/${state.country}/v1/payments/simulate`, {
+      method: "POST",
+      body: JSON.stringify({ order_id: data.order.id, provider: paymentMethod })
+    });
+  }
   toast(`Order placed: ${data.order.id.slice(0, 8)}`);
   await refreshAll();
 }
@@ -702,7 +718,7 @@ async function saveCustomerAddress() {
   const data = await api(`/api/${state.country}/v1/addresses`, {
     method: "POST",
     body: JSON.stringify({
-      label: "Bole delivery address",
+      label: $("#savedAddressLabel")?.value || "Bole delivery address",
       sub_city: "Bole",
       woreda: "03",
       neighborhood: "Medhanealem",

@@ -17,7 +17,7 @@
       .metric span,p,small { color:var(--muted); }
       .bar,.actions { display:flex; flex-wrap:wrap; gap:8px; align-items:end; }
       label { display:grid; gap:5px; font-size:13px; color:var(--muted); }
-      input { border:1px solid var(--line); border-radius:6px; padding:9px; }
+      input, select { border:1px solid var(--line); border-radius:6px; padding:9px; }
       button { border:0; border-radius:6px; background:var(--blue); color:white; padding:8px 11px; cursor:pointer; }
       button.secondary { background:#345c75; }
       button.ghost { background:transparent; border:1px solid rgba(255,255,255,.65); }
@@ -94,7 +94,14 @@
         <div class="card"><h2>Pending Drivers</h2><div id="pendingDrivers"></div></div>
       </section>
       <section class="grid admin-section" data-section="customers">
-        <div class="card"><h2>Customer Management</h2><div id="customers"></div></div>
+        <div class="card">
+          <h2>Customer Management</h2>
+          <div class="bar">
+            <label>Search customers <input id="customerSearch" placeholder="Name, phone, user id, address" /></label>
+            <button id="customerSearchBtn" class="secondary">Search</button>
+          </div>
+          <div id="customers"></div>
+        </div>
         <div class="card"><h2>City/Neighborhood Management</h2><div id="neighborhoods"></div></div>
       </section>
       <section class="grid admin-section" data-section="payments">
@@ -118,7 +125,12 @@
     </main>
     <div id="toast"></div>
     <script>
-      const API_BASE_URL = "http://localhost:4000/api/et/v1";
+      function resolveApiBaseUrl() {
+        const host = window.location.hostname;
+        if (host === "localhost" || host === "127.0.0.1") return "http://localhost:4000/api/ET/v1";
+        return "https://api.habeshago.com/api/ET/v1";
+      }
+      const API_BASE_URL = resolveApiBaseUrl();
       const state = { country:"ET", token:localStorage.getItem("hg_admin_token") || "", user:JSON.parse(localStorage.getItem("hg_admin_user") || "null"), data:null, lastApi:null };
       const $ = (id) => document.querySelector(id);
       const money = (n, c = "ETB") => `${Number(n || 0).toLocaleString()} ${c}`;
@@ -283,11 +295,20 @@
           { label:"Frozen", render:x => x.frozen ? "Yes" : "No" },
           { label:"Safety", key:"safety_score" }
         ], x => `<button data-driver="${x.id}|false|true">Approve</button><button class="danger" data-driver="${x.id}|true|false">Freeze</button>`);
-        $("#customers").innerHTML = table(d.details.customers, [
+        const customerTerm = ($("#customerSearch")?.value || "").trim().toLowerCase();
+        const customers = d.details.customers.filter((customer) => {
+          const user = d.details.users?.find((item) => item.id === customer.user_id);
+          return !customerTerm || [customer.user_id, customer.preferred_address, customer.landmark_note, user?.name, user?.email, user?.phone].join(" ").toLowerCase().includes(customerTerm);
+        });
+        $("#customers").innerHTML = table(customers, [
           { label:"Customer", key:"user_id" },
+          { label:"Contact", render:c => {
+            const user = d.details.users?.find((item) => item.id === c.user_id);
+            return user ? `${user.name}<br><small>${user.email}<br>${user.phone}</small>` : "Seed customer";
+          } },
           { label:"Wallet", render:c => money(c.wallet_balance, c.currency) },
-          { label:"Address", key:"preferred_address" }
-        ]);
+          { label:"Address", render:c => `${c.preferred_address || ""}<br><small>${c.landmark_note || ""}</small>` }
+        ], c => `<button data-customer-order="${c.user_id}">Orders</button><button data-wallet-adjust="${c.user_id}">Wallet audit</button>`);
         $("#neighborhoods").innerHTML = d.neighborhoods.neighborhoods.map(n => `<p>${n.name}: ${n.lat}, ${n.lng}</p>`).join("") + `<small>${d.neighborhoods.map_provider}</small>`;
         $("#payments").innerHTML = table(d.payments.transactions, [
           { label:"Provider", key:"provider" },
@@ -359,6 +380,24 @@
           await api(`/api/${state.country}/v1/payments/simulate`, { method:"POST", body:JSON.stringify({ order_id, provider }) });
           toast("Payment review logged"); await load();
         }).catch(() => {}));
+        document.querySelectorAll("[data-customer-order]").forEach(btn => btn.onclick = () => runButtonAction(btn, "Customer order search", async () => {
+          const rows = (state.data.orders.orders || []).filter((order) => order.customer_user_id === btn.dataset.customerOrder);
+          $("#orders").innerHTML = table(rows, [
+            { label:"Order", render:o => o.id.slice(0,8) },
+            { label:"Customer", key:"customer_name" },
+            { label:"Merchant", key:"merchant_name" },
+            { label:"Status", key:"status" },
+            { label:"Total", render:o => money(o.total, o.currency) }
+          ], o => `<button class="danger" data-order="${o.id}|cancelled">Cancel</button><button data-pay="${o.id}|Chapa">Dummy refund/review</button>`);
+          document.querySelector('[data-tab="orders"]').click();
+          bind();
+        }).catch(() => {}));
+        document.querySelectorAll("[data-wallet-adjust]").forEach(btn => btn.onclick = () => runButtonAction(btn, "Wallet audit adjustment", async () => {
+          const amount = Number(prompt("Adjustment amount for wallet audit", "10") || 0);
+          if (!amount) return;
+          await api(`/api/${state.country}/v1/wallet/admin-adjustment`, { method:"POST", body:JSON.stringify({ user_id: btn.dataset.walletAdjust, amount, reason:"admin_portal_wallet_audit" }) });
+          toast("Wallet adjustment audited"); await load();
+        }).catch(() => {}));
         document.querySelectorAll("[data-flag]").forEach(btn => btn.onclick = () => runButtonAction(btn, "Toggle feature flag", async () => {
           const [key, enabled] = btn.dataset.flag.split("|");
           await api(`/api/${state.country}/v1/admin/feature-flags/${encodeURIComponent(key)}`, { method:"PATCH", body:JSON.stringify({ enabled: enabled === "true" }) });
@@ -381,6 +420,7 @@
       }).catch(() => {}));
       $("#loginBtn").onclick = () => runButtonAction($("#loginBtn"), "Admin login", login).catch(error => { setLoading(false); setStatus(error.message, "error"); });
       $("#refreshBtn").onclick = () => runButtonAction($("#refreshBtn"), "Refresh admin dashboard", load).catch(() => {});
+      $("#customerSearchBtn").onclick = () => runButtonAction($("#customerSearchBtn"), "Search customers", async () => render()).catch(() => {});
       $("#logoutBtn").onclick = () => runButtonAction($("#logoutBtn"), "Admin logout", async () => {
         state.token = "";
         state.user = null;
