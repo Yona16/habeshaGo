@@ -547,7 +547,9 @@ function productionReadiness(countryId) {
     { area: "Core local MVP", status: "ready_for_demo", severity: "low", detail: "Customer, merchant, driver, admin, cart, order, live demo, nearby search, notifications, and simulated payments are testable locally." },
     { area: "Database", status: "blocked_for_production", severity: "critical", detail: "Local JSON persistence must be replaced by PostgreSQL-backed APIs, migrations, transactions, backups, and restore drills." },
     { area: "Authentication", status: "needs_hardening", severity: "high", detail: "Add refresh tokens, password reset, device/session tracking, stronger rate limits, admin MFA, and production JWT secrets." },
+    { area: "Order lifecycle history", status: "demo_ready_needs_db", severity: "high", detail: "Every production status change must write order_status_history, audit_logs, and a notification event in PostgreSQL." },
     { area: "Payments", status: "blocked_for_production", severity: "critical", detail: "Current payments are dummy records only. Telebirr, Chapa, M-Pesa, cash reconciliation, webhooks, refunds, and settlement must be integrated and audited." },
+    { area: "Wallet ledger", status: "demo_audited_needs_reconciliation", severity: "high", detail: "Wallet balances must only change through immutable wallet transactions with admin reconciliation reports before real money movement." },
     { area: "SMS and push", status: "blocked_for_production", severity: "high", detail: "Current SMS is simulated. Add SMS provider, Firebase push, delivery receipts, retry handling, and opt-out controls." },
     { area: "Maps and dispatch", status: "needs_provider", severity: "high", detail: "Current map uses sample coordinates and distance math. Add Google Maps or equivalent geocoding, routing, ETA, zones, and dispatch optimization." },
     { area: "Compliance", status: "legal_review_required", severity: "critical", detail: `${legalHolds.length} regulated features remain on legal hold. Wallet, driver float, advances, diaspora funding, and cross-border transfers need legal sign-off.` },
@@ -555,7 +557,9 @@ function productionReadiness(countryId) {
     { area: "Mobile apps", status: "prototype_only", severity: "high", detail: "Flutter customer and driver apps are placeholders. Build full offline-first mobile flows with SQLite sync and push notifications." },
     { area: "Observability", status: "missing", severity: "high", detail: "Add structured logs, metrics, traces, uptime checks, alerting, error tracking, and business dashboards." },
     { area: "Testing", status: "needs_suite", severity: "high", detail: "Add unit, integration, E2E, load, security, payment webhook, offline sync, and cash reconciliation tests." },
-    { area: "Deployment", status: "needs_pipeline", severity: "high", detail: "Add CI/CD, Docker production image, environment separation, deploy runbooks, rollback plan, and DigitalOcean infrastructure configuration." }
+    { area: "Deployment", status: "needs_pipeline", severity: "high", detail: "Add CI/CD, Docker production image, environment separation, deploy runbooks, rollback plan, and DigitalOcean infrastructure configuration." },
+    { area: "Backups and restore", status: "needs_drill", severity: "high", detail: "Managed PostgreSQL backups, point-in-time recovery, restore drills, verification queries, and rollback plans are required before pilot." },
+    { area: "Phase 2 scope control", status: "blocked_until_phase_1_stable", severity: "high", detail: "Ride hailing, hotel booking, bus tickets, lending, BNPL, diaspora funding marketplace, social feed, AI marketplace, and voice ordering stay disabled." }
   ];
   const critical = checks.filter((check) => check.severity === "critical" && check.status !== "ready_for_demo").length;
   const high = checks.filter((check) => check.severity === "high" && !["ready_for_demo", "done"].includes(check.status)).length;
@@ -612,8 +616,11 @@ function productionChecklist(countryId) {
       { area: "orders", status: orders.length ? "demo_ready" : "ready_no_orders", detail: `${orders.length} backend orders stored with lifecycle history.` },
       { area: "wallet", status: "demo_audited", detail: `${store.wallet_transactions.filter((tx) => tx.country_id === countryId).length} immutable local wallet ledger records are available to Admin.` },
       { area: "map", status: "demo_ready", detail: "OpenStreetMap/Leaflet frontend plus backend sample coordinates, ETA, radius, and live driver locations are available." },
+      { area: "notifications", status: "in_app_demo_ready", detail: "Order status and activity notifications exist locally. Production still needs SMS/push providers, delivery receipts, retries, and opt-out controls." },
+      { area: "backup_restore", status: "needs_drill", detail: "PostgreSQL backup/restore plan is documented. Production still needs managed backups and a successful restore drill." },
       { area: "security", status: "needs_production_hardening", detail: "Helmet/CORS/rate-limit foundations exist in Express. Production needs secrets manager, MFA, WAF, review, and load testing." },
-      { area: "deployment", status: "not_deployed", detail: "Docker and env templates exist. Domain, SSL, managed Postgres, backups, monitoring, and CI/CD are still required." }
+      { area: "deployment", status: "not_deployed", detail: "Docker and env templates exist. Domain, SSL, managed Postgres, backups, monitoring, and CI/CD are still required." },
+      { area: "phase_2_features", status: "disabled", detail: "Ride hailing, hotel booking, bus tickets, lending, BNPL, diaspora funding, social feed, AI marketplace, and voice ordering stay out of Phase 1." }
     ]
   };
 }

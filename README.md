@@ -123,6 +123,16 @@ The API starts on port `4000`, and PostgreSQL starts on port `5432`.
 
 Ye HabeshaGo Bank is only a technical foundation. Lending, merchant advances, diaspora funding, cross-border transfers, and driver-agent cash services are behind feature flags and legal holds.
 
+## Production Readiness
+
+The current build is a local MVP and controlled-demo foundation, not a public production launch. Use these docs before any pilot or launch decision:
+
+- `docs/production-readiness.md`
+- `docs/phase-1-production-checklist.md`
+- `docs/production-roadmap-9-10.md`
+
+The required production path is PostgreSQL runtime persistence, hardened auth, end-to-end order lifecycle history, ledger-based wallet, approved payment providers, map/dispatch reliability, admin operations controls, automated tests, monitoring, deployment/SSL, backups, and legal/compliance review.
+
 ## First API Calls
 
 ```bash
