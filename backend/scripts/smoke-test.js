@@ -83,6 +83,16 @@ async function main() {
     assert(js.includes("updateCartItem") && js.includes("removeCartItem") && js.includes("sendMenuRequest"), "Customer cart/menu actions are missing");
   });
 
+  await step("driver portal loads separately", async () => {
+    const response = await fetch(`${baseUrl}/driver`);
+    const html = await response.text();
+    assert(response.ok, "Driver portal did not load");
+    assert(html.includes("HabeshaGo Driver Portal"), "Driver portal title is missing");
+    assert(html.includes("Available Delivery Requests"), "Driver available requests view is missing");
+    assert(html.includes("Earnings & Wallet"), "Driver earnings/wallet view is missing");
+    assert(html.includes("bottom-nav"), "Driver mobile bottom navigation is missing");
+  });
+
   await step("SEO pages, sitemap, robots, and PWA files work", async () => {
     const pages = ["/addis-ababa", "/bole", "/category/pizza", "/merchant/addis-chefs", "/product/kitfo", "/search?q=%E1%8D%92%E1%8B%9B"];
     for (const path of pages) {

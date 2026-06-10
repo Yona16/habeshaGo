@@ -1311,6 +1311,8 @@ function serveStatic(req, res, pathname) {
     filePath = path.resolve(webRootDir, "admin", "index.html");
   } else if (pathname === "/merchant" || pathname === "/merchant/") {
     filePath = path.resolve(webRootDir, "merchant", "index.html");
+  } else if (pathname === "/driver" || pathname === "/driver/") {
+    filePath = path.resolve(webRootDir, "driver", "index.html");
   } else if (pathname === "/app" || pathname === "/app/") {
     filePath = path.resolve(webDir, "index.html");
   } else {
