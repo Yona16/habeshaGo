@@ -68,6 +68,9 @@ async function main() {
     assert(html.includes("cartDrawer"), "Customer cart drawer is missing");
     assert(html.includes("merchantGrid"), "Customer merchant grid is missing");
     assert(html.includes("leafletMap"), "Customer map is missing");
+    assert(html.includes("promo-banner") && html.includes("recommendedGrid"), "Customer promo/recommended sections are missing");
+    assert(html.includes("heroLocation") && html.includes("currentLocationBtn"), "Customer address/current-location controls are missing");
+    assert(html.includes("menuRequestBtn") && html.includes("cartDrawerSummary"), "Menu request or cart summary controls are missing");
     assert(html.includes("paymentMethod"), "Customer checkout payment method is missing");
     assert(html.includes('name="robots" content="noindex, nofollow"'), "Customer app should be noindex");
     assert(html.includes("Run Live End-To-End Demo"), "Live end-to-end demo button label is missing");
@@ -77,6 +80,7 @@ async function main() {
     assert(js.includes("selectedMerchantOrThrow") && js.includes("Please choose a restaurant."), "Customer selected merchant validation is missing");
     assert(js.includes("api(\"/orders\"") && !js.includes("api(\"/production-checklist\""), "Place order must use /orders, not production-checklist");
     assert(js.includes("getLatLng") && js.includes("Skipping invalid coordinates") && js.includes("console.log(\"Merchant:\"") && js.includes("console.log(\"Driver:\""), "Map coordinate guard/debugging is missing");
+    assert(js.includes("updateCartItem") && js.includes("removeCartItem") && js.includes("sendMenuRequest"), "Customer cart/menu actions are missing");
   });
 
   await step("SEO pages, sitemap, robots, and PWA files work", async () => {
@@ -338,6 +342,18 @@ async function main() {
     });
     assert(response.status === 201, "Sample cart failed");
     assert((data.cart.items || []).length > 0, "Sample cart returned no items");
+    const first = data.cart.items[0];
+    const updated = await request("/api/ET/v1/cart/items", {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ product_id: first.product_id, quantity: 3 })
+    });
+    assert(updated.response.ok && (updated.data.cart.items || []).some((item) => item.product_id === first.product_id && item.quantity === 3), "Cart quantity update failed");
+    const removed = await request(`/api/ET/v1/cart/items/${first.product_id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    assert(removed.response.ok && !(removed.data.cart.items || []).some((item) => item.product_id === first.product_id), "Cart item remove failed");
   });
 
   await step("customer tools work", async () => {

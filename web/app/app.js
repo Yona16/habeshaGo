@@ -161,8 +161,13 @@ async function restoreSession() {
 }
 
 function selectedLocation() {
-  const [lat, lng] = ($("#nearbyLocation")?.value || "8.994|38.789").split("|").map(Number);
+  const [lat, lng] = ($("#heroLocation")?.value || $("#nearbyLocation")?.value || "8.994|38.789").split("|").map(Number);
   return { lat, lng };
+}
+
+function syncLocation(value) {
+  if ($("#heroLocation")) $("#heroLocation").value = value;
+  if ($("#nearbyLocation")) $("#nearbyLocation").value = value;
 }
 
 async function loadCatalog() {
@@ -188,6 +193,7 @@ async function loadCatalog() {
 
   renderDashboard();
   renderMerchants();
+  renderRecommended();
   renderProducts();
   renderMap();
 }
@@ -231,6 +237,11 @@ function merchantImage(index) {
   return foodImages[index % foodImages.length];
 }
 
+function deliveryFeeFor(merchant) {
+  const distance = Number(merchant?.distance_km || 1);
+  return Math.max(45, Math.round(35 + distance * 18));
+}
+
 function renderDashboard() {
   $("#merchantMetric").textContent = state.merchants.length;
   $("#productMetric").textContent = state.products.length;
@@ -243,14 +254,18 @@ function renderMerchants() {
     <article class="merchant-card ${state.selectedMerchant?.id === merchant.id ? "selected" : ""}" data-merchant-id="${merchant.id}">
       <div class="merchant-img" style="background-image:url('${merchantImage(index)}')"></div>
       <div class="merchant-body">
-        <div class="badge">${merchant.category || "restaurant"}</div>
+        <div class="card-topline">
+          <div class="badge">${merchant.category || "restaurant"}</div>
+          <span class="open-badge">${merchant.status === "open" ? "Open" : "Closed"}</span>
+        </div>
         <h4>${merchant.name}</h4>
         <div class="meta">
           <span>⭐ ${merchant.rating ?? 0}</span>
           <span>${merchant.review_count || 0} reviews</span>
           <span>${merchant.distance_km ?? "?"} km</span>
-          <span>25–35 min</span>
+          <span>${merchant.prep_time_minutes || 20}-${Number(merchant.prep_time_minutes || 20) + 12} min</span>
         </div>
+        <p class="merchant-promo">${deliveryFeeFor(merchant) <= 60 ? "Free delivery over 500 ETB" : `${money(deliveryFeeFor(merchant))} delivery`}</p>
       </div>
     </article>
   `).join("") || "<div class='order-card'>No merchants found. Try refreshing or changing filters.</div>";
@@ -260,21 +275,55 @@ function renderMerchants() {
       state.selectedMerchant = state.merchants.find((m) => m.id === card.dataset.merchantId);
       addActivity(`Selected ${state.selectedMerchant?.name}`);
       renderMerchants();
+      renderRecommended();
       renderProducts();
       renderMap();
     };
   });
 }
 
+function renderRecommended() {
+  const merchant = state.selectedMerchant;
+  const products = (merchant ? state.products.filter((product) => product.merchant_id === merchant.id) : state.products).slice(0, 4);
+  $("#recommendedGrid").innerHTML = products.map((product, index) => `
+    <article class="product-card compact">
+      <div class="product-img" style="background-image:url('${product.image_url && product.image_url.startsWith("http") ? product.image_url : merchantImage(index + 2)}')"></div>
+      <div>
+        <span class="badge">${product.category || "popular"}</span>
+        <h4>${product.name}</h4>
+        <p>${product.description || "Recommended near your delivery address."}</p>
+        <div class="product-actions">
+          <strong>${money(product.price, product.currency)}</strong>
+          <button data-add-product="${product.id}">Add</button>
+        </div>
+      </div>
+    </article>
+  `).join("") || "<div class='order-card'>No recommended items yet.</div>";
+  document.querySelectorAll("#recommendedGrid [data-add-product]").forEach((button) => {
+    button.onclick = () => runButtonAction(button, "Add recommended item", () => addToCart(button.dataset.addProduct)).catch(() => {});
+  });
+}
+
 function renderProducts() {
   const merchant = state.selectedMerchant;
   $("#selectedMerchantTitle").textContent = merchant ? merchant.name : "Select a merchant";
-  $("#selectedMerchantMeta").textContent = merchant ? `${merchant.category || "merchant"} • ${merchant.distance_km ?? "?"} km` : "No merchant selected";
+  $("#selectedMerchantMeta").textContent = merchant ? `${merchant.category || "merchant"} • ${merchant.distance_km ?? "?"} km • ${merchant.status || "open"}` : "No merchant selected";
 
   if (!merchant) {
+    $("#merchantHero").innerHTML = "";
     $("#productGrid").innerHTML = "<div class='order-card'>Choose a restaurant to view its menu.</div>";
+    $("#menuRequestBtn").disabled = true;
     return;
   }
+  $("#menuRequestBtn").disabled = false;
+  $("#merchantHero").innerHTML = `
+    <div class="merchant-hero-img" style="background-image:url('${merchantImage(Math.max(0, state.merchants.findIndex((item) => item.id === merchant.id)))}')"></div>
+    <div>
+      <h4>${merchant.name}</h4>
+      <p>⭐ ${merchant.rating ?? 0} • ${merchant.review_count || 0} reviews • ${merchant.prep_time_minutes || 20}-${Number(merchant.prep_time_minutes || 20) + 12} min • ${money(deliveryFeeFor(merchant))} delivery</p>
+      <p>${merchant.address_note || "Addis Ababa local pickup"} • ${merchant.opening_hours || "Mon-Sun 8:00 AM - 10:00 PM"}</p>
+    </div>
+  `;
 
   let products = state.products.filter((product) => product.merchant_id === merchant.id);
   if (!products.length) products = state.products.slice(0, 6);
@@ -287,7 +336,10 @@ function renderProducts() {
         <p>${product.description || "Fresh local item prepared by the merchant."}</p>
         <div class="product-actions">
           <strong>${money(product.price, product.currency)}</strong>
-          <button data-add-product="${product.id}">Add</button>
+          <div class="quantity-control">
+            <button data-add-product="${product.id}">Add</button>
+            <span>Qty 1</span>
+          </div>
         </div>
       </div>
     </article>
@@ -307,11 +359,77 @@ async function addToCart(productId) {
   await loadCart();
 }
 
+async function sendMenuRequest() {
+  if (!state.user) throw new Error("Please login as customer first.");
+  const merchant = selectedMerchantOrThrow();
+  await api("/menu-requests", {
+    method: "POST",
+    body: JSON.stringify({
+      merchant_id: merchant.id,
+      item_name: $("#menuRequestName")?.value || "Special menu request",
+      note: $("#menuRequestNote")?.value || "Please confirm availability."
+    })
+  });
+  addActivity(`Menu request sent to ${merchant.name}`);
+  toast("Menu request sent");
+}
+
 async function addSampleCart() {
   if (!state.user) await loginDemo();
   await api("/cart/sample", { method: "POST", body: JSON.stringify({ bundle: "family_lunch" }) });
   addActivity("Sample food cart added");
   await loadCart();
+}
+
+async function updateCartItem(productId, quantity) {
+  if (!state.user) throw new Error("Please login as customer first.");
+  await api("/cart/items", { method: "PATCH", body: JSON.stringify({ product_id: productId, quantity }) });
+  addActivity("Cart updated");
+  await loadCart();
+}
+
+async function removeCartItem(productId) {
+  if (!state.user) throw new Error("Please login as customer first.");
+  await api(`/cart/items/${encodeURIComponent(productId)}`, { method: "DELETE" });
+  addActivity("Item removed from cart");
+  await loadCart();
+}
+
+async function clearCart() {
+  if (!state.user) throw new Error("Please login as customer first.");
+  await api("/cart", { method: "DELETE" });
+  addActivity("Cart cleared");
+  await loadCart();
+}
+
+async function useCurrentLocation() {
+  if (!navigator.geolocation) {
+    toast("GPS unavailable. Using Bole Medhanealem.");
+    syncLocation("8.994|38.789");
+    await loadCatalog();
+    return;
+  }
+  await new Promise((resolve) => {
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const value = `${position.coords.latitude.toFixed(4)}|${position.coords.longitude.toFixed(4)}`;
+        const option = document.createElement("option");
+        option.value = value;
+        option.textContent = "Current location";
+        $("#heroLocation").appendChild(option);
+        $("#nearbyLocation").appendChild(option.cloneNode(true));
+        syncLocation(value);
+        resolve();
+      },
+      () => {
+        toast("Location permission denied. Using Bole Medhanealem.");
+        syncLocation("8.994|38.789");
+        resolve();
+      },
+      { enableHighAccuracy: true, timeout: 2500, maximumAge: 60000 }
+    );
+  });
+  await loadCatalog();
 }
 
 async function loadCart() {
@@ -335,17 +453,54 @@ function renderCart() {
   if (!state.cart.length) {
     $("#cartList").innerHTML = "<div class='cart-row'><span>Cart is empty</span><strong>0 ETB</strong></div>";
     $("#cartDrawerBody").innerHTML = $("#cartList").innerHTML;
+    $("#cartDrawerSummary").innerHTML = "<div class='cart-row total'><span>Total</span><strong>0 ETB</strong></div>";
     return;
   }
   const total = state.cart.reduce((sum, item) => sum + Number(item.quantity || 0) * Number(item.unit_price || 0), 0);
+  const deliveryFee = 60;
+  const serviceFee = Math.max(15, Math.round(total * 0.04));
+  const promoDiscount = $("#promoCode")?.value.trim().toUpperCase() === "BOLE10" ? Math.round(total * 0.1) : 0;
+  const grandTotal = Math.max(0, total + deliveryFee + serviceFee - promoDiscount);
   const rows = state.cart.map((item) => `
     <div class="cart-row">
-      <span>${item.quantity} × ${item.name}</span>
-      <strong>${money(Number(item.quantity) * Number(item.unit_price), item.currency)}</strong>
+      <span>${item.quantity} x ${item.name}</span>
+      <div class="cart-controls">
+        <button data-cart-dec="${item.product_id}">-</button>
+        <strong>${money(Number(item.quantity) * Number(item.unit_price), item.currency)}</strong>
+        <button data-cart-inc="${item.product_id}">+</button>
+        <button data-cart-remove="${item.product_id}" class="ghost-dark">Remove</button>
+      </div>
     </div>
-  `).join("") + `<div class="cart-row"><span>Subtotal</span><strong>${money(total)}</strong></div>`;
+  `).join("");
+  const summary = `
+    <div class="cart-row"><span>Subtotal</span><strong>${money(total)}</strong></div>
+    <div class="cart-row"><span>Delivery fee</span><strong>${money(deliveryFee)}</strong></div>
+    <div class="cart-row"><span>Service fee</span><strong>${money(serviceFee)}</strong></div>
+    <div class="cart-row"><span>Promo discount</span><strong>-${money(promoDiscount)}</strong></div>
+    <div class="cart-row total"><span>Total</span><strong>${money(grandTotal)}</strong></div>
+  `;
   $("#cartList").innerHTML = rows;
   $("#cartDrawerBody").innerHTML = rows;
+  $("#cartDrawerSummary").innerHTML = summary;
+  bindCartControls();
+}
+
+function bindCartControls() {
+  document.querySelectorAll("[data-cart-inc]").forEach((button) => {
+    button.onclick = () => {
+      const item = state.cart.find((entry) => entry.product_id === button.dataset.cartInc);
+      runButtonAction(button, "Increase quantity", () => updateCartItem(button.dataset.cartInc, Number(item?.quantity || 0) + 1)).catch(() => {});
+    };
+  });
+  document.querySelectorAll("[data-cart-dec]").forEach((button) => {
+    button.onclick = () => {
+      const item = state.cart.find((entry) => entry.product_id === button.dataset.cartDec);
+      runButtonAction(button, "Decrease quantity", () => updateCartItem(button.dataset.cartDec, Number(item?.quantity || 0) - 1)).catch(() => {});
+    };
+  });
+  document.querySelectorAll("[data-cart-remove]").forEach((button) => {
+    button.onclick = () => runButtonAction(button, "Remove item", () => removeCartItem(button.dataset.cartRemove)).catch(() => {});
+  });
 }
 
 async function placeOrder() {
@@ -368,7 +523,8 @@ async function placeOrder() {
       promo_code: $("#promoCode").value.trim(),
       address_label: "Home - Bole",
       address_note: deliveryAddress,
-      customer_note: "Customer placed order from HabeshaGo customer app",
+      customer_note: $("#deliveryNote")?.value || "Customer placed order from HabeshaGo customer app",
+      contact_phone: $("#contactPhone")?.value || state.user.phone,
       safety_mode: "standard",
       community_delivery: false,
       destination: selectedLocation()
@@ -408,19 +564,26 @@ function renderOrders() {
   const rows = (active.length ? active : state.orders.slice(0, 4)).map((order) => `
     <article class="order-card">
       <strong>Order ${String(order.id).slice(0, 8)} • ${formatStatus(order.status)}</strong>
-      <p>${order.merchant_name || "Merchant"} → ${order.address_note || "Delivery address"}</p>
+      <p>${order.merchant_name || "Merchant"} to ${order.address_note || "Delivery address"} • ETA ${order.map_quote?.eta_minutes || 25} min</p>
+      <p>${order.driver_name ? `${order.driver_name} • ${order.driver_phone || "phone pending"} • ${order.driver_vehicle || "vehicle pending"}` : "Driver assignment pending"}</p>
       <div class="status-timeline">
         ${["placed","accepted","preparing","ready_for_pickup","driver_accepted","picked_up","on_the_way","delivered"].map((status) => `
           <span class="status-step ${statusIsActive(order.status, status) ? "active" : ""}">${formatStatus(status)}</span>
         `).join("")}
       </div>
+      <button class="soft-dark" data-help-order="${order.id}">Help</button>
     </article>
   `).join("");
   $("#ordersPanel").innerHTML = rows || "<div class='order-card'>No orders yet. Add items and checkout.</div>";
+  document.querySelectorAll("[data-help-order]").forEach((button) => {
+    button.onclick = () => toast(`Support opened for order ${button.dataset.helpOrder.slice(0, 8)}`);
+  });
 }
 
 function formatStatus(status = "") {
-  return String(status || "").replace(/_/g, " ").toUpperCase();
+  const normalized = String(status || "").toLowerCase();
+  if (normalized === "driver_accepted") return "DRIVER ASSIGNED";
+  return normalized.replace(/_/g, " ").toUpperCase();
 }
 
 function statusIsActive(current, target) {
@@ -525,16 +688,31 @@ async function runLiveDemo() {
 function bind() {
   $("#demoLoginBtn").onclick = () => runButtonAction($("#demoLoginBtn"), "Demo customer login", loginDemo).catch(() => {});
   $("#refreshBtn").onclick = () => runButtonAction($("#refreshBtn"), "Refresh dashboard", refreshAll).catch(() => {});
+  $("#profileBtn").onclick = () => toast(state.user ? `${state.user.name} profile is active` : "Login to view profile");
   $("#applyDiscoveryBtn").onclick = () => runButtonAction($("#applyDiscoveryBtn"), "Apply discovery filters", loadCatalog).catch(() => {});
   $("#searchBtn").onclick = () => runButtonAction($("#searchBtn"), "Search merchants", loadCatalog).catch(() => {});
+  $("#currentLocationBtn").onclick = () => runButtonAction($("#currentLocationBtn"), "Use current location", useCurrentLocation).catch(() => {});
+  $("#promoApplyBtn").onclick = () => {
+    $("#promoCode").value = "BOLE10";
+    renderCart();
+    toast("Promo BOLE10 applied");
+  };
+  $("#heroLocation").onchange = () => {
+    syncLocation($("#heroLocation").value);
+    loadCatalog().catch((error) => toast(error.message));
+  };
+  $("#nearbyLocation").onchange = () => syncLocation($("#nearbyLocation").value);
   $("#refreshMapBtn").onclick = () => runButtonAction($("#refreshMapBtn"), "Refresh nearby map", async () => { await loadCatalog(); renderMap(); }).catch(() => {});
   $("#sampleCartBtn").onclick = () => runButtonAction($("#sampleCartBtn"), "Add sample cart", addSampleCart).catch(() => {});
+  $("#menuRequestBtn").onclick = () => runButtonAction($("#menuRequestBtn"), "Send menu request", sendMenuRequest).catch(() => {});
   $("#placeOrderBtn").onclick = () => runButtonAction($("#placeOrderBtn"), "Place order", placeOrder).catch(() => {});
   $("#liveDemoBtn").onclick = () => runButtonAction($("#liveDemoBtn"), "Run live end-to-end demo", runLiveDemo).catch(() => {});
   $("#logoutBtn").onclick = () => { clearSession(); toast("Logged out"); };
   $("#cartOpenBtn").onclick = () => { $("#cartDrawer").hidden = false; };
+  $("#bottomCartBtn").onclick = () => { $("#cartDrawer").hidden = false; };
   $("#cartCloseBtn").onclick = () => { $("#cartDrawer").hidden = true; };
   $("#cartCloseBackdrop").onclick = () => { $("#cartDrawer").hidden = true; };
+  $("#clearCartBtn").onclick = () => runButtonAction($("#clearCartBtn"), "Clear cart", clearCart).catch(() => {});
   $("#drawerCheckoutBtn").onclick = () => { $("#cartDrawer").hidden = true; document.querySelector(".checkout-panel").scrollIntoView({ behavior: "smooth" }); };
 
   document.querySelectorAll(".chip").forEach((button) => {

@@ -23,6 +23,7 @@
           <button id="demoLoginBtn" class="soft">Demo Login</button>
           <button id="refreshBtn" class="soft">Refresh</button>
           <button id="cartOpenBtn" class="cart-button">Cart <span id="cartCount">0</span></button>
+          <button id="profileBtn" class="profile-button" title="Profile">Profile</button>
           <span id="sessionLabel" class="session">Not signed in</span>
           <button id="logoutBtn" class="ghost" hidden>Logout</button>
         </div>
@@ -35,10 +36,34 @@
             <h2>Order local favorites, groceries, and essentials fast.</h2>
             <p>Browse nearby merchants, add items to cart, checkout, and watch the delivery move on the map.</p>
             <div class="hero-search">
-              <input id="searchInput" placeholder="Search Kitfo, coffee, pizza, grocery..." />
+              <input id="searchInput" list="searchSuggestions" placeholder="Search food, grocery, pharmacy..." />
+              <datalist id="searchSuggestions">
+                <option value="Pizza"></option>
+                <option value="Coffee"></option>
+                <option value="Injera"></option>
+                <option value="Kitfo"></option>
+                <option value="Burger"></option>
+                <option value="ፒዛ"></option>
+                <option value="ቡና"></option>
+                <option value="እንጀራ"></option>
+              </datalist>
               <button id="searchBtn">Search</button>
             </div>
-            <div class="address-pill">📍 Bole Medhanealem • Landmark delivery enabled</div>
+            <div class="delivery-controls">
+              <label>Deliver to
+                <select id="heroLocation">
+                  <option value="8.994|38.789">Bole Medhanealem</option>
+                  <option value="8.991|38.792">Friendship area</option>
+                  <option value="8.999|38.782">Woreda 03</option>
+                  <option value="9.010|38.761">Kazanchis</option>
+                  <option value="9.034|38.763">Megenagna</option>
+                  <option value="8.984|38.812">CMC</option>
+                  <option value="9.033|38.752">Piassa</option>
+                </select>
+              </label>
+              <button id="currentLocationBtn" class="soft">Use current location</button>
+            </div>
+            <div class="address-pill">📍 Bole Medhanealem • ቦሌ • Landmark delivery enabled</div>
           </div>
           <div class="hero-card">
             <strong id="heroEta">25–35 min</strong>
@@ -53,14 +78,28 @@
           <div class="metric"><strong id="driverMetric">0</strong><span>Nearby drivers</span></div>
         </section>
 
+        <section class="promo-banner">
+          <div>
+            <p class="eyebrow">Today only</p>
+            <h3>Free delivery over 500 ETB near Bole</h3>
+            <span>Use BOLE10 for the local demo. Cash, Telebirr, CBE Birr, Chapa, and SantimPay are ready as dummy payments.</span>
+          </div>
+          <button id="promoApplyBtn" class="soft">Apply BOLE10</button>
+        </section>
+
         <section class="category-strip">
           <button class="chip active" data-category="">All</button>
-          <button class="chip" data-category="restaurant">Ethiopian</button>
-          <button class="chip" data-category="cafe">Coffee</button>
+          <button class="chip" data-category="restaurant">Food</button>
           <button class="chip" data-category="grocery">Grocery</button>
-          <button class="chip" data-category="supermarket">Supermarket</button>
+          <button class="chip" data-category="cafe">Coffee</button>
+          <button class="chip" data-category="marketplace">Injera</button>
+          <button class="chip" data-category="restaurant">Pizza</button>
+          <button class="chip" data-category="restaurant">Burger</button>
           <button class="chip" data-category="pharmacy">Pharmacy</button>
-          <button class="chip" data-category="marketplace">Marketplace</button>
+          <button class="chip" data-category="courier">Courier</button>
+          <button class="chip" data-category="restaurant">Habesha Specials</button>
+          <button class="chip" data-category="marketplace">Almaz Women-Owned</button>
+          <button class="chip" data-category="supermarket">Supermarket</button>
         </section>
 
         <section class="content-grid">
@@ -102,6 +141,16 @@
               <div id="merchantGrid" class="merchant-grid"></div>
             </section>
 
+            <section class="panel">
+              <div class="section-head">
+                <div>
+                  <p class="eyebrow">Recommended for you</p>
+                  <h3>Popular near your address</h3>
+                </div>
+              </div>
+              <div id="recommendedGrid" class="product-grid"></div>
+            </section>
+
             <section class="panel" id="menuPanel">
               <div class="section-head">
                 <div>
@@ -110,7 +159,17 @@
                 </div>
                 <span id="selectedMerchantMeta" class="pill">No merchant selected</span>
               </div>
+              <div id="merchantHero" class="merchant-detail-hero"></div>
               <div id="productGrid" class="product-grid"></div>
+              <div class="special-request">
+                <label>Special request
+                  <input id="menuRequestName" value="Extra spicy tibs family tray" />
+                </label>
+                <label>Note
+                  <input id="menuRequestNote" value="Please confirm if available for tonight." />
+                </label>
+                <button id="menuRequestBtn" class="secondary">Send Menu Request</button>
+              </div>
             </section>
 
             <section class="panel">
@@ -150,6 +209,12 @@
               <div id="cartList" class="cart-list"></div>
               <label>Delivery address
                 <input id="addressNote" value="Blue gate next to Medhanealem Church, Bole" />
+              </label>
+              <label>Delivery note
+                <input id="deliveryNote" value="Call when near the blue gate" />
+              </label>
+              <label>Contact phone
+                <input id="contactPhone" value="+251911000100" />
               </label>
               <label>Payment method
                 <select id="paymentMethod">
@@ -191,9 +256,18 @@
           <button id="cartCloseBtn" class="ghost-dark">Close</button>
         </div>
         <div id="cartDrawerBody"></div>
+        <div id="cartDrawerSummary" class="cart-summary"></div>
+        <button id="clearCartBtn" class="ghost-dark">Clear cart</button>
         <button id="drawerCheckoutBtn" class="place-order">Checkout</button>
       </aside>
     </div>
+
+    <nav class="bottom-nav" aria-label="Customer navigation">
+      <a href="#top">Home</a>
+      <a href="#menuPanel">Menu</a>
+      <a href="#ordersPanel">Orders</a>
+      <button id="bottomCartBtn">Cart</button>
+    </nav>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="./app.js"></script>

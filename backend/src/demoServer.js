@@ -1971,6 +1971,37 @@ async function handleApi(req, res, url) {
     return send(res, 201, { cart });
   }
 
+  if (req.method === "PATCH" && url.pathname.endsWith("/cart/items")) {
+    const user = requireUser(req, res, ["customer", "admin"]);
+    if (!user) return;
+    const body = await readBody(req);
+    const cart = getCart(user.id, countryId);
+    const productId = body.product_id;
+    const quantity = Number(body.quantity);
+    if (!productId || !Number.isFinite(quantity)) return sendError(res, 400, "product_id and quantity are required");
+    const existing = cart.items.find((entry) => entry.product_id === productId);
+    if (!existing && quantity > 0) {
+      const [item] = calculateItems([{ product_id: productId, quantity }], countryId);
+      cart.items.push(item);
+    } else if (existing && quantity <= 0) {
+      cart.items = cart.items.filter((entry) => entry.product_id !== productId);
+    } else if (existing) {
+      existing.quantity = quantity;
+    }
+    saveStore();
+    return send(res, 200, { cart });
+  }
+
+  const cartItemDeleteMatch = url.pathname.match(/^\/api\/[^/]+\/v1\/cart\/items\/([^/]+)$/);
+  if (req.method === "DELETE" && cartItemDeleteMatch) {
+    const user = requireUser(req, res, ["customer", "admin"]);
+    if (!user) return;
+    const cart = getCart(user.id, countryId);
+    cart.items = cart.items.filter((entry) => entry.product_id !== cartItemDeleteMatch[1]);
+    saveStore();
+    return send(res, 200, { cart });
+  }
+
   if (req.method === "DELETE" && url.pathname.endsWith("/cart")) {
     const user = requireUser(req, res, ["customer", "admin"]);
     if (!user) return;
