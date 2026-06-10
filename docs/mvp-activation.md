@@ -2,11 +2,13 @@
 
 ## Active Local Portals
 
-- Customer app: `http://localhost:3000/`
+- Public SEO site: `http://localhost:3000/`
+- Customer app: `http://localhost:3000/app`
+- Customer static app: `http://localhost:8080` or fallback `http://localhost:8085`
 - Merchant Portal: `http://localhost:3000/merchant`
 - Admin Portal: `http://localhost:3000/admin`
 
-The Merchant Portal is connected to local APIs for merchant login, profile update, product creation, price/availability update, incoming orders, accept/reject, preparation status, driver request, payout summary, and support tickets.
+The Merchant Portal is connected to local APIs for merchant signup/login, profile update, product creation/edit/delete, image URL, price/inventory/availability update, incoming orders, accept/reject, preparation status, driver request, backend wallet/payout summary, and support tickets.
 
 The Admin Portal is connected to local APIs for admin login, customer management, merchant approval, driver approval, order monitoring, dummy payment review, city/neighborhood data, commission settings, support tickets, audit logs, feature flags, safety/trust controls, payment-provider readiness, and production launch gate visibility.
 

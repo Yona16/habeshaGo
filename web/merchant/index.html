@@ -59,6 +59,22 @@
         <span id="session">Not signed in</span>
       </section>
 
+      <section>
+        <h2>Merchant Signup</h2>
+        <div class="grid">
+          <label>Owner name <input id="signupName" value="New Merchant Owner" /></label>
+          <label>Email <input id="signupEmail" value="new-merchant@test.com" /></label>
+          <label>Phone <input id="signupPhone" value="+251900001234" /></label>
+          <label>Password <input id="signupPassword" type="password" value="Merchant123!" /></label>
+          <label>Business name <input id="signupBusiness" value="New Merchant Kitchen" /></label>
+          <label>Category <input id="signupCategory" value="restaurant" /></label>
+          <label>Manager <input id="signupManager" value="Store Manager" /></label>
+          <label>Merchant phone <input id="signupMerchantPhone" value="+251911222333" /></label>
+          <label>Address <input id="signupAddress" value="Bole, near main road" /></label>
+        </div>
+        <button id="signupBtn" class="secondary">Create merchant account</button>
+      </section>
+
       <section id="metrics" class="grid"></section>
 
       <section>
@@ -83,6 +99,7 @@
           <label>Name <input id="newProductName" value="New lunch special" /></label>
           <label>Category <input id="newProductCategory" value="food" /></label>
           <label>Description <input id="newProductDescription" value="Merchant-created local demo product." /></label>
+          <label>Image URL <input id="newProductImage" value="/assets/icon.svg" /></label>
           <label>Price <input id="newProductPrice" type="number" value="250" /></label>
           <label>Stock <input id="newProductStock" type="number" value="10" /></label>
           <label>Prep minutes <input id="newProductPrep" type="number" value="15" /></label>
@@ -212,8 +229,12 @@
       }
       async function load() {
         if (!state.token) return;
-        const data = await api(`/api/${state.country}/v1/merchant/dashboard`);
+        const [data, wallet] = await Promise.all([
+          api(`/api/${state.country}/v1/merchant/dashboard`),
+          api(`/api/${state.country}/v1/wallet`)
+        ]);
         state.data = data;
+        state.wallet = wallet;
         state.merchant = data.merchant;
         render(data);
       }
@@ -240,6 +261,7 @@
               <label>Name <input data-field="name" value="${esc(p.name)}" /></label>
               <label>Category <input data-field="category" value="${esc(p.category)}" /></label>
               <label>Description <input data-field="description" value="${esc(p.description || "")}" /></label>
+              <label>Image <input data-field="image_url" value="${esc(p.image_url || "")}" /></label>
               <label>Price <input data-field="price" type="number" value="${Number(p.price || 0)}" /></label>
               <label>Stock <input data-field="stock_quantity" type="number" value="${Number(p.stock_quantity || 0)}" /></label>
               <label>Prep <input data-field="prep_time_minutes" type="number" value="${Number(p.prep_time_minutes || 15)}" /></label>
@@ -247,7 +269,7 @@
           ` },
           { label:"Available", render:p => p.available ? "Yes" : "No" },
           { label:"Currency", key:"currency" }
-        ], p => `<button data-edit-product="${p.id}">Save edit</button><button class="secondary" data-toggle="${p.id}">${p.available ? "Disable" : "Enable"}</button>`);
+        ], p => `<button data-edit-product="${p.id}">Save edit</button><button class="secondary" data-toggle="${p.id}">${p.available ? "Disable" : "Enable"}</button><button class="danger" data-delete-product="${p.id}">Delete</button>`);
         $("#orders").innerHTML = table(data.orders, [
           { label:"Order", render:o => o.id.slice(0,8) },
           { label:"Customer", key:"customer_name" },
@@ -258,11 +280,14 @@
         $("#payout").innerHTML = `
           <p>Gross sales: ${money(data.payout.gross_sales, data.payout.currency)}</p>
           <p>Commission due: ${money(data.payout.commission_due, data.payout.currency)}</p>
-          <p>Pending payout: ${money(data.payout.payout_pending, data.payout.currency)}</p>
+          <p>Current wallet balance: ${money(state.wallet?.balance || 0, state.wallet?.currency || data.payout.currency)}</p>
+          <p>Pending payout: ${money(state.wallet?.pending_payout ?? data.payout.payout_pending, state.wallet?.currency || data.payout.currency)}</p>
+          <p>Completed payout: ${money(state.wallet?.completed_payout || 0, state.wallet?.currency || data.payout.currency)}</p>
           <p>Open orders: ${data.payout.open_orders}</p>
           <p>Completed orders: ${data.payout.completed_orders}</p>
           <p>Payout schedule: ${m.payout_schedule || "weekly"}</p>
-          <p>Wallet ledger: simulated payout summary only; no real money moved.</p>
+          <p>Transactions: ${(state.wallet?.transactions || []).length}</p>
+          <p>Wallet ledger: loaded from backend; no real money moved in local demo.</p>
         `;
         $("#supportTickets").innerHTML = data.support_tickets.map(t => `<p>${t.subject} - ${t.status}</p>`).join("") || "<p>No support tickets yet.</p>";
         bindRows();
@@ -277,7 +302,7 @@
       function bindRows() {
         document.querySelectorAll("[data-status]").forEach(btn => btn.onclick = () => runButtonAction(btn, "Update order status", async () => {
           const [id, status] = btn.dataset.status.split("|");
-          await api(`/api/${state.country}/v1/orders/${id}/status`, { method:"PATCH", body: JSON.stringify({ status }) });
+          await api(`/api/${state.country}/v1/orders/${id}/status`, { method:"PATCH", body: JSON.stringify({ status: status.toUpperCase() }) });
           toast("Order updated");
           await load();
         }).catch(() => {}));
@@ -300,6 +325,10 @@
           await api(`/api/${state.country}/v1/products/${btn.dataset.editProduct}`, { method:"PATCH", body: JSON.stringify(body) });
           await load();
         }).catch(() => {}));
+        document.querySelectorAll("[data-delete-product]").forEach(btn => btn.onclick = () => runButtonAction(btn, "Delete product", async () => {
+          await api(`/api/${state.country}/v1/products/${btn.dataset.deleteProduct}`, { method:"DELETE" });
+          await load();
+        }).catch(() => {}));
       }
       $("#loginBtn").onclick = () => runButtonAction($("#loginBtn"), "Merchant demo login", login).catch(() => {});
       $("#manualLoginBtn").onclick = () => runButtonAction($("#manualLoginBtn"), "Merchant login", login).catch(() => {});
@@ -311,8 +340,30 @@
         await load();
       }).catch(() => {});
       $("#addProductBtn").onclick = () => runButtonAction($("#addProductBtn"), "Add product", async () => {
-        await api(`/api/${state.country}/v1/merchants/${state.merchant.id}/products`, { method:"POST", body: JSON.stringify({ name: $("#newProductName").value, category: $("#newProductCategory").value, description: $("#newProductDescription").value, price: Number($("#newProductPrice").value), stock_quantity: Number($("#newProductStock").value), prep_time_minutes: Number($("#newProductPrep").value) }) });
+        await api(`/api/${state.country}/v1/merchants/${state.merchant.id}/products`, { method:"POST", body: JSON.stringify({ name: $("#newProductName").value, category: $("#newProductCategory").value, description: $("#newProductDescription").value, image_url: $("#newProductImage").value, price: Number($("#newProductPrice").value), stock_quantity: Number($("#newProductStock").value), prep_time_minutes: Number($("#newProductPrep").value) }) });
         toast("Product added");
+        await load();
+      }).catch(() => {});
+      $("#signupBtn").onclick = () => runButtonAction($("#signupBtn"), "Merchant signup", async () => {
+        const payload = {
+          name: $("#signupName").value,
+          email: $("#signupEmail").value.trim().toLowerCase(),
+          phone: $("#signupPhone").value,
+          password: $("#signupPassword").value,
+          role: "merchant",
+          city_id: "bole",
+          business_name: $("#signupBusiness").value,
+          category: $("#signupCategory").value,
+          manager_name: $("#signupManager").value,
+          merchant_phone: $("#signupMerchantPhone").value,
+          merchant_address: $("#signupAddress").value
+        };
+        const data = await api(`/api/${state.country}/v1/auth/signup`, { method:"POST", body: JSON.stringify(payload) });
+        state.token = data.token;
+        state.user = data.user;
+        localStorage.setItem("hg_merchant_token", state.token);
+        localStorage.setItem("hg_merchant_user", JSON.stringify(state.user));
+        $("#session").textContent = `${data.user.name} (${data.user.role})`;
         await load();
       }).catch(() => {});
       $("#supportBtn").onclick = () => runButtonAction($("#supportBtn"), "Create support ticket", async () => {

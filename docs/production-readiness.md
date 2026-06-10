@@ -55,7 +55,8 @@ node src/demoServer.js
 Open the app:
 
 ```text
-http://localhost:3000
+http://localhost:3000/
+http://localhost:3000/app
 ```
 
 Run the smoke test from another terminal:

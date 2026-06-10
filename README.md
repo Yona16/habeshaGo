@@ -36,7 +36,8 @@ Local apps:
 
 ```text
 Backend API: http://localhost:4000
-Customer App: http://localhost:8080 or fallback http://localhost:8085
+Public SEO Website: http://localhost:3000/
+Customer App: http://localhost:3000/app, http://localhost:8080, or fallback http://localhost:8085
 Admin Portal: http://localhost:8081
 Merchant Portal: http://localhost:8082
 API base URL: http://localhost:4000/api/ET/v1

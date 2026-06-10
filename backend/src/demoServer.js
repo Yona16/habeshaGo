@@ -859,6 +859,7 @@ function notifyUser({ user_id, country_id, title, body, order_id, type = "info" 
 }
 
 function transitionOrder(order, nextStatus, actor, reason) {
+  nextStatus = String(nextStatus || "").toLowerCase();
   const allowed = ORDER_TRANSITIONS[order.status] || [];
   if (!allowed.includes(nextStatus) && actor.role !== "admin") {
     const error = new Error(`Cannot move order from ${order.status} to ${nextStatus}`);
@@ -1676,6 +1677,7 @@ async function handleApi(req, res, url) {
       price: Number(body.price || 0),
       available: body.available !== false,
       description: body.description || "Merchant-created local demo product.",
+      image_url: body.image_url || "",
       prep_time_minutes: Number(body.prep_time_minutes || merchant.prep_time_minutes || 15),
       dietary_tags: body.dietary_tags || [],
       stock_quantity: Number(body.stock_quantity || 10),
@@ -1696,12 +1698,26 @@ async function handleApi(req, res, url) {
     const merchant = merchantForUser(user, product.merchant_id, countryId);
     if (!merchant || merchant.id !== product.merchant_id) return sendError(res, 403, "Cannot update this product");
     const body = await readBody(req);
-    for (const key of ["name", "category", "description", "available", "popular", "price", "prep_time_minutes", "stock_quantity"]) {
+    for (const key of ["name", "category", "description", "image_url", "available", "popular", "price", "prep_time_minutes", "stock_quantity"]) {
       if (body[key] !== undefined) product[key] = ["price", "prep_time_minutes", "stock_quantity"].includes(key) ? Number(body[key]) : body[key];
     }
     audit(user, "product.updated", "product", product.id);
     saveStore();
     return send(res, 200, { product });
+  }
+
+  if (req.method === "DELETE" && productMatch) {
+    const user = requireUser(req, res, ["merchant", "admin"]);
+    if (!user) return;
+    const index = store.products.findIndex((item) => item.id === productMatch[1] && item.country_id === countryId);
+    if (index < 0) return sendError(res, 404, "Product not found");
+    const product = store.products[index];
+    const merchant = merchantForUser(user, product.merchant_id, countryId);
+    if (!merchant || merchant.id !== product.merchant_id) return sendError(res, 403, "Cannot delete this product");
+    const [deleted] = store.products.splice(index, 1);
+    audit(user, "product.deleted", "product", deleted.id);
+    saveStore();
+    return send(res, 200, { product: deleted });
   }
 
   if (req.method === "GET" && url.pathname.endsWith("/products")) {
@@ -2213,10 +2229,22 @@ async function handleApi(req, res, url) {
   }
 
   if (req.method === "GET" && url.pathname.endsWith("/wallet")) {
-    const user = requireUser(req, res, ["customer", "admin"]);
+    const user = requireUser(req, res, ["customer", "driver", "merchant", "admin"]);
     if (!user) return;
     const customer = store.customers.find((item) => item.user_id === user.id);
-    return send(res, 200, { balance: customer ? customer.wallet_balance : 0, currency: user.currency });
+    const merchant = store.merchants.find((item) => item.owner_user_id === user.id && item.country_id === countryId);
+    const merchantOrders = merchant ? store.orders.filter((order) => order.merchant_id === merchant.id && order.country_id === countryId) : [];
+    const grossSales = merchantOrders.reduce((sum, order) => sum + Number(order.subtotal || 0), 0);
+    const commissionDue = merchant ? Math.round(grossSales * Number(merchant.commission_rate || 0)) : 0;
+    const transactions = store.wallet_transactions.filter((tx) => tx.country_id === countryId && (tx.user_id === user.id || user.role === "admin"));
+    return send(res, 200, {
+      balance: customer ? customer.wallet_balance : Math.max(0, grossSales - commissionDue),
+      pending_payout: merchant ? Math.max(0, grossSales - commissionDue) : 0,
+      completed_payout: transactions.filter((tx) => tx.type === "merchant_payout_completed").reduce((sum, tx) => sum + Number(tx.amount || 0), 0),
+      commission_due: commissionDue,
+      transactions,
+      currency: user.currency
+    });
   }
 
   if (req.method === "POST" && url.pathname.endsWith("/wallet/admin-adjustment")) {

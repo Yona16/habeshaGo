@@ -393,6 +393,35 @@ async function main() {
     assert(dashboard.data.merchant, "Merchant dashboard missing profile");
     assert((dashboard.data.products || []).length > 0, "Merchant dashboard missing products");
     assert(dashboard.data.payout && typeof dashboard.data.payout.payout_pending === "number", "Merchant dashboard missing payout summary");
+    const wallet = await request("/api/ET/v1/wallet", {
+      headers: { Authorization: `Bearer ${merchantToken}` }
+    });
+    assert(wallet.response.ok && typeof wallet.data.pending_payout === "number" && Array.isArray(wallet.data.transactions), "Merchant wallet endpoint failed");
+  });
+
+  await step("merchant signup creates a usable dashboard", async () => {
+    const stamp = Date.now();
+    const signup = await request("/api/ET/v1/auth/signup", {
+      method: "POST",
+      body: JSON.stringify({
+        name: "Smoke Merchant Signup",
+        email: `merchant-signup-${stamp}@habeshago.local`,
+        phone: `+2518${String(stamp).slice(-8)}`,
+        password: "Merchant123!",
+        role: "merchant",
+        city_id: "bole",
+        business_name: "Smoke Signup Kitchen",
+        category: "restaurant",
+        manager_name: "Smoke Manager",
+        merchant_phone: "+251911555777",
+        merchant_address: "Bole smoke signup address"
+      })
+    });
+    assert(signup.response.status === 201 && signup.data.user.role === "merchant", "Merchant signup failed");
+    const dashboard = await request("/api/ET/v1/merchant/dashboard", {
+      headers: { Authorization: `Bearer ${signup.data.token}` }
+    });
+    assert(dashboard.response.ok && dashboard.data.merchant.name === "Smoke Signup Kitchen", "Signed-up merchant dashboard failed");
   });
 
   await step("merchant portal profile, product, payout, and support actions work", async () => {
@@ -423,6 +452,7 @@ async function main() {
         name: `Smoke Merchant Item ${stamp}`,
         category: "food",
         description: "Smoke-created merchant product.",
+        image_url: "/assets/icon.svg",
         price: 275,
         stock_quantity: 9,
         prep_time_minutes: 12
@@ -437,12 +467,13 @@ async function main() {
         name: `Edited Smoke Merchant Item ${stamp}`,
         category: "food",
         description: "Smoke-edited merchant product.",
+        image_url: "/assets/icon.svg",
         price: 315,
         stock_quantity: 7,
         prep_time_minutes: 14
       })
     });
-    assert(edited.response.ok && edited.data.product.price === 315 && edited.data.product.stock_quantity === 7, "Merchant edit product failed");
+    assert(edited.response.ok && edited.data.product.price === 315 && edited.data.product.stock_quantity === 7 && edited.data.product.image_url, "Merchant edit product failed");
     const toggled = await request(`/api/ET/v1/products/${productId}`, {
       method: "PATCH",
       headers: { Authorization: `Bearer ${merchantToken}` },
@@ -460,6 +491,11 @@ async function main() {
     });
     assert(refreshed.response.ok && refreshed.data.products.some((item) => item.id === productId), "Merchant dashboard did not reload added product");
     assert(refreshed.data.support_tickets.some((ticket) => ticket.id === support.data.ticket.id), "Merchant dashboard did not reload support ticket");
+    const deleted = await request(`/api/ET/v1/products/${productId}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${merchantToken}` }
+    });
+    assert(deleted.response.ok && deleted.data.product.id === productId, "Merchant delete product failed");
   });
 
   await step("merchant receives, accepts, and prepares order", async () => {
