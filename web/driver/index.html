@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>HabeshaGo Driver Portal</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">HG</div>
+        <div>
+          <h1>HabeshaGo</h1>
+          <span>Driver Portal</span>
+        </div>
+      </div>
+      <nav>
+        <a href="#dashboard" class="nav-link active" data-section="dashboard">Dashboard</a>
+        <a href="#requests" class="nav-link" data-section="requests">Requests</a>
+        <a href="#trip" class="nav-link" data-section="trip">Active Trip</a>
+        <a href="#earnings" class="nav-link" data-section="earnings">Earnings</a>
+        <a href="#history" class="nav-link" data-section="history">History</a>
+      </nav>
+      <div class="sidebar-footer">
+        <a href="../app/index.html">Customer</a>
+        <a href="../merchant/index.html">Merchant</a>
+        <a href="../admin/index.html">Admin</a>
+      </div>
+    </aside>
+
+    <main class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Addis Ababa Driver Operations</p>
+          <h2>Delivery Command Center</h2>
+        </div>
+        <div class="top-actions">
+          <span id="sessionBadge" class="session-badge">Not signed in</span>
+          <button id="logoutBtn" class="ghost" hidden>Logout</button>
+        </div>
+      </header>
+
+      <section class="auth-panel glass">
+        <div>
+          <h3>Driver Login</h3>
+          <p>Use the demo driver account or your created driver account.</p>
+        </div>
+        <div class="auth-grid">
+          <label>Email <input id="email" value="driver@habeshago.local" /></label>
+          <label>Password <input id="password" type="password" value="Driver123!" /></label>
+          <button id="loginBtn">Demo Driver Login</button>
+          <button id="refreshBtn" class="secondary">Refresh</button>
+        </div>
+      </section>
+
+      <section class="section active" data-view="dashboard">
+        <div class="hero-card">
+          <div>
+            <p class="eyebrow">Today</p>
+            <h2>Ready to deliver around Bole?</h2>
+            <p>Go online, accept nearby requests, follow pickup and drop-off steps, then track earnings.</p>
+          </div>
+          <div class="online-card">
+            <span id="onlineLabel">Offline</span>
+            <button id="onlineToggleBtn">Go Online</button>
+          </div>
+        </div>
+
+        <div id="metrics" class="metric-grid"></div>
+
+        <div class="grid-two">
+          <article class="card">
+            <div class="section-head">
+              <h3>Available Delivery Requests</h3>
+              <button id="requestsRefreshBtn" class="ghost-dark">Refresh</button>
+            </div>
+            <div id="requestsList" class="stack"></div>
+          </article>
+
+          <article class="card">
+            <div class="section-head">
+              <h3>Live Activity</h3>
+              <span class="pill">Real-time demo</span>
+            </div>
+            <div id="activityFeed" class="activity-feed"></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="section" data-view="requests">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Dispatch</p>
+            <h2>Available Requests</h2>
+          </div>
+          <button data-refresh-all class="secondary">Refresh Requests</button>
+        </div>
+        <div id="requestsTable" class="table-card"></div>
+      </section>
+
+      <section class="section" data-view="trip">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Navigation</p>
+            <h2>Active Trip</h2>
+          </div>
+          <button id="simulateMoveBtn" class="secondary">Simulate Driver Movement</button>
+        </div>
+        <div class="trip-layout">
+          <article class="card trip-card">
+            <div id="activeTrip"></div>
+          </article>
+          <article class="map-card">
+            <div id="driverMap"></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="section" data-view="earnings">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Wallet</p>
+            <h2>Earnings & Wallet</h2>
+          </div>
+          <button data-refresh-all class="secondary">Refresh Wallet</button>
+        </div>
+        <div id="walletPanel" class="grid-two"></div>
+      </section>
+
+      <section class="section" data-view="history">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Records</p>
+            <h2>Delivery History</h2>
+          </div>
+          <button data-refresh-all class="secondary">Refresh History</button>
+        </div>
+        <div id="historyTable" class="table-card"></div>
+      </section>
+    </main>
+
+    <div id="toast"></div>
+    <section id="actionStatus" class="action-status" hidden></section>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="./driver.js"></script>
+  </body>
+</html>

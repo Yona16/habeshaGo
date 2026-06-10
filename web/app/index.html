@@ -4,422 +4,198 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex, nofollow" />
-    <title>HabeshaGo Local MVP</title>
-    <link rel="manifest" href="/manifest.json" />
-    <meta name="theme-color" content="#19324a" />
+    <title>HabeshaGo Customer App</title>
+    <meta name="theme-color" content="#0b7a3b" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <header class="topbar">
-      <div>
-        <h1>HabeshaGo</h1>
-        <p>East Africa delivery, commerce, wallet, safety, and trust platform</p>
-      </div>
-      <div class="session">
-        <span id="sessionLabel">Not signed in</span>
-        <button id="logoutBtn" class="ghost" hidden>Logout</button>
-      </div>
-    </header>
-
-    <main>
-      <section class="panel login-panel">
-        <div>
-          <h2>Signup And Login</h2>
-          <p>Create a local Customer, Driver, Merchant, or Admin account, or use a demo account to test quickly.</p>
-        </div>
-        <div class="auth-card">
-          <div class="auth-tabs" role="tablist" aria-label="Auth mode">
-            <button class="auth-tab active" data-auth-mode="login" type="button">Login</button>
-            <button class="auth-tab" data-auth-mode="signup" type="button">Signup</button>
-          </div>
-          <form id="authForm" class="auth-form">
-            <label>
-              Role
-              <select id="authRole">
-                <option value="customer">Customer</option>
-                <option value="driver">Driver</option>
-                <option value="merchant">Merchant</option>
-                <option value="admin">Admin</option>
-              </select>
-            </label>
-            <label class="signup-only">
-              Full name
-              <input id="authName" value="Local Test User" />
-            </label>
-            <label>
-              Email
-              <input id="authEmail" type="email" value="customer@habeshago.local" />
-            </label>
-            <label class="signup-only">
-              Phone
-              <input id="authPhone" value="+251911000100" />
-            </label>
-            <label>
-              Password
-              <input id="authPassword" type="password" value="Customer123!" />
-            </label>
-            <label class="signup-only merchant-only">
-              Business name
-              <input id="authBusiness" value="Bole Local Kitchen" />
-            </label>
-            <label class="signup-only merchant-only">
-              Business category
-              <select id="authMerchantCategory">
-                <option value="restaurant">Restaurant</option>
-                <option value="grocery">Grocery</option>
-                <option value="pharmacy">Pharmacy</option>
-                <option value="marketplace">Home seller / marketplace</option>
-                <option value="courier">Courier</option>
-              </select>
-            </label>
-            <label class="signup-only merchant-only">
-              Manager name
-              <input id="authManagerName" value="Store Manager" />
-            </label>
-            <label class="signup-only merchant-only">
-              Merchant phone
-              <input id="authMerchantPhone" value="+251911222333" />
-            </label>
-            <label class="signup-only merchant-only">
-              Opening hours
-              <input id="authOpeningHours" value="Mon-Sun 8:00 AM - 10:00 PM" />
-            </label>
-            <label class="signup-only merchant-only">
-              Merchant address
-              <input id="authMerchantAddress" value="Bole, near main road" />
-            </label>
-            <label class="signup-only merchant-only">
-              Prep time minutes
-              <input id="authPrepTime" type="number" value="20" />
-            </label>
-            <label class="signup-only merchant-only">
-              Delivery radius km
-              <input id="authDeliveryRadius" type="number" value="4" />
-            </label>
-            <label class="signup-only merchant-only check">
-              <input id="authWomenOwned" type="checkbox" />
-              Women-owned business
-            </label>
-            <label class="signup-only customer-only">
-              Preferred address
-              <input id="authAddress" value="Blue gate next to Medhanealem Church, Bole" />
-            </label>
-            <label class="signup-only customer-only">
-              Landmark note
-              <input id="authLandmark" value="Near church, call before arrival" />
-            </label>
-            <label class="signup-only driver-only">
-              Vehicle type
-              <select id="authVehicleType">
-                <option value="motorbike">Motorbike</option>
-                <option value="bicycle">Bicycle</option>
-                <option value="car">Car</option>
-                <option value="van">Van</option>
-              </select>
-            </label>
-            <label class="signup-only driver-only">
-              Vehicle plate
-              <input id="authVehiclePlate" value="AA-2-77889" />
-            </label>
-            <label class="signup-only driver-only">
-              License number
-              <input id="authLicense" value="ET-DRV-LOCAL" />
-            </label>
-            <label class="signup-only driver-only">
-              Assigned zone
-              <input id="authZone" value="Bole" />
-            </label>
-            <label class="signup-only admin-only">
-              Admin signup code
-              <input id="authAdminSignupCode" placeholder="Only required in production" />
-            </label>
-            <label class="signup-only customer-driver-only">
-              Emergency contact name
-              <input id="authEmergencyName" value="Family Contact" />
-            </label>
-            <label class="signup-only customer-driver-only">
-              Emergency contact phone
-              <input id="authEmergencyPhone" value="+251900000099" />
-            </label>
-            <button id="authSubmit" type="submit">Login</button>
-          </form>
-          <div id="authStatus" class="auth-status">Auth API ready: http://localhost:4000/api/ET/v1/auth/login and /auth/signup</div>
-          <div id="signupRoleDetails" class="signup-details"></div>
-          <div class="demo-buttons" aria-label="Demo logins">
-            <button type="button" data-demo="customer">Demo Customer</button>
-            <button type="button" data-demo="merchant">Demo Merchant</button>
-            <button type="button" data-demo="driver">Demo Driver</button>
-            <button type="button" data-demo="admin">Demo Admin</button>
-          </div>
-        </div>
-      </section>
-
-      <section class="status-grid" id="metrics"></section>
-      <section class="panel">
-        <div class="section-head">
-          <h2>Recommendations</h2>
-          <button id="refreshRecommendationsBtn" class="secondary">Refresh</button>
-        </div>
-        <div id="recommendations" class="recommendation-grid"></div>
-      </section>
-      <section class="live-strip">
-        <strong>Live updates</strong>
-        <span id="liveStatus">Connecting...</span>
-        <span id="lastEvent">No events yet</span>
-      </section>
-      <section class="panel live-demo-panel">
-        <div class="section-head">
+    <div class="app">
+      <header class="topbar">
+        <div class="brand">
+          <div class="brand-mark">HG</div>
           <div>
-            <h2>Live End-To-End Demo</h2>
-            <p>Run one complete real-time flow: customer order, merchant accepts, food ready, driver requested, pickup, delivered.</p>
+            <h1>HabeshaGo</h1>
+            <span>Food • Grocery • Pharmacy • Courier</span>
           </div>
-          <button id="startLiveDemoBtn">Run Live End-To-End Demo</button>
         </div>
-        <div id="liveTracker" class="tracker">
-          <div class="track-step" data-track-status="placed">Placed</div>
-          <div class="track-step" data-track-status="accepted">Accepted</div>
-          <div class="track-step" data-track-status="preparing">Preparing</div>
-          <div class="track-step" data-track-status="ready_for_pickup">Food ready</div>
-          <div class="track-step" data-track-status="driver_requested">Driver requested</div>
-          <div class="track-step" data-track-status="driver_accepted">Driver accepted</div>
-          <div class="track-step" data-track-status="picked_up">Picked up</div>
-          <div class="track-step" data-track-status="on_the_way">On the way</div>
-          <div class="track-step" data-track-status="delivered">Delivered</div>
+        <div class="top-actions">
+          <button id="demoLoginBtn" class="soft">Demo Login</button>
+          <button id="refreshBtn" class="soft">Refresh</button>
+          <button id="cartOpenBtn" class="cart-button">Cart <span id="cartCount">0</span></button>
+          <span id="sessionLabel" class="session">Not signed in</span>
+          <button id="logoutBtn" class="ghost" hidden>Logout</button>
         </div>
-        <div id="liveDemoSummary" class="live-summary">No live demo running yet.</div>
-        <div id="liveFlowSnapshot" class="live-snapshot">Customer request -> Merchant queue -> Driver dispatch -> Admin monitor will appear here.</div>
-        <div id="liveEventLog" class="event-log"></div>
-      </section>
-      <section class="panel">
-        <div class="section-head">
-          <h2>Notifications</h2>
-          <button id="refreshNotificationsBtn" class="secondary">Refresh</button>
-        </div>
-        <div id="notifications" class="notification-list"></div>
-      </section>
+      </header>
 
-      <section class="workspace">
-        <nav class="tabs" aria-label="Application areas">
-          <button class="tab active" data-view="customer">Customer</button>
-          <button class="tab" data-view="merchant">Merchant</button>
-          <button class="tab" data-view="driver">Driver</button>
-          <button class="tab" data-view="admin">Admin</button>
-        </nav>
+      <main>
+        <section class="hero">
+          <div class="hero-copy">
+            <p class="eyebrow">Addis Ababa delivery</p>
+            <h2>Order local favorites, groceries, and essentials fast.</h2>
+            <p>Browse nearby merchants, add items to cart, checkout, and watch the delivery move on the map.</p>
+            <div class="hero-search">
+              <input id="searchInput" placeholder="Search Kitfo, coffee, pizza, grocery..." />
+              <button id="searchBtn">Search</button>
+            </div>
+            <div class="address-pill">📍 Bole Medhanealem • Landmark delivery enabled</div>
+          </div>
+          <div class="hero-card">
+            <strong id="heroEta">25–35 min</strong>
+            <span>Typical delivery ETA</span>
+          </div>
+        </section>
 
-        <section class="view active" id="customer">
-          <div class="section-head">
-            <h2>Customer App</h2>
-            <div class="controls">
-              <label class="check"><input id="communityDelivery" type="checkbox" /> Community delivery</label>
-              <select id="safetyMode">
-                <option value="standard">Standard</option>
-                <option value="senior">Senior mode</option>
-                <option value="night">Night safety</option>
-                <option value="family">Family-safe</option>
-              </select>
-              <button data-refresh class="secondary">Refresh</button>
-            </div>
-          </div>
-          <div class="panel discovery-panel">
-            <h3>Nearby Discovery</h3>
-            <div class="discovery-controls">
-              <label>
-                Search
-                <input id="merchantSearch" placeholder="restaurant, cafe, supermarket..." />
-              </label>
-              <label>
-                Type
-                <select id="merchantCategory">
-                  <option value="">All</option>
-                  <option value="restaurant">Restaurant</option>
-                  <option value="cafe">Cafe</option>
-                  <option value="supermarket">Supermarket</option>
-                  <option value="grocery">Grocery</option>
-                  <option value="marketplace">Marketplace</option>
-                </select>
-              </label>
-              <label>
-                Location
-                <select id="nearbyLocation">
-                  <option value="8.994|38.789">Bole Medhanealem</option>
-                  <option value="8.991|38.792">Friendship area</option>
-                  <option value="8.999|38.782">Woreda 03</option>
-                </select>
-              </label>
-              <label>
-                Radius km
-                <input id="nearbyRadius" type="number" min="1" max="20" value="5" />
-              </label>
-              <label>
-                Minimum review
-                <select id="minRating">
-                  <option value="0">Any rating</option>
-                  <option value="4">4.0+</option>
-                  <option value="4.5">4.5+</option>
-                  <option value="4.7">4.7+</option>
-                </select>
-              </label>
-              <label>
-                Sort by
-                <select id="merchantSort">
-                  <option value="nearest">Nearby location</option>
-                  <option value="rating">Best review rating</option>
-                  <option value="reviews">Most reviews</option>
-                  <option value="default">Default</option>
-                </select>
-              </label>
-              <button id="applyDiscoveryBtn" class="secondary">Apply</button>
-            </div>
-          </div>
-          <div class="panel map-panel">
-            <div class="section-head">
-              <h3>Nearby Map</h3>
-              <button id="refreshNearbyMapBtn" class="secondary">Refresh map</button>
-            </div>
-            <div id="mapNotice" class="map-notice">OpenStreetMap ready. Using selected customer location until GPS is shared.</div>
-            <div class="map-canvas">
-              <div class="map-origin">You</div>
-              <div id="leafletMap"></div>
-              <div id="realtimeMap" class="realtime-map"></div>
-              <div id="nearbyRestaurants" class="map-list"><h3>Nearby restaurants, cafes, supermarkets</h3></div>
-              <div id="nearbyDrivers" class="map-list"><h3>Nearby drivers</h3></div>
-            </div>
-            <div id="realtimeLocationPanel" class="location-panel"></div>
-          </div>
-          <div id="customerProfile" class="profile-grid"></div>
-          <h3>Merchant Details</h3>
-          <div id="merchantDetails" class="profile-grid"></div>
-          <div class="catalog-layout">
-            <div>
-              <h3>Merchants</h3>
-              <div id="merchantList" class="cards"></div>
-            </div>
-            <div>
-              <h3>Cart</h3>
-              <div class="sample-cart">
-                <button data-sample-cart="family_lunch">Sample food cart</button>
-                <button data-sample-cart="grocery_pack" class="secondary">Sample grocery cart</button>
-                <button data-sample-cart="almaz_market" class="secondary">Sample Almaz cart</button>
-              </div>
-              <div id="cartList" class="cart"></div>
-              <div class="map-box">
-                <h3>Special Menu Request</h3>
-                <label>Requested item <input id="menuRequestName" value="Extra spicy tibs family tray" /></label>
-                <label>Note <input id="menuRequestNote" value="Please confirm if available for tonight." /></label>
-                <button id="menuRequestBtn" class="secondary">Send Menu Request</button>
-              </div>
-              <div class="map-box">
-                <h3>Sample Map Quote</h3>
-                <div class="coords">
-                  <label>Latitude <input id="destLat" type="number" step="0.0001" value="8.9970" /></label>
-                  <label>Longitude <input id="destLng" type="number" step="0.0001" value="38.7860" /></label>
+        <section class="dashboard">
+          <div class="metric"><strong id="merchantMetric">0</strong><span>Nearby merchants</span></div>
+          <div class="metric"><strong id="productMetric">0</strong><span>Menu items</span></div>
+          <div class="metric"><strong id="orderMetric">0</strong><span>Active orders</span></div>
+          <div class="metric"><strong id="driverMetric">0</strong><span>Nearby drivers</span></div>
+        </section>
+
+        <section class="category-strip">
+          <button class="chip active" data-category="">All</button>
+          <button class="chip" data-category="restaurant">Ethiopian</button>
+          <button class="chip" data-category="cafe">Coffee</button>
+          <button class="chip" data-category="grocery">Grocery</button>
+          <button class="chip" data-category="supermarket">Supermarket</button>
+          <button class="chip" data-category="pharmacy">Pharmacy</button>
+          <button class="chip" data-category="marketplace">Marketplace</button>
+        </section>
+
+        <section class="content-grid">
+          <div class="main-column">
+            <section class="panel">
+              <div class="section-head">
+                <div>
+                  <p class="eyebrow">Discover</p>
+                  <h3>Nearby restaurants and stores</h3>
                 </div>
-                <button id="quoteMapBtn" class="secondary">Get ETA/Fee</button>
-                <div id="mapQuote"></div>
+                <button id="applyDiscoveryBtn" class="secondary">Apply filters</button>
               </div>
-              <div class="map-box">
-                <h3>Checkout</h3>
-                <label>
-                  Saved address label
-                  <input id="savedAddressLabel" value="Home - Bole Medhanealem" />
-                </label>
-                <label>
-                  Landmark address note
-                  <input id="addressNote" value="Blue gate next to Medhanealem Church" />
-                </label>
-                <label>
-                  Payment method
-                  <select id="paymentMethod">
-                    <option value="Cash">Cash on delivery</option>
-                    <option value="Telebirr">Telebirr dummy auth</option>
-                    <option value="Chapa">Chapa dummy auth</option>
-                    <option value="CBE Birr">CBE Birr dummy auth</option>
-                    <option value="SantimPay">SantimPay dummy auth</option>
+              <div class="filter-row">
+                <label>Location
+                  <select id="nearbyLocation">
+                    <option value="8.994|38.789">Bole Medhanealem</option>
+                    <option value="8.991|38.792">Friendship area</option>
+                    <option value="8.999|38.782">Woreda 03</option>
                   </select>
                 </label>
-                <label>Promo code <input id="promoCode" value="BOLE10" /></label>
-                <button id="validatePromoBtn" class="secondary">Validate promo</button>
-                <button id="saveAddressBtn" class="secondary">Save address</button>
-                <button id="favoriteMerchantBtn" class="secondary">Favorite first merchant</button>
-                <button id="reviewMerchantBtn" class="secondary">Review first merchant</button>
-                <div id="customerToolsPanel"></div>
+                <label>Radius km
+                  <input id="nearbyRadius" type="number" min="1" max="20" value="5" />
+                </label>
+                <label>Rating
+                  <select id="minRating">
+                    <option value="0">Any</option>
+                    <option value="4">4.0+</option>
+                    <option value="4.5">4.5+</option>
+                  </select>
+                </label>
+                <label>Sort
+                  <select id="merchantSort">
+                    <option value="nearest">Nearest</option>
+                    <option value="rating">Best rating</option>
+                    <option value="reviews">Most reviews</option>
+                  </select>
+                </label>
               </div>
-              <button id="placeOrderBtn">Place Order</button>
-            </div>
-          </div>
-          <h3>My Orders</h3>
-          <div id="customerOrders" class="table-wrap"></div>
-        </section>
+              <div id="merchantGrid" class="merchant-grid"></div>
+            </section>
 
-        <section class="view" id="merchant">
-          <div class="section-head">
-            <h2>Merchant Portal</h2>
-            <button data-refresh>Refresh</button>
-          </div>
-          <div id="merchantProfile" class="profile-grid"></div>
-          <div id="merchantOrders" class="table-wrap"></div>
-          <h3>Customer Menu Requests</h3>
-          <div id="merchantMenuRequests" class="table-wrap"></div>
-        </section>
+            <section class="panel" id="menuPanel">
+              <div class="section-head">
+                <div>
+                  <p class="eyebrow">Menu</p>
+                  <h3 id="selectedMerchantTitle">Select a merchant</h3>
+                </div>
+                <span id="selectedMerchantMeta" class="pill">No merchant selected</span>
+              </div>
+              <div id="productGrid" class="product-grid"></div>
+            </section>
 
-        <section class="view" id="driver">
-          <div class="section-head">
-            <h2>Driver App</h2>
-            <button data-refresh>Refresh</button>
+            <section class="panel">
+              <div class="section-head">
+                <div>
+                  <p class="eyebrow">Orders</p>
+                  <h3>Order tracking</h3>
+                </div>
+                <button id="liveDemoBtn" class="secondary">Run Live End-To-End Demo</button>
+              </div>
+              <div id="ordersPanel" class="orders-panel"></div>
+            </section>
           </div>
-          <div id="driverProfile" class="profile-grid"></div>
-          <div id="driverPanel" class="cards"></div>
-          <h3>Available Driver Requests</h3>
-          <div id="driverRequests" class="table-wrap"></div>
-          <h3>Active Driver Orders</h3>
-          <div id="driverOrders" class="table-wrap"></div>
-        </section>
 
-        <section class="view" id="admin">
-          <div class="section-head">
-            <h2>Admin Dashboard</h2>
-            <button data-refresh>Refresh</button>
-          </div>
-          <div id="adminReports" class="status-grid"></div>
-          <div class="admin-actions">
-            <label>
-              Wallet adjustment amount
-              <input id="walletAmount" type="number" value="50" />
-            </label>
-            <button id="adjustWalletBtn">Adjust Demo Customer Wallet</button>
-            <button id="sendSmsBtn" class="secondary">Log Sample SMS</button>
-          </div>
-          <h3>Dummy Payments</h3>
-          <div id="paymentsPanel" class="table-wrap"></div>
-          <h3>SMS Logs</h3>
-          <div id="smsPanel" class="table-wrap"></div>
-          <h3>Legal Compliance Gates</h3>
-          <div id="compliancePanel" class="cards"></div>
-          <h3>Operational Details</h3>
-          <div id="adminDetails" class="profile-grid"></div>
-          <h3>Trust Verification</h3>
-          <div id="trustPanel" class="table-wrap"></div>
-          <h3>Feature Flags</h3>
-          <div id="featureFlags" class="flags"></div>
-          <h3>All Orders</h3>
-          <div id="adminOrders" class="table-wrap"></div>
-        </section>
-      </section>
+          <aside class="side-column">
+            <section class="panel map-panel">
+              <div class="section-head">
+                <div>
+                  <p class="eyebrow">Live map</p>
+                  <h3>Nearby map</h3>
+                </div>
+                <button id="refreshMapBtn" class="soft-dark">Refresh map</button>
+              </div>
+              <div id="mapNotice" class="notice">Loading OpenStreetMap...</div>
+              <div id="leafletMap"></div>
+              <div id="mapFallback" class="map-fallback" hidden></div>
+            </section>
 
-      <section class="panel">
+            <section class="panel checkout-panel">
+              <div class="section-head">
+                <div>
+                  <p class="eyebrow">Checkout</p>
+                  <h3>Your cart</h3>
+                </div>
+                <button id="sampleCartBtn" class="soft-dark">Sample cart</button>
+              </div>
+              <div id="cartList" class="cart-list"></div>
+              <label>Delivery address
+                <input id="addressNote" value="Blue gate next to Medhanealem Church, Bole" />
+              </label>
+              <label>Payment method
+                <select id="paymentMethod">
+                  <option value="Cash">Cash on delivery</option>
+                  <option value="Telebirr">Telebirr dummy</option>
+                  <option value="CBE Birr">CBE Birr dummy</option>
+                  <option value="Chapa">Chapa dummy</option>
+                  <option value="SantimPay">SantimPay dummy</option>
+                </select>
+              </label>
+              <label>Promo code
+                <input id="promoCode" value="BOLE10" />
+              </label>
+              <button id="placeOrderBtn" class="place-order">Place order</button>
+            </section>
+
+            <section class="panel">
+              <div class="section-head">
+                <div>
+                  <p class="eyebrow">Live feed</p>
+                  <h3>Activity</h3>
+                </div>
+              </div>
+              <div id="activityFeed" class="activity-feed"></div>
+            </section>
+          </aside>
+        </section>
+      </main>
+    </div>
+
+    <div id="toast"></div>
+    <section id="actionStatus" class="action-status" hidden></section>
+
+    <div id="cartDrawer" class="drawer" hidden>
+      <div class="drawer-backdrop" id="cartCloseBackdrop"></div>
+      <aside class="drawer-panel">
         <div class="section-head">
-          <h2>Production Readiness</h2>
-          <button id="refreshReadinessBtn" class="secondary">Refresh</button>
+          <h3>Your cart</h3>
+          <button id="cartCloseBtn" class="ghost-dark">Close</button>
         </div>
-        <div id="productionReadinessSummary" class="readiness-summary"></div>
-        <div id="productionLaunchGate" class="launch-gate"></div>
-        <div id="productionReadiness" class="readiness"></div>
-      </section>
-    </main>
+        <div id="cartDrawerBody"></div>
+        <button id="drawerCheckoutBtn" class="place-order">Checkout</button>
+      </aside>
+    </div>
 
-    <div id="toast" role="status"></div>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="/app.js"></script>
+    <script src="./app.js"></script>
   </body>
 </html>
