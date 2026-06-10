@@ -467,7 +467,7 @@ function simulateMovement() {
 
     try {
       await api("/drivers/location", {
-        method: "PATCH",
+        method: "POST",
         body: JSON.stringify({
           order_id: order.id,
           latitude: location.latitude,

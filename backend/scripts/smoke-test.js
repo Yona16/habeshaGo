@@ -93,6 +93,12 @@ async function main() {
     assert(html.includes("Available Delivery Requests"), "Driver available requests view is missing");
     assert(html.includes("Earnings & Wallet"), "Driver earnings/wallet view is missing");
     assert(html.includes("bottom-nav"), "Driver mobile bottom navigation is missing");
+    assert(html.includes('/driver/driver.js') && html.includes('/driver/styles.css'), "Driver portal must use routed driver assets");
+    const driverJs = await fetch(`${baseUrl}/driver/driver.js`);
+    const driverScript = await driverJs.text();
+    assert(driverJs.ok, "Driver portal JavaScript did not load");
+    assert(driverScript.includes("loginBtn") && driverScript.includes("acceptRequest"), "Driver button handlers are missing");
+    assert(driverScript.includes('api("/drivers/location", {') && driverScript.includes('method: "POST"'), "Driver movement must call POST /drivers/location");
   });
 
   await step("SEO pages, sitemap, robots, and PWA files work", async () => {

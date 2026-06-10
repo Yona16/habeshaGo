@@ -1320,6 +1320,12 @@ function serveStatic(req, res, pathname) {
     filePath = path.resolve(webRootDir, "merchant", "index.html");
   } else if (pathname === "/driver" || pathname === "/driver/") {
     filePath = path.resolve(webRootDir, "driver", "index.html");
+  } else if (pathname.startsWith("/driver/")) {
+    filePath = path.resolve(webRootDir, "driver", `.${pathname.replace(/^\/driver/, "")}`);
+  } else if (pathname.startsWith("/merchant/")) {
+    filePath = path.resolve(webRootDir, "merchant", `.${pathname.replace(/^\/merchant/, "")}`);
+  } else if (pathname.startsWith("/admin/")) {
+    filePath = path.resolve(webRootDir, "admin", `.${pathname.replace(/^\/admin/, "")}`);
   } else if (pathname === "/app" || pathname === "/app/") {
     filePath = path.resolve(webDir, "index.html");
   } else {
