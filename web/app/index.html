@@ -174,7 +174,7 @@
             <h2>Live End-To-End Demo</h2>
             <p>Run one complete real-time flow: customer order, merchant accepts, food ready, driver requested, pickup, delivered.</p>
           </div>
-          <button id="startLiveDemoBtn">Run live demo</button>
+          <button id="startLiveDemoBtn">Run Live End-To-End Demo</button>
         </div>
         <div id="liveTracker" class="tracker">
           <div class="track-step" data-track-status="placed">Placed</div>
@@ -188,6 +188,7 @@
           <div class="track-step" data-track-status="delivered">Delivered</div>
         </div>
         <div id="liveDemoSummary" class="live-summary">No live demo running yet.</div>
+        <div id="liveFlowSnapshot" class="live-snapshot">Customer request -> Merchant queue -> Driver dispatch -> Admin monitor will appear here.</div>
         <div id="liveEventLog" class="event-log"></div>
       </section>
       <section class="panel">
@@ -217,6 +218,7 @@
                 <option value="night">Night safety</option>
                 <option value="family">Family-safe</option>
               </select>
+              <button data-refresh class="secondary">Refresh</button>
             </div>
           </div>
           <div class="panel discovery-panel">

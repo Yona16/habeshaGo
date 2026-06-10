@@ -8,7 +8,8 @@ const state = {
   map: null,
   mapLayers: [],
   events: null,
-  lastApi: null
+  lastApi: null,
+  liveOrderId: null
 };
 
 function resolveApiBaseUrl() {
@@ -56,12 +57,18 @@ function apiUrl(path) {
   return `${API_BASE_URL}${normalized}`;
 }
 
+function getToken() {
+  return localStorage.getItem("habeshago_token") || state.token || "";
+}
+
 async function api(path, options = {}) {
   const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
-  if (state.token) headers.Authorization = `Bearer ${state.token}`;
+  const token = getToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
   const url = apiUrl(path);
   const payload = options.body ? JSON.parse(options.body) : null;
   console.log("API URL:", url);
+  console.log("Method:", options.method || "GET");
   console.log("Payload:", payload);
   const response = await fetch(url, { ...options, headers });
   const data = await response.json().catch(() => ({}));
@@ -71,6 +78,8 @@ async function api(path, options = {}) {
   if (!response.ok) throw new Error(`Status ${response.status}: ${data.error || "Request failed"}`);
   return data;
 }
+
+const apiRequest = api;
 
 function toast(message) {
   const el = $("#toast");
@@ -129,6 +138,7 @@ async function runButtonAction(button, label, action) {
 
 function addLiveLog(message) {
   const log = $("#liveEventLog");
+  if (!log) return;
   const item = document.createElement("div");
   item.textContent = `${new Date().toLocaleTimeString()} - ${message}`;
   log.prepend(item);
@@ -183,23 +193,28 @@ async function startLiveDemo() {
   $("#liveEventLog").innerHTML = "";
   updateTracker("");
   try {
-    const demo = await api(`${API_BASE_URL}/live-demo/start`, { method: "POST", body: "{}" });
+    addLiveLog("Customer starting live order request");
+    const demo = await apiRequest("/live-demo/start", { method: "POST", body: "{}" });
     setSession(demo.token, demo.user);
     addLiveLog(`Created and logged in ${demo.user.name}`);
     addLiveLog(`Loaded ${demo.catalog.merchants} merchants and ${demo.catalog.products} products`);
     addLiveLog(`Added ${demo.catalog.cart_items} item to cart and placed order`);
+    addLiveLog("Merchant received incoming order");
     addLiveLog(`Admin monitor: ${demo.admin_summary.orders_total} orders, ${demo.admin_summary.wallet_transactions} wallet tx, ${demo.admin_summary.audit_logs} audit logs`);
     const order = demo.order;
+    state.liveOrderId = order.id;
     updateTracker(order.status);
     $("#liveDemoSummary").textContent = `Live flow running: order ${order.id.slice(0, 8)} is ${order.status}.`;
     toast("Live demo started");
-    for (let attempt = 0; attempt < 18; attempt += 1) {
+    for (let attempt = 0; attempt < 24; attempt += 1) {
       await new Promise((resolve) => setTimeout(resolve, 900));
-      const loadedOrder = await api(`${API_BASE_URL}/orders/${order.id}`);
+      const loadedOrder = await apiRequest(`/orders/${order.id}`);
       updateTracker(loadedOrder.order.status);
+      renderLiveOrderSnapshot(loadedOrder.order);
       $("#liveDemoSummary").textContent = `Live order ${loadedOrder.order.id.slice(0, 8)} is ${loadedOrder.order.status}. Admin, wallet, merchant, and driver data are refreshing from backend.`;
       if (loadedOrder.order.status === "delivered") {
-        addLiveLog("Order delivered. Admin dashboard reflects the full order and wallet ledger.");
+        addLiveLog("HabeshaGo Live End-to-End Demo Completed Successfully.");
+        $("#liveDemoSummary").textContent = "HabeshaGo Live End-to-End Demo Completed Successfully.";
         await refreshAll();
         break;
       }
@@ -611,6 +626,36 @@ function table(rows, columns, actions = () => "") {
   `;
 }
 
+function formatStatus(status = "") {
+  return String(status).replace(/_/g, " ").toUpperCase();
+}
+
+function statusTimeline(order) {
+  const history = order.status_history || [];
+  if (!history.length) return "No timeline yet";
+  return `<ol class="status-timeline">${history.map((item) => `
+    <li class="${item.status === order.status ? "current" : ""}">
+      <strong>${formatStatus(item.status)}</strong>
+      <span>${item.at ? new Date(item.at).toLocaleTimeString() : "time pending"}</span>
+    </li>
+  `).join("")}</ol>`;
+}
+
+function renderLiveOrderSnapshot(order) {
+  if (!order) return;
+  const routeText = order.driver_location
+    ? `Driver ${Number(order.driver_location.latitude).toFixed(5)}, ${Number(order.driver_location.longitude).toFixed(5)}`
+    : "Driver location pending";
+  const summary = [
+    `Order ${order.id.slice(0, 8)} ${formatStatus(order.status)}`,
+    `Merchant ${order.merchant_name}`,
+    `Customer ${order.customer_name || "demo customer"}`,
+    routeText
+  ].join(" | ");
+  const panel = $("#liveFlowSnapshot");
+  if (panel) panel.textContent = summary;
+}
+
 async function simulatePayment(orderId, provider = "Cash") {
   await api(`/api/${state.country}/v1/payments/simulate`, {
     method: "POST",
@@ -636,19 +681,21 @@ async function loadOrders() {
   }
   const cols = [
     { label: "Order", render: (o) => o.id.slice(0, 8) },
-    { label: "Status", key: "status" },
+    { label: "Status", render: (o) => formatStatus(o.status) },
     { label: "Merchant", key: "merchant_name" },
     { label: "Customer", render: (o) => `${o.customer_name || ""}<br><small>${o.customer_phone || ""}</small>` },
     { label: "Driver", render: (o) => o.driver_name ? `${o.driver_name}<br><small>${o.driver_vehicle}</small>` : "Not assigned" },
     { label: "Total", render: (o) => money(o.total, o.currency) },
     { label: "Payment", render: (o) => o.payment_detail ? `${o.payment_detail.provider}<br><small>${o.payment_detail.status}</small>` : (o.payment_status || "pending") },
-    { label: "Timeline", render: (o) => (o.status_history || []).map((h) => h.status).join(" -> ") },
+    { label: "Timeline", render: statusTimeline },
     { label: "Address", render: (o) => `${o.address_note}<br><small>${o.map_quote ? `${o.map_quote.distance_km} km / ${o.map_quote.eta_minutes} min` : ""}</small>` }
   ];
   $("#customerOrders").innerHTML = table(orders, cols);
   $("#merchantOrders").innerHTML = table(orders, cols, (o) => merchantActions(o));
-  $("#driverOrders").innerHTML = table(orders.filter((o) => ["driver_accepted", "picked_up"].includes(o.status)), cols, (o) => driverActions(o));
+  $("#driverOrders").innerHTML = table(orders.filter((o) => ["driver_accepted", "picked_up", "on_the_way"].includes(o.status)), cols, (o) => driverActions(o));
   $("#adminOrders").innerHTML = table(orders, cols, (o) => `<button data-pay="${o.id}|Cash">Dummy cash</button> <button class="secondary" data-pay="${o.id}|Chapa">Dummy Chapa</button> <button class="danger" data-status="${o.id}|cancelled">Cancel</button>`);
+  const active = orders.find((order) => order.id === state.liveOrderId) || orders.find((order) => !["delivered", "cancelled", "rejected"].includes(order.status));
+  if (active) renderLiveOrderSnapshot(active);
   bindStatusButtons();
 }
 
@@ -786,7 +833,7 @@ async function loadDriverRequests() {
     { label: "Order", render: (r) => r.order_id.slice(0, 8) },
     { label: "ETA", render: (r) => `${r.eta_minutes} min` },
     { label: "Fee", render: (r) => money(r.delivery_fee, r.currency) },
-    { label: "Status", key: "status" }
+    { label: "Status", render: (r) => formatStatus(r.status) }
   ], (r) => `<button data-accept-request="${r.id}">Accept request</button>`);
   bindStatusButtons();
 }
@@ -988,8 +1035,9 @@ async function loadRealtimeLocations() {
   $("#realtimeLocationPanel").innerHTML = `
     <strong>Real-time sample location</strong>
     <span>${data.provider} - ${drivers.length} online driver${drivers.length === 1 ? "" : "s"} - refreshed ${new Date().toLocaleTimeString()}</span>
+    <span>${(data.recent_locations || []).length} recent driver movement ping${(data.recent_locations || []).length === 1 ? "" : "s"} loaded from backend</span>
     ${drivers.slice(0, 3).map((driver) => `
-      <p>${driver.badge_level}: ${driver.latitude.toFixed(5)}, ${driver.longitude.toFixed(5)} - ${driver.eta_minutes} min ETA - accuracy ${driver.accuracy_m}m</p>
+      <p>${driver.badge_level}: ${driver.latitude.toFixed(5)}, ${driver.longitude.toFixed(5)} - ${driver.eta_minutes} min ETA - ${driver.active_order_id ? `active order ${driver.active_order_id.slice(0, 8)}` : "available"} - accuracy ${driver.accuracy_m}m</p>
     `).join("")}
   `;
   renderLeafletMap(data);
@@ -1058,7 +1106,19 @@ function renderLeafletMap(data) {
       color: "#236cb3",
       fillColor: "#236cb3",
       fillOpacity: 0.85
-    }).bindPopup(`Live driver later<br>${driver.vehicle_type} ${driver.vehicle_plate || ""}<br>${driver.distance_km} km - ${driver.eta_minutes} min ETA`));
+    }).bindPopup(`Live driver<br>${driver.vehicle_type} ${driver.vehicle_plate || ""}<br>${driver.distance_km} km - ${driver.eta_minutes} min ETA${driver.active_order_id ? `<br>Order ${driver.active_order_id.slice(0, 8)}` : ""}`));
+  });
+  const route = data.demo_route || [];
+  if (route.length) {
+    addLayer(L.polyline(route.map((point) => [point.lat, point.lng]), { color: "#236cb3", weight: 4, opacity: 0.75 }).bindPopup("Simulated driver delivery route"));
+  }
+  (data.recent_locations || []).slice(-8).forEach((point) => {
+    addLayer(L.circleMarker([point.latitude, point.longitude], {
+      radius: 4,
+      color: "#19324a",
+      fillColor: "#19324a",
+      fillOpacity: 0.6
+    }).bindPopup(`Movement ping${point.order_id ? `<br>Order ${point.order_id.slice(0, 8)}` : ""}<br>${new Date(point.created_at).toLocaleTimeString()}`));
   });
 }
 
@@ -1156,6 +1216,46 @@ async function loadDriver() {
   `).join("");
 }
 
+async function refreshCustomerDashboard() {
+  if (state.token) await restoreSession();
+  await loadProfiles();
+  await loadCatalog();
+  await renderCart();
+  await loadOrders();
+  await loadNotifications();
+  await loadNearbyMap();
+  addLiveLog("Customer dashboard refreshed from backend");
+}
+
+async function refreshMerchantDashboard() {
+  if (state.token) await restoreSession();
+  await loadProfiles();
+  await loadOrders();
+  await loadMenuRequests();
+  await loadNotifications();
+  addLiveLog("Merchant dashboard refreshed from backend");
+}
+
+async function refreshDriverDashboard() {
+  if (state.token) await restoreSession();
+  await loadProfiles();
+  await loadDriverRequests();
+  await loadOrders();
+  await loadDriver();
+  await loadRealtimeLocations();
+  addLiveLog("Driver dashboard refreshed from backend");
+}
+
+async function refreshAdminDashboard() {
+  if (state.token) await restoreSession();
+  await loadAdmin();
+  await loadOrders();
+  await loadMetrics();
+  await loadProductionReadiness();
+  await loadRealtimeLocations();
+  addLiveLog("Admin dashboard refreshed from backend");
+}
+
 async function refreshAll() {
   if (state.token) await restoreSession();
   await loadMetrics();
@@ -1170,6 +1270,16 @@ async function refreshAll() {
   await loadDriverRequests();
   await loadAdmin();
   await loadDriver();
+  await loadRealtimeLocations();
+  addLiveLog("All dashboards refreshed from live backend data");
+}
+
+async function refreshCurrentDashboard() {
+  const active = document.querySelector(".view.active")?.id || state.user?.role || "customer";
+  if (active === "merchant") return refreshMerchantDashboard();
+  if (active === "driver") return refreshDriverDashboard();
+  if (active === "admin") return refreshAdminDashboard();
+  return refreshCustomerDashboard();
 }
 
 document.querySelectorAll(".tab").forEach((button) => {
@@ -1221,7 +1331,7 @@ document.querySelectorAll("[data-sample-cart]").forEach((button) => {
   button.addEventListener("click", () => runButtonAction(button, "Add sample cart", () => addSampleCart(button.dataset.sampleCart)).catch(() => {}));
 });
 $("#applyDiscoveryBtn").addEventListener("click", () => runButtonAction($("#applyDiscoveryBtn"), "Apply nearby discovery", loadCatalog).catch(() => {}));
-document.querySelectorAll("[data-refresh]").forEach((button) => button.addEventListener("click", () => runButtonAction(button, "Refresh dashboard", refreshAll).catch(() => {})));
+document.querySelectorAll("[data-refresh]").forEach((button) => button.addEventListener("click", () => runButtonAction(button, "Refresh dashboard", refreshCurrentDashboard).catch(() => {})));
 
 renderSession();
 setAuthMode("login");

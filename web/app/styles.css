@@ -326,12 +326,19 @@ body:not([data-auth-role="customer"]):not([data-auth-role="driver"]) .customer-d
   color: #6f4308;
 }
 
-.live-summary {
+.live-summary,
+.live-snapshot {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #fbfcfd;
   padding: 12px;
   margin-bottom: 10px;
+}
+
+.live-snapshot {
+  background: #eef5fb;
+  color: var(--blue);
+  font-weight: 700;
 }
 
 .event-log {
@@ -346,6 +353,35 @@ body:not([data-auth-role="customer"]):not([data-auth-role="driver"]) .customer-d
   background: #f7f9fb;
   padding: 8px 10px;
   font-size: 13px;
+}
+
+.status-timeline {
+  display: grid;
+  gap: 4px;
+  min-width: 160px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.status-timeline li {
+  display: grid;
+  gap: 2px;
+  border-left: 3px solid var(--line);
+  padding-left: 7px;
+}
+
+.status-timeline li.current {
+  border-color: var(--gold);
+}
+
+.status-timeline strong {
+  font-size: 11px;
+}
+
+.status-timeline span {
+  color: var(--muted);
+  font-size: 11px;
 }
 
 .metric, .card {

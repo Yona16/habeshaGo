@@ -12,6 +12,13 @@ const dataFile = path.resolve(__dirname, "..", "data", "local-store.json");
 
 const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
 const HQ_COORDS = { lat: 8.994, lng: 38.789 };
+const DEMO_DRIVER_ROUTE = [
+  { lat: 8.9971, lng: 38.7872, label: "Driver assigned near Bole" },
+  { lat: 8.9966, lng: 38.7864, label: "Driver moving to merchant" },
+  { lat: 8.9959, lng: 38.7858, label: "Driver picked up order" },
+  { lat: 8.9950, lng: 38.7849, label: "Driver moving to customer" },
+  { lat: 8.9970, lng: 38.7860, label: "Driver arrived at customer" }
+];
 const PUBLIC_BASE_URL = "https://www.habeshago.com";
 const SEO_CITY_PAGES = [
   { slug: "addis-ababa", name: "Addis Ababa", title: "Food, Grocery & Delivery in Addis Ababa" },
@@ -471,6 +478,15 @@ function enrichOrder(order) {
     driver_name: driverUser ? driverUser.name : "",
     driver_phone: driverUser ? driverUser.phone : "",
     driver_vehicle: driver ? `${driver.vehicle_type || ""} ${driver.vehicle_plate || ""}`.trim() : "",
+    driver_location: driver ? {
+      latitude: driver.latitude,
+      longitude: driver.longitude,
+      updated_at: driver.location_updated_at,
+      provider: driver.location_provider || "SIMULATED_REAL_TIME"
+    } : null,
+    merchant_location: merchant ? { latitude: merchant.latitude, longitude: merchant.longitude } : null,
+    customer_location: order.map_quote ? order.map_quote.destination : null,
+    demo_route: DEMO_DRIVER_ROUTE,
     payment_detail: payments[payments.length - 1] || null,
     sms_count: sms.length,
     dispatch_request: dispatch
@@ -730,11 +746,12 @@ function quoteDelivery(destination = {}) {
   return { origin: HQ_COORDS, destination: dest, distance_km: Number(distance.toFixed(2)), eta_minutes: eta, fee };
 }
 
-function recordDriverLocation(driver, { lat, lng, source = "simulated_tick" } = {}) {
+function recordDriverLocation(driver, { lat, lng, source = "simulated_tick", order_id = null } = {}) {
   const location = {
     id: randomUUID(),
     driver_id: driver.id,
     country_id: driver.country_id,
+    order_id,
     latitude: Number(lat),
     longitude: Number(lng),
     accuracy_m: driver.location_accuracy_m || 18,
@@ -752,6 +769,7 @@ function recordDriverLocation(driver, { lat, lng, source = "simulated_tick" } = 
   store.driver_locations = store.driver_locations.slice(-120);
   broadcast("driver.location.updated", {
     driver_id: driver.id,
+    order_id,
     latitude: location.latitude,
     longitude: location.longitude,
     accuracy_m: location.accuracy_m,
@@ -771,6 +789,7 @@ function liveLocationSnapshot(countryId, origin = HQ_COORDS) {
       vehicle_type: driver.vehicle_type,
       vehicle_plate: driver.vehicle_plate,
       assigned_zone: driver.assigned_zone,
+      active_order_id: (store.orders.find((order) => order.driver_id === driver.id && !["delivered", "cancelled", "rejected"].includes(order.status)) || {}).id || null,
       latitude: driver.latitude,
       longitude: driver.longitude,
       location_updated_at: driver.location_updated_at,
@@ -798,7 +817,8 @@ function liveLocationSnapshot(countryId, origin = HQ_COORDS) {
     origin,
     drivers,
     merchants,
-    recent_locations: store.driver_locations.filter((item) => item.country_id === countryId).slice(-20)
+    recent_locations: store.driver_locations.filter((item) => item.country_id === countryId).slice(-20),
+    demo_route: DEMO_DRIVER_ROUTE
   };
 }
 
@@ -1055,7 +1075,7 @@ function runLiveDemo(order, actors) {
         }
         order.driver_id = driver.id;
         transitionOrder(order, "driver_accepted", driverUser, "live_demo_driver_accept");
-        recordDriverLocation(driver, { lat: 8.9935, lng: 38.7875, source: "live_demo_assignment" });
+        recordDriverLocation(driver, { ...DEMO_DRIVER_ROUTE[0], source: "live_demo_assignment", order_id: order.id });
         recordWalletTransaction({
           user_id: driverUser.id,
           actor_user_id: driverUser.id,
@@ -1070,11 +1090,27 @@ function runLiveDemo(order, actors) {
         broadcast("dispatch.accepted", { request_id: request ? request.id : null, order_id: order.id, driver_id: driver.id });
       }
     },
-    { delay: 9000, label: "Picked up", run: () => transitionOrder(order, "picked_up", driverUser, "live_demo_pickup") },
     {
-      delay: 11200,
+      delay: 9000,
+      label: "Picked up",
+      run: () => {
+        transitionOrder(order, "picked_up", driverUser, "live_demo_pickup");
+        recordDriverLocation(driver, { ...DEMO_DRIVER_ROUTE[2], source: "live_demo_pickup", order_id: order.id });
+      }
+    },
+    {
+      delay: 10800,
+      label: "Driver moving toward customer",
+      run: () => {
+        transitionOrder(order, "on_the_way", driverUser, "live_demo_on_the_way");
+        recordDriverLocation(driver, { ...DEMO_DRIVER_ROUTE[3], source: "live_demo_to_customer", order_id: order.id });
+      }
+    },
+    {
+      delay: 12600,
       label: "Delivered",
       run: () => {
+        recordDriverLocation(driver, { ...DEMO_DRIVER_ROUTE[4], source: "live_demo_arrived", order_id: order.id });
         transitionOrder(order, "delivered", driverUser, "live_demo_delivered");
         recordWalletTransaction({
           user_id: order.customer_user_id,
@@ -1409,6 +1445,7 @@ async function handleApi(req, res, url) {
         "order_placed",
         "merchant_accepting",
         "driver_assignment_pending",
+        "driver_movement_visible",
         "delivery_in_progress",
         "admin_dashboard_will_reflect_order"
       ],
@@ -1423,7 +1460,7 @@ async function handleApi(req, res, url) {
         wallet_transactions: store.wallet_transactions.filter((item) => item.country_id === countryId).length,
         audit_logs: store.audit_logs.filter((item) => item.country_id === countryId).length
       },
-      message: "Live demo started. Watch the tracker move through merchant acceptance, driver assignment, delivery, wallet audit, and admin monitoring."
+      message: "Live demo started. Watch the tracker move through merchant acceptance, driver movement, delivery, wallet audit, and admin monitoring."
     });
   }
 
@@ -2078,7 +2115,7 @@ async function handleApi(req, res, url) {
     const lat = Number(body.lat ?? body.latitude);
     const lng = Number(body.lng ?? body.longitude);
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return sendError(res, 400, "Latitude and longitude are required");
-    const location = recordDriverLocation(driver, { lat, lng, source: user.role === "admin" ? "admin_demo_update" : "driver_app_update" });
+    const location = recordDriverLocation(driver, { lat, lng, order_id: body.order_id || null, source: user.role === "admin" ? "admin_demo_update" : "driver_app_update" });
     saveStore();
     return send(res, 200, { driver, location });
   }

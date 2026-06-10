@@ -67,9 +67,13 @@ async function main() {
     assert(html.includes("paymentMethod"), "Customer checkout payment method is missing");
     assert(html.includes("savedAddressLabel"), "Customer saved address checkout field is missing");
     assert(html.includes('name="robots" content="noindex, nofollow"'), "Customer app should be noindex");
+    assert(html.includes("Run Live End-To-End Demo"), "Live end-to-end demo button label is missing");
+    assert(html.includes("liveFlowSnapshot"), "Live flow snapshot panel is missing");
     const appJs = await fetch(`${baseUrl}/app.js`);
     const js = await appJs.text();
     assert(js.includes("habeshago_token") && js.includes("habeshago_user"), "Customer app must use standard session storage keys");
+    assert(js.includes("refreshCustomerDashboard") && js.includes("refreshMerchantDashboard") && js.includes("refreshAdminDashboard") && js.includes("refreshDriverDashboard"), "Role-specific refresh functions are missing");
+    assert(js.includes("apiRequest") && js.includes("Method:"), "Shared API helper logging is missing");
   });
 
   await step("SEO pages, sitemap, robots, and PWA files work", async () => {
@@ -294,15 +298,20 @@ async function main() {
     });
     assert(started.response.status === 201 && started.data.token && started.data.order, "Live demo start failed");
     assert((started.data.flow || []).includes("admin_dashboard_will_reflect_order"), "Live demo missing admin flow step");
+    assert((started.data.flow || []).includes("driver_movement_visible"), "Live demo missing driver movement flow step");
     const orderId = started.data.order.id;
     const headers = { Authorization: `Bearer ${started.data.token}` };
     let detail;
-    for (let attempt = 0; attempt < 18; attempt += 1) {
+    for (let attempt = 0; attempt < 24; attempt += 1) {
       await sleep(850);
       detail = await request(`/api/ET/v1/orders/${orderId}`, { headers });
       if (detail.data.order?.status === "delivered") break;
     }
     assert(detail.response.ok && detail.data.order.status === "delivered", "Live demo did not deliver order");
+    assert((detail.data.order.status_history || []).some((item) => item.status === "on_the_way"), "Live demo did not include on-the-way status");
+    assert(detail.data.order.driver_location && detail.data.order.demo_route?.length >= 4, "Live demo did not expose driver movement details");
+    const locations = await request("/api/ET/v1/locations/live?lat=8.994&lng=38.789");
+    assert((locations.data.recent_locations || []).some((point) => point.order_id === orderId), "Live map did not include order-specific driver movement");
     const adminLogin = await request("/api/ET/v1/auth/login", {
       method: "POST",
       body: JSON.stringify({ email: "admin@test.com", password: "Admin123!" })
