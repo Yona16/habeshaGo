@@ -68,7 +68,10 @@ function showActionStatus({ title, message, type = "", response = state.lastApi 
     <strong>${title}</strong>
     <div>${message}</div>
     <div>Backend response status: ${response?.status ?? "No backend request yet"}</div>
-    <pre>Backend response body: ${JSON.stringify(response?.body ?? {}, null, 2)}</pre>
+    <details class="debug">
+      <summary>Debug response</summary>
+      <pre>Backend response body: ${JSON.stringify(response?.body ?? {}, null, 2)}</pre>
+    </details>
   `;
 }
 
@@ -153,7 +156,7 @@ async function restoreSession() {
 }
 
 function table(rows, columns, actions = () => "") {
-  if (!rows.length) return "<div class='request-card'>No records yet. Ask merchant to mark order Ready and request driver.</div>";
+  if (!rows.length) return "<div class='request-card'><strong>No delivery records yet</strong><span class='muted'>When a merchant marks an order ready, the request appears here with pickup, drop-off, fee, and action buttons.</span></div>";
   return `
     <table>
       <thead><tr>${columns.map((c) => `<th>${c.label}</th>`).join("")}<th>Actions</th></tr></thead>
@@ -484,6 +487,7 @@ function simulateMovement() {
 
 function switchSection(section) {
   document.querySelectorAll(".nav-link").forEach((link) => link.classList.toggle("active", link.dataset.section === section));
+  document.querySelectorAll(".bottom-link").forEach((link) => link.classList.toggle("active", link.dataset.section === section));
   document.querySelectorAll(".section").forEach((panel) => panel.classList.toggle("active", panel.dataset.view === section));
   setTimeout(() => {
     if (state.map) state.map.invalidateSize();
@@ -492,6 +496,13 @@ function switchSection(section) {
 }
 
 document.querySelectorAll(".nav-link").forEach((link) => {
+  link.addEventListener("click", (event) => {
+    event.preventDefault();
+    switchSection(link.dataset.section);
+  });
+});
+
+document.querySelectorAll(".bottom-link").forEach((link) => {
   link.addEventListener("click", (event) => {
     event.preventDefault();
     switchSection(link.dataset.section);

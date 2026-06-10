@@ -775,7 +775,10 @@
           <strong>${esc(title)}</strong>
           <div>${esc(message)}</div>
           <div>Backend response status: ${response?.status ?? "No backend request yet"}</div>
-          <pre>Backend response body: ${JSON.stringify(response?.body ?? {}, null, 2)}</pre>
+          <details class="debug">
+            <summary>Debug response</summary>
+            <pre>Backend response body: ${JSON.stringify(response?.body ?? {}, null, 2)}</pre>
+          </details>
         `;
       }
 
