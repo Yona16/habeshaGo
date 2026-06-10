@@ -1,7 +1,7 @@
 const state = {
   country: "ET",
-  token: localStorage.getItem("hg_token") || "",
-  user: JSON.parse(localStorage.getItem("hg_user") || "null"),
+  token: localStorage.getItem("habeshago_token") || localStorage.getItem("hg_token") || "",
+  user: JSON.parse(localStorage.getItem("habeshago_user") || localStorage.getItem("hg_user") || "null"),
   products: [],
   merchants: [],
   locations: null,
@@ -212,6 +212,8 @@ async function startLiveDemo() {
 function setSession(token, user) {
   state.token = token;
   state.user = user;
+  localStorage.setItem("habeshago_token", token);
+  localStorage.setItem("habeshago_user", JSON.stringify(user));
   localStorage.setItem("hg_token", token);
   localStorage.setItem("hg_user", JSON.stringify(user));
   renderSession();
@@ -220,6 +222,8 @@ function setSession(token, user) {
 function clearSession() {
   state.token = "";
   state.user = null;
+  localStorage.removeItem("habeshago_token");
+  localStorage.removeItem("habeshago_user");
   localStorage.removeItem("hg_token");
   localStorage.removeItem("hg_user");
   renderSession();
@@ -230,6 +234,7 @@ async function restoreSession() {
   try {
     const data = await api(`${API_BASE_URL}/auth/me`);
     state.user = data.user;
+    localStorage.setItem("habeshago_user", JSON.stringify(data.user));
     localStorage.setItem("hg_user", JSON.stringify(data.user));
     renderSession();
   } catch {
@@ -321,6 +326,9 @@ async function loginWithCredentials(email, password) {
     method: "POST",
     body: JSON.stringify({ email, password })
   });
+  if ($("#authRole").value === "admin" && data.user.role !== "admin") {
+    throw new Error(`Expected admin role, received ${data.user.role}`);
+  }
   setSession(data.token, data.user);
   setAuthStatus(`Signed in as ${data.user.name} (${data.user.role}). Token saved locally.`, "success");
   toast(`Logged in as ${data.user.role}`);
@@ -784,6 +792,9 @@ async function loadDriverRequests() {
 }
 
 async function loadAdmin() {
+  if (state.token) {
+    await restoreSession();
+  }
   if (!state.token || !state.user || state.user.role !== "admin") {
     $("#adminReports").innerHTML = "";
     $("#adminOrders").innerHTML = "<div class='card'>Login as admin to view all orders.</div>";
@@ -1146,6 +1157,7 @@ async function loadDriver() {
 }
 
 async function refreshAll() {
+  if (state.token) await restoreSession();
   await loadMetrics();
   await loadRecommendations();
   await loadProductionReadiness();

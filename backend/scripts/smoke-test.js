@@ -57,6 +57,7 @@ async function main() {
     assert(html.includes("<title>HabeshaGo | Food, Grocery &amp; Delivery in Addis Ababa</title>"), "SEO homepage title is missing");
     assert(html.includes('rel="canonical" href="https://www.habeshago.com/"'), "SEO homepage canonical is missing");
     assert(html.includes("application/ld+json"), "SEO homepage JSON-LD is missing");
+    assert(html.includes('location.replace("/app"+location.hash)'), "Hash admin redirect to /app is missing");
   });
 
   await step("customer app loads separately", async () => {
@@ -66,6 +67,9 @@ async function main() {
     assert(html.includes("paymentMethod"), "Customer checkout payment method is missing");
     assert(html.includes("savedAddressLabel"), "Customer saved address checkout field is missing");
     assert(html.includes('name="robots" content="noindex, nofollow"'), "Customer app should be noindex");
+    const appJs = await fetch(`${baseUrl}/app.js`);
+    const js = await appJs.text();
+    assert(js.includes("habeshago_token") && js.includes("habeshago_user"), "Customer app must use standard session storage keys");
   });
 
   await step("SEO pages, sitemap, robots, and PWA files work", async () => {

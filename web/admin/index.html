@@ -132,7 +132,7 @@
         return "https://api.habeshago.com/api/ET/v1";
       }
       const API_BASE_URL = resolveApiBaseUrl();
-      const state = { country:"ET", token:localStorage.getItem("hg_admin_token") || "", user:JSON.parse(localStorage.getItem("hg_admin_user") || "null"), data:null, lastApi:null };
+      const state = { country:"ET", token:localStorage.getItem("habeshago_token") || localStorage.getItem("hg_admin_token") || "", user:JSON.parse(localStorage.getItem("habeshago_user") || localStorage.getItem("hg_admin_user") || "null"), data:null, lastApi:null };
       const $ = (id) => document.querySelector(id);
       const money = (n, c = "ETB") => `${Number(n || 0).toLocaleString()} ${c}`;
       function toast(message) { const el = $("#toast"); el.textContent = message; el.classList.add("show"); setTimeout(() => el.classList.remove("show"), 2200); }
@@ -206,6 +206,8 @@
         if (!["admin", "super_admin", "country_admin", "city_admin", "support_agent", "finance_admin", "operations_admin"].includes(data.user.role)) throw new Error("Only admin roles can access this portal");
         state.token = data.token;
         state.user = data.user;
+        localStorage.setItem("habeshago_token", state.token);
+        localStorage.setItem("habeshago_user", JSON.stringify(state.user));
         localStorage.setItem("hg_admin_token", state.token);
         localStorage.setItem("hg_admin_user", JSON.stringify(state.user));
         $("#session").textContent = `${data.user.name} (${data.user.role})`;
@@ -216,13 +218,17 @@
         if (!state.token) return;
         try {
           const data = await api(`${API_BASE_URL}/auth/me`);
+          if (data.user.role !== "admin") throw new Error(`Expected admin role, received ${data.user.role}`);
           state.user = data.user;
+          localStorage.setItem("habeshago_user", JSON.stringify(data.user));
           localStorage.setItem("hg_admin_user", JSON.stringify(data.user));
           $("#session").textContent = `${data.user.name} (${data.user.role})`;
           $("#logoutBtn").hidden = false;
         } catch {
           state.token = "";
           state.user = null;
+          localStorage.removeItem("habeshago_token");
+          localStorage.removeItem("habeshago_user");
           localStorage.removeItem("hg_admin_token");
           localStorage.removeItem("hg_admin_user");
           $("#session").textContent = "Session expired";
@@ -442,6 +448,8 @@
       $("#logoutBtn").onclick = () => runButtonAction($("#logoutBtn"), "Admin logout", async () => {
         state.token = "";
         state.user = null;
+        localStorage.removeItem("habeshago_token");
+        localStorage.removeItem("habeshago_user");
         localStorage.removeItem("hg_admin_token");
         localStorage.removeItem("hg_admin_user");
         $("#session").textContent = "Not signed in";
