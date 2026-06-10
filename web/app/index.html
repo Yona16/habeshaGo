@@ -78,6 +78,74 @@
           <div class="metric"><strong id="driverMetric">0</strong><span>Nearby drivers</span></div>
         </section>
 
+        <section class="panel customer-account-panel" id="customerAccountPanel">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Customer account</p>
+              <h3>Signup, login, and delivery details</h3>
+            </div>
+            <span id="customerAccountStatus" class="pill">Not signed in</span>
+          </div>
+          <div class="customer-account-grid">
+            <div class="account-card">
+              <h4>Customer login</h4>
+              <label>Email
+                <input id="customerLoginEmail" type="email" value="customer@habeshago.local" />
+              </label>
+              <label>Password
+                <input id="customerLoginPassword" type="password" value="Customer123!" />
+              </label>
+              <button id="customerLoginBtn">Login as customer</button>
+            </div>
+            <div class="account-card">
+              <h4>New customer signup</h4>
+              <div class="mini-grid">
+                <label>Name
+                  <input id="customerSignupName" value="Bole Customer" />
+                </label>
+                <label>Email
+                  <input id="customerSignupEmail" type="email" value="bole.customer.demo@habeshago.local" />
+                </label>
+                <label>Phone
+                  <input id="customerSignupPhone" value="+251911123456" />
+                </label>
+                <label>Password
+                  <input id="customerSignupPassword" type="password" value="Customer123!" />
+                </label>
+              </div>
+              <div class="mini-grid">
+                <label>City
+                  <select id="customerSignupCity">
+                    <option value="bole">Bole</option>
+                    <option value="addis-ababa">Addis Ababa</option>
+                  </select>
+                </label>
+                <label>Preferred address
+                  <input id="customerSignupAddress" value="Bole Medhanealem, blue gate" />
+                </label>
+                <label>Landmark note
+                  <input id="customerSignupLandmark" value="Near Medhanealem Church" />
+                </label>
+                <label>Support preference
+                  <select id="customerSignupSupport">
+                    <option value="app">App</option>
+                    <option value="phone">Phone</option>
+                    <option value="sms">SMS</option>
+                  </select>
+                </label>
+              </div>
+              <button id="customerSignupBtn" class="secondary">Create customer account</button>
+            </div>
+            <div class="account-card profile-card">
+              <h4>Customer details</h4>
+              <div id="customerProfileDetails" class="profile-details">
+                Login or create a customer account to see customer profile, saved address, landmark note, and order tools.
+              </div>
+              <button id="customerProfileRefreshBtn" class="soft-dark">Refresh customer details</button>
+            </div>
+          </div>
+        </section>
+
         <section class="promo-banner">
           <div>
             <p class="eyebrow">Today only</p>

@@ -137,6 +137,9 @@ function clearSession() {
 function renderSession() {
   $("#sessionLabel").textContent = state.user ? `${state.user.name} (${state.user.role})` : "Not signed in";
   $("#logoutBtn").hidden = !state.user;
+  if ($("#customerAccountStatus")) {
+    $("#customerAccountStatus").textContent = state.user && state.user.role === "customer" ? `${state.user.name} signed in` : "Not signed in";
+  }
 }
 
 async function loginDemo() {
@@ -149,12 +152,77 @@ async function loginDemo() {
   await refreshAll();
 }
 
+async function customerLogin() {
+  const data = await api("/auth/login", {
+    method: "POST",
+    body: JSON.stringify({
+      email: $("#customerLoginEmail").value.trim(),
+      password: $("#customerLoginPassword").value
+    })
+  });
+  if (data.user?.role !== "customer") throw new Error("This account is not a customer account.");
+  setSession(data.token, data.user);
+  addActivity("Customer logged in from customer account panel");
+  await loadCustomerProfile();
+  await refreshAll();
+}
+
+async function customerSignup() {
+  const timestamp = Date.now();
+  const emailInput = $("#customerSignupEmail").value.trim();
+  const phoneInput = $("#customerSignupPhone").value.trim();
+  const email = emailInput === "bole.customer.demo@habeshago.local" ? `bole.customer.${timestamp}@habeshago.local` : emailInput;
+  const phone = phoneInput === "+251911123456" ? `+2519${String(timestamp).slice(-8)}` : phoneInput;
+  const data = await api("/auth/signup", {
+    method: "POST",
+    body: JSON.stringify({
+      name: $("#customerSignupName").value.trim(),
+      email,
+      phone,
+      password: $("#customerSignupPassword").value,
+      role: "customer",
+      city_id: $("#customerSignupCity").value,
+      preferred_address: $("#customerSignupAddress").value.trim(),
+      landmark_note: $("#customerSignupLandmark").value.trim(),
+      support_preference: $("#customerSignupSupport").value
+    })
+  });
+  setSession(data.token, data.user);
+  addActivity("New customer account created");
+  await loadCustomerProfile();
+  await refreshAll();
+}
+
+async function loadCustomerProfile() {
+  if (!state.user || state.user.role !== "customer") {
+    if ($("#customerProfileDetails")) {
+      $("#customerProfileDetails").innerHTML = "Login or create a customer account to see customer profile, saved address, landmark note, and order tools.";
+    }
+    return;
+  }
+  const data = await api("/profile/details");
+  const profile = data.profile || {};
+  const user = profile.user || state.user;
+  const customer = profile.customer || {};
+  $("#customerProfileDetails").innerHTML = `
+    <div class="profile-line"><span>Name</span><strong>${user.name || "Customer"}</strong></div>
+    <div class="profile-line"><span>Email</span><strong>${user.email || ""}</strong></div>
+    <div class="profile-line"><span>Phone</span><strong>${user.phone || ""}</strong></div>
+    <div class="profile-line"><span>City</span><strong>${user.city_id || "bole"}</strong></div>
+    <div class="profile-line"><span>Preferred address</span><strong>${customer.preferred_address || "Not set"}</strong></div>
+    <div class="profile-line"><span>Landmark note</span><strong>${customer.landmark_note || "Not set"}</strong></div>
+    <div class="profile-line"><span>Wallet balance</span><strong>${money(customer.wallet_balance || 0, user.currency || "ETB")}</strong></div>
+    <div class="profile-line"><span>Support</span><strong>${customer.support_preference || "app"}</strong></div>
+  `;
+}
+
 async function restoreSession() {
   if (!state.token) return;
   try {
     const data = await api("/auth/me");
     state.user = data.user;
     renderSession();
+    await loadCustomerProfile();
   } catch {
     clearSession();
   }
@@ -687,6 +755,9 @@ async function runLiveDemo() {
 
 function bind() {
   $("#demoLoginBtn").onclick = () => runButtonAction($("#demoLoginBtn"), "Demo customer login", loginDemo).catch(() => {});
+  $("#customerLoginBtn").onclick = () => runButtonAction($("#customerLoginBtn"), "Customer login", customerLogin).catch(() => {});
+  $("#customerSignupBtn").onclick = () => runButtonAction($("#customerSignupBtn"), "Customer signup", customerSignup).catch(() => {});
+  $("#customerProfileRefreshBtn").onclick = () => runButtonAction($("#customerProfileRefreshBtn"), "Refresh customer details", loadCustomerProfile).catch(() => {});
   $("#refreshBtn").onclick = () => runButtonAction($("#refreshBtn"), "Refresh dashboard", refreshAll).catch(() => {});
   $("#profileBtn").onclick = () => toast(state.user ? `${state.user.name} profile is active` : "Login to view profile");
   $("#applyDiscoveryBtn").onclick = () => runButtonAction($("#applyDiscoveryBtn"), "Apply discovery filters", loadCatalog).catch(() => {});
@@ -707,7 +778,7 @@ function bind() {
   $("#menuRequestBtn").onclick = () => runButtonAction($("#menuRequestBtn"), "Send menu request", sendMenuRequest).catch(() => {});
   $("#placeOrderBtn").onclick = () => runButtonAction($("#placeOrderBtn"), "Place order", placeOrder).catch(() => {});
   $("#liveDemoBtn").onclick = () => runButtonAction($("#liveDemoBtn"), "Run live end-to-end demo", runLiveDemo).catch(() => {});
-  $("#logoutBtn").onclick = () => { clearSession(); toast("Logged out"); };
+  $("#logoutBtn").onclick = () => { clearSession(); loadCustomerProfile(); toast("Logged out"); };
   $("#cartOpenBtn").onclick = () => { $("#cartDrawer").hidden = false; };
   $("#bottomCartBtn").onclick = () => { $("#cartDrawer").hidden = false; };
   $("#cartCloseBtn").onclick = () => { $("#cartDrawer").hidden = true; };

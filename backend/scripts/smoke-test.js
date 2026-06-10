@@ -71,6 +71,7 @@ async function main() {
     assert(html.includes("promo-banner") && html.includes("recommendedGrid"), "Customer promo/recommended sections are missing");
     assert(html.includes("heroLocation") && html.includes("currentLocationBtn"), "Customer address/current-location controls are missing");
     assert(html.includes("menuRequestBtn") && html.includes("cartDrawerSummary"), "Menu request or cart summary controls are missing");
+    assert(html.includes("customerAccountPanel") && html.includes("customerSignupBtn") && html.includes("customerLoginBtn"), "Customer signup/login panel is missing");
     assert(html.includes("paymentMethod"), "Customer checkout payment method is missing");
     assert(html.includes('name="robots" content="noindex, nofollow"'), "Customer app should be noindex");
     assert(html.includes("Run Live End-To-End Demo"), "Live end-to-end demo button label is missing");
@@ -78,6 +79,7 @@ async function main() {
     const js = await appJs.text();
     assert(js.includes("habeshago_token") && js.includes("habeshago_user"), "Customer app must use standard session storage keys");
     assert(js.includes("selectedMerchantOrThrow") && js.includes("Please choose a restaurant."), "Customer selected merchant validation is missing");
+    assert(js.includes("customerSignup") && js.includes("customerLogin") && js.includes("/profile/details"), "Customer signup/login/details actions are missing");
     assert(js.includes("api(\"/orders\"") && !js.includes("api(\"/production-checklist\""), "Place order must use /orders, not production-checklist");
     assert(js.includes("getLatLng") && js.includes("Skipping invalid coordinates") && js.includes("console.log(\"Merchant:\"") && js.includes("console.log(\"Driver:\""), "Map coordinate guard/debugging is missing");
     assert(js.includes("updateCartItem") && js.includes("removeCartItem") && js.includes("sendMenuRequest"), "Customer cart/menu actions are missing");
