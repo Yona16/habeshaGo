@@ -54,8 +54,48 @@ async function main() {
     const html = await response.text();
     assert(response.ok, "Home page did not load");
     assert(html.includes("HabeshaGo"), "Home page did not include app name");
+    assert(html.includes("<title>HabeshaGo | Food, Grocery &amp; Delivery in Addis Ababa</title>"), "SEO homepage title is missing");
+    assert(html.includes('rel="canonical" href="https://www.habeshago.com/"'), "SEO homepage canonical is missing");
+    assert(html.includes("application/ld+json"), "SEO homepage JSON-LD is missing");
+  });
+
+  await step("customer app loads separately", async () => {
+    const response = await fetch(`${baseUrl}/app`);
+    const html = await response.text();
+    assert(response.ok, "Customer app did not load");
     assert(html.includes("paymentMethod"), "Customer checkout payment method is missing");
     assert(html.includes("savedAddressLabel"), "Customer saved address checkout field is missing");
+    assert(html.includes('name="robots" content="noindex, nofollow"'), "Customer app should be noindex");
+  });
+
+  await step("SEO pages, sitemap, robots, and PWA files work", async () => {
+    const pages = ["/addis-ababa", "/bole", "/category/pizza", "/merchant/addis-chefs", "/product/kitfo", "/search?q=%E1%8D%92%E1%8B%9B"];
+    for (const path of pages) {
+      const response = await fetch(`${baseUrl}${path}`);
+      const html = await response.text();
+      assert(response.ok, `${path} did not load`);
+      assert(html.includes("<title>"), `${path} missing title`);
+      assert(html.includes('name="description"'), `${path} missing meta description`);
+      assert(html.includes('rel="canonical"'), `${path} missing canonical`);
+      assert(html.includes('property="og:title"'), `${path} missing Open Graph`);
+      assert(html.includes('name="twitter:card"'), `${path} missing Twitter card`);
+      assert(html.includes("application/ld+json"), `${path} missing structured data`);
+    }
+    const sitemap = await fetch(`${baseUrl}/sitemap.xml`);
+    const sitemapXml = await sitemap.text();
+    assert(sitemap.ok && sitemapXml.includes("https://www.habeshago.com/category/pizza"), "Sitemap missing public page");
+    assert(!sitemapXml.includes("/admin") && !sitemapXml.includes("/checkout") && !sitemapXml.includes("/api/"), "Sitemap includes private/API pages");
+    const robots = await fetch(`${baseUrl}/robots.txt`);
+    const robotsText = await robots.text();
+    assert(robots.ok && robotsText.includes("Disallow: /admin") && robotsText.includes("Sitemap: https://www.habeshago.com/sitemap.xml"), "robots.txt rules missing");
+    const manifest = await fetch(`${baseUrl}/manifest.json`);
+    const manifestData = await manifest.json();
+    assert(manifest.ok && manifestData.name === "HabeshaGo" && manifestData.display === "standalone", "PWA manifest failed");
+    const serviceWorker = await fetch(`${baseUrl}/service-worker.js`);
+    assert(serviceWorker.ok, "Service worker failed");
+    const admin = await fetch(`${baseUrl}/admin`);
+    const adminHtml = await admin.text();
+    assert(adminHtml.includes('name="robots" content="noindex, nofollow"'), "Admin portal should be noindex");
   });
 
   await step("health endpoint is ok", async () => {
@@ -75,6 +115,18 @@ async function main() {
     const { response, data } = await request("/api/ET/v1/merchants?lat=8.994&lng=38.789&radius_km=5&category=cafe&sort=nearest");
     assert(response.ok, "Nearby merchant search failed");
     assert((data.merchants || []).length > 0, "Nearby merchant search returned no cafes");
+  });
+
+  await step("public search supports English and Amharic", async () => {
+    const pizza = await request("/api/ET/v1/search?q=pizza");
+    assert(pizza.response.ok, "Pizza search failed");
+    assert((pizza.data.products || []).length || (pizza.data.merchants || []).length || (pizza.data.categories || []).some((item) => item.name === "pizza"), "Pizza search returned no results");
+    const amharicPizza = await request("/api/et/v1/search?q=%E1%8D%92%E1%8B%9B");
+    assert(amharicPizza.response.ok && amharicPizza.data.normalized_query === "pizza", "Amharic pizza search failed");
+    const coffee = await request("/api/ET/v1/search?q=%E1%89%A1%E1%8A%93");
+    assert(coffee.response.ok && coffee.data.normalized_query === "coffee", "Amharic coffee search failed");
+    const suggestions = await request("/api/ET/v1/search/suggestions?q=coffee");
+    assert(suggestions.response.ok && Array.isArray(suggestions.data.suggestions), "Search suggestions failed");
   });
 
   await step("marketplace nearby compatibility API works", async () => {

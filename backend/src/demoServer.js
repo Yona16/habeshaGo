@@ -12,6 +12,21 @@ const dataFile = path.resolve(__dirname, "..", "data", "local-store.json");
 
 const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
 const HQ_COORDS = { lat: 8.994, lng: 38.789 };
+const PUBLIC_BASE_URL = "https://www.habeshago.com";
+const SEO_CITY_PAGES = [
+  { slug: "addis-ababa", name: "Addis Ababa", title: "Food, Grocery & Delivery in Addis Ababa" },
+  { slug: "bole", name: "Bole", title: "Restaurants and Delivery in Bole" },
+  { slug: "piassa", name: "Piassa", title: "Food Delivery near Piassa" },
+  { slug: "cmc", name: "CMC", title: "Grocery Delivery near CMC" },
+  { slug: "megenagna", name: "Megenagna", title: "Delivery near Megenagna" }
+];
+const SEO_CATEGORY_PAGES = ["food", "grocery", "pharmacy", "coffee", "pizza", "injera", "burger"];
+const SEO_NEIGHBORHOODS = [
+  { slug: "bole", name: "Bole", city_id: "bole" },
+  { slug: "piassa", name: "Piassa", city_id: "addis-ababa" },
+  { slug: "cmc", name: "CMC", city_id: "addis-ababa" },
+  { slug: "megenagna", name: "Megenagna", city_id: "addis-ababa" }
+];
 const CORS_ALLOWED_ORIGINS = new Set([
   "http://localhost:3000",
   "http://localhost:8080",
@@ -384,6 +399,14 @@ function publicUser(user) {
   return safe;
 }
 
+function slugify(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 function countryFromPath(pathname) {
   const match = pathname.match(/^\/api\/([^/]+)\/v1/);
   return match ? match[1].toUpperCase() : "ET";
@@ -416,6 +439,19 @@ function send(res, status, payload, headers = {}) {
 
 function sendError(res, status, message, details) {
   send(res, status, { error: message, details });
+}
+
+function sendHtml(res, status, html, headers = {}) {
+  res.writeHead(status, {
+    "content-type": "text/html; charset=utf-8",
+    "x-content-type-options": "nosniff",
+    ...headers
+  });
+  res.end(html);
+}
+
+function escapeHtml(value = "") {
+  return String(value).replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
 }
 
 function enrichOrder(order) {
@@ -1073,12 +1109,143 @@ function runLiveDemo(order, actors) {
   }
 }
 
+function publicMerchants(countryId = "ET") {
+  return store.merchants.filter((merchant) => merchant.country_id === countryId && merchant.status === "open");
+}
+
+function publicProducts(countryId = "ET") {
+  return store.products.filter((product) => product.country_id === countryId && product.available);
+}
+
+function seoHead({ title, description, canonical, type = "website", structuredData = {} }) {
+  const fullTitle = title.includes("HabeshaGo") ? title : `HabeshaGo | ${title}`;
+  return `
+    <title>${escapeHtml(fullTitle)}</title>
+    <meta name="description" content="${escapeHtml(description)}">
+    <link rel="canonical" href="${canonical}">
+    <meta property="og:title" content="${escapeHtml(fullTitle)}">
+    <meta property="og:description" content="${escapeHtml(description)}">
+    <meta property="og:url" content="${canonical}">
+    <meta property="og:type" content="${type}">
+    <meta property="og:image" content="${PUBLIC_BASE_URL}/assets/og-image.png">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="${escapeHtml(fullTitle)}">
+    <meta name="twitter:description" content="${escapeHtml(description)}">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#19324a">
+    <script type="application/ld+json">${JSON.stringify(structuredData)}</script>`;
+}
+
+function publicShell({ title, description, canonical, structuredData, body }) {
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">${seoHead({ title, description, canonical, structuredData })}<style>
+    :root{--ink:#172026;--muted:#5f6f7a;--blue:#19324a;--gold:#b97818;--line:#d9e1e7;--bg:#f7f9fb}*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;color:var(--ink);background:var(--bg);line-height:1.5}header{background:#fff;border-bottom:1px solid var(--line);padding:18px clamp(16px,4vw,44px);display:flex;justify-content:space-between;gap:16px;align-items:center;flex-wrap:wrap}.brand{font-weight:800;color:var(--blue);font-size:24px;text-decoration:none}.nav{display:flex;gap:14px;flex-wrap:wrap}.nav a{color:var(--blue);text-decoration:none;font-weight:700}main{max-width:1160px;margin:0 auto;padding:28px clamp(16px,4vw,44px)}.hero{display:grid;gap:18px;padding:26px 0}.hero h1{font-size:clamp(34px,6vw,64px);line-height:1.05;margin:0;color:var(--blue)}.hero p{font-size:18px;color:var(--muted);max-width:760px}.search{display:flex;gap:10px;flex-wrap:wrap}.search input{min-width:min(100%,360px);padding:12px;border:1px solid var(--line);border-radius:6px}.search a,.button{background:var(--blue);color:#fff;text-decoration:none;padding:12px 16px;border-radius:6px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin:22px 0}.card{background:#fff;border:1px solid var(--line);border-radius:8px;padding:16px;color:inherit;text-decoration:none}.card h2,.card h3{margin-top:0;color:var(--blue)}.badge{display:inline-block;background:#f4ead9;color:#6b430c;border-radius:999px;padding:4px 8px;margin:2px;font-size:12px}footer{padding:24px clamp(16px,4vw,44px);color:var(--muted);text-align:center}@media(max-width:640px){header{align-items:flex-start}.search a{width:100%;text-align:center}}
+  </style></head><body><header><a class="brand" href="/">HabeshaGo</a><nav class="nav"><a href="/addis-ababa">Addis Ababa</a><a href="/category/food">Food</a><a href="/category/grocery">Grocery</a><a href="/search?q=pizza">Search</a><a href="/app">Order App</a></nav></header><main>${body}</main><footer>HabeshaGo local SEO demo. Public pages are indexable; dashboards and API routes are blocked.</footer><script>if("serviceWorker" in navigator){navigator.serviceWorker.register("/service-worker.js").catch(()=>{})}</script></body></html>`;
+}
+
+function renderPublicHome() {
+  const merchants = publicMerchants().slice(0, 6);
+  const products = publicProducts().slice(0, 6);
+  return publicShell({
+    title: "HabeshaGo | Food, Grocery & Delivery in Addis Ababa",
+    description: "Order food, groceries, pharmacy items, and courier delivery in Addis Ababa with HabeshaGo. Fast local delivery with English and Amharic support.",
+    canonical: `${PUBLIC_BASE_URL}/`,
+    structuredData: { "@context": "https://schema.org", "@type": "WebSite", name: "HabeshaGo", url: `${PUBLIC_BASE_URL}/`, potentialAction: { "@type": "SearchAction", target: `${PUBLIC_BASE_URL}/search?q={search_term_string}`, "query-input": "required name=search_term_string" } },
+    body: `<section class="hero"><h1>HabeshaGo</h1><p>Food, grocery, pharmacy, coffee, and courier delivery for Addis Ababa neighborhoods with English and Amharic discovery.</p><div class="search"><input value="pizza" aria-label="Search"><a href="/search?q=pizza">Search HabeshaGo</a></div></section><section><h2>Popular delivery categories</h2><div class="grid">${SEO_CATEGORY_PAGES.map((cat) => `<a class="card" href="/category/${cat}"><h3>${escapeHtml(cat)}</h3><p>Browse ${escapeHtml(cat)} merchants and products in Addis Ababa.</p></a>`).join("")}</div></section><section><h2>Nearby merchants</h2><div class="grid">${merchants.map((m) => `<a class="card" href="/merchant/${slugify(m.name)}"><h3>${escapeHtml(m.name)}</h3><p>${escapeHtml(m.category)} - ${m.rating} rating - ${escapeHtml(m.address_note)}</p></a>`).join("")}</div></section><section><h2>Popular products</h2><div class="grid">${products.map((p) => `<a class="card" href="/product/${slugify(p.name)}"><h3>${escapeHtml(p.name)}</h3><p>${escapeHtml(p.description)} <span class="badge">${p.price} ${p.currency}</span></p></a>`).join("")}</div></section>`
+  });
+}
+
+function renderCityPage(city) {
+  const merchants = publicMerchants().filter((m) => city.slug === "addis-ababa" || m.city_id === "bole").slice(0, 8);
+  return publicShell({
+    title: `${city.title} | HabeshaGo`,
+    description: `Find restaurants, groceries, coffee, pharmacy items, and fast local delivery around ${city.name} with HabeshaGo.`,
+    canonical: `${PUBLIC_BASE_URL}/${city.slug}`,
+    structuredData: { "@context": "https://schema.org", "@type": "CollectionPage", name: city.title, url: `${PUBLIC_BASE_URL}/${city.slug}` },
+    body: `<section class="hero"><h1>${escapeHtml(city.title)}</h1><p>Browse local merchants, delivery zones, and popular products near ${escapeHtml(city.name)}.</p></section><div class="grid">${merchants.map((m) => `<a class="card" href="/merchant/${slugify(m.name)}"><h3>${escapeHtml(m.name)}</h3><p>${escapeHtml(m.category)} - ${m.rating} rating - ${escapeHtml(m.address_note)}</p></a>`).join("")}</div>`
+  });
+}
+
+function renderCategoryPage(category) {
+  const normalized = category === "coffee" ? "cafe" : category;
+  const products = publicProducts().filter((p) => [p.category, p.name, p.description, ...(p.dietary_tags || [])].join(" ").toLowerCase().includes(normalized));
+  const merchants = publicMerchants().filter((m) => [m.category, m.name, m.support_notes].join(" ").toLowerCase().includes(normalized));
+  return publicShell({
+    title: `${category} delivery in Addis Ababa`,
+    description: `Browse ${category} merchants and products for delivery in Addis Ababa with HabeshaGo.`,
+    canonical: `${PUBLIC_BASE_URL}/category/${category}`,
+    structuredData: { "@context": "https://schema.org", "@type": "CollectionPage", name: `${category} delivery`, url: `${PUBLIC_BASE_URL}/category/${category}` },
+    body: `<section class="hero"><h1>${escapeHtml(category)} delivery</h1><p>Searchable ${escapeHtml(category)} delivery listings with local merchants and products.</p></section><h2>Merchants</h2><div class="grid">${(merchants.length ? merchants : publicMerchants().slice(0, 4)).map((m) => `<a class="card" href="/merchant/${slugify(m.name)}"><h3>${escapeHtml(m.name)}</h3><p>${escapeHtml(m.category)} - ${escapeHtml(m.address_note)}</p></a>`).join("")}</div><h2>Products</h2><div class="grid">${(products.length ? products : publicProducts().slice(0, 4)).map((p) => `<a class="card" href="/product/${slugify(p.name)}"><h3>${escapeHtml(p.name)}</h3><p>${escapeHtml(p.description)}</p></a>`).join("")}</div>`
+  });
+}
+
+function renderMerchantPage(slug) {
+  const merchant = publicMerchants().find((m) => slugify(m.name) === slug);
+  if (!merchant) return null;
+  const products = publicProducts().filter((p) => p.merchant_id === merchant.id);
+  return publicShell({
+    title: `${merchant.name} delivery in Addis Ababa`,
+    description: `Order from ${merchant.name} on HabeshaGo. ${merchant.category} delivery near ${merchant.address_note}.`,
+    canonical: `${PUBLIC_BASE_URL}/merchant/${slug}`,
+    structuredData: { "@context": "https://schema.org", "@type": "Restaurant", name: merchant.name, address: merchant.address_note, telephone: merchant.contact_phone, aggregateRating: { "@type": "AggregateRating", ratingValue: merchant.rating, reviewCount: merchant.review_count } },
+    body: `<section class="hero"><h1>${escapeHtml(merchant.name)}</h1><p>${escapeHtml(merchant.category)} delivery near ${escapeHtml(merchant.address_note)}. Rating ${merchant.rating} from ${merchant.review_count} reviews.</p></section><div>${merchant.verified ? '<span class="badge">Verified</span>' : ""}<span class="badge">${merchant.delivery_radius_km} km radius</span><span class="badge">${merchant.prep_time_minutes} min prep</span></div><h2>Menu</h2><div class="grid">${products.map((p) => `<a class="card" href="/product/${slugify(p.name)}"><h3>${escapeHtml(p.name)}</h3><p>${escapeHtml(p.description)} <span class="badge">${p.price} ${p.currency}</span></p></a>`).join("")}</div>`
+  });
+}
+
+function renderProductPage(slug) {
+  const product = publicProducts().find((p) => slugify(p.name) === slug || `${slugify(p.name)}-special` === slug);
+  if (!product) return null;
+  const merchant = store.merchants.find((m) => m.id === product.merchant_id);
+  return publicShell({
+    title: `${product.name} delivery in Addis Ababa`,
+    description: `Order ${product.name} from ${merchant ? merchant.name : "HabeshaGo"} for delivery in Addis Ababa.`,
+    canonical: `${PUBLIC_BASE_URL}/product/${slug}`,
+    structuredData: { "@context": "https://schema.org", "@type": "Product", name: product.name, description: product.description, offers: { "@type": "Offer", price: product.price, priceCurrency: product.currency, availability: "https://schema.org/InStock" } },
+    body: `<section class="hero"><h1>${escapeHtml(product.name)}</h1><p>${escapeHtml(product.description)}</p><p><span class="badge">${product.price} ${product.currency}</span><span class="badge">${product.prep_time_minutes} min prep</span></p></section>${merchant ? `<a class="button" href="/merchant/${slugify(merchant.name)}">View ${escapeHtml(merchant.name)}</a>` : ""}`
+  });
+}
+
+function normalizeSearchTerm(query) {
+  const q = String(query || "").trim().toLowerCase();
+  return ({ "ፒዛ": "pizza", "ቡና": "coffee", "እንጀራ": "injera", "በርገር": "burger" })[q] || q;
+}
+
+function searchResults({ query = "", cityId = "", category = "" }) {
+  const q = normalizeSearchTerm(query);
+  const normalizedCategory = category === "coffee" ? "cafe" : String(category || "").toLowerCase();
+  const matches = (values) => !q || values.join(" ").toLowerCase().includes(q);
+  const categoryMatches = (value) => !normalizedCategory || String(value || "").toLowerCase().includes(normalizedCategory);
+  const merchants = publicMerchants().filter((m) => !cityId || m.city_id === cityId).filter((m) => categoryMatches(m.category)).filter((m) => matches([m.name, m.category, m.address_note, m.support_notes, q === "coffee" ? "cafe buna coffee ቡና" : "", q === "pizza" ? "pizza ፒዛ" : ""])).map((m) => ({ id: m.id, name: m.name, slug: slugify(m.name), category: m.category, rating: m.rating, url: `/merchant/${slugify(m.name)}` }));
+  const products = publicProducts().filter((p) => !cityId || p.city_id === cityId).filter((p) => categoryMatches(p.category) || !normalizedCategory).filter((p) => matches([p.name, p.category, p.description, ...(p.dietary_tags || []), q === "pizza" ? "pizza ፒዛ" : "", q === "injera" ? "injera እንጀራ" : "", q === "coffee" ? "coffee ቡና" : ""])).map((p) => ({ id: p.id, name: p.name, slug: slugify(p.name), category: p.category, price: p.price, currency: p.currency, url: `/product/${slugify(p.name)}` }));
+  const categories = SEO_CATEGORY_PAGES.filter((item) => !q || item.includes(q) || (q === "coffee" && item === "coffee") || (q === "pizza" && item === "pizza")).map((item) => ({ name: item, url: `/category/${item}` }));
+  const neighborhoods = SEO_NEIGHBORHOODS.filter((item) => !q || item.name.toLowerCase().includes(q) || item.slug.includes(q)).map((item) => ({ name: item.name, city_id: item.city_id, url: `/${item.slug}` }));
+  return { query, normalized_query: q, merchants, products, categories, neighborhoods };
+}
+
+function renderSearchPage(url) {
+  const q = url.searchParams.get("q") || "";
+  const results = searchResults({ query: q, cityId: url.searchParams.get("city_id") || "", category: url.searchParams.get("category") || "" });
+  return publicShell({
+    title: q ? `Search ${q} on HabeshaGo` : "Search HabeshaGo",
+    description: "Search HabeshaGo for restaurants, products, categories, and Addis Ababa neighborhoods in English and Amharic.",
+    canonical: `${PUBLIC_BASE_URL}/search${q ? `?q=${encodeURIComponent(q)}` : ""}`,
+    structuredData: { "@context": "https://schema.org", "@type": "SearchResultsPage", name: "HabeshaGo Search" },
+    body: `<section class="hero"><h1>Search HabeshaGo</h1><p>Results for ${escapeHtml(q || "popular delivery")}</p><div class="search"><input value="${escapeHtml(q || "pizza")}" aria-label="Search"><a href="/search?q=${encodeURIComponent(q || "pizza")}">Search</a></div></section><h2>Merchants</h2><div class="grid">${results.merchants.map((m) => `<a class="card" href="${m.url}"><h3>${escapeHtml(m.name)}</h3><p>${escapeHtml(m.category)} - ${m.rating} rating</p></a>`).join("") || "<div class='card'>No merchant matches yet.</div>"}</div><h2>Products</h2><div class="grid">${results.products.map((p) => `<a class="card" href="${p.url}"><h3>${escapeHtml(p.name)}</h3><p>${escapeHtml(p.category)} - ${p.price} ${p.currency}</p></a>`).join("") || "<div class='card'>No product matches yet.</div>"}</div>`
+  });
+}
+
+function sitemapXml() {
+  const urls = [`${PUBLIC_BASE_URL}/`, ...SEO_CITY_PAGES.map((city) => `${PUBLIC_BASE_URL}/${city.slug}`), ...SEO_CATEGORY_PAGES.map((category) => `${PUBLIC_BASE_URL}/category/${category}`), ...publicMerchants().map((merchant) => `${PUBLIC_BASE_URL}/merchant/${slugify(merchant.name)}`), ...publicProducts().map((product) => `${PUBLIC_BASE_URL}/product/${slugify(product.name)}`)];
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map((loc) => `  <url><loc>${loc}</loc><changefreq>daily</changefreq><priority>${loc === `${PUBLIC_BASE_URL}/` ? "1.0" : "0.7"}</priority></url>`).join("\n")}\n</urlset>`;
+}
+
 function serveStatic(req, res, pathname) {
   let filePath;
   if (pathname === "/admin" || pathname === "/admin/") {
     filePath = path.resolve(webRootDir, "admin", "index.html");
   } else if (pathname === "/merchant" || pathname === "/merchant/") {
     filePath = path.resolve(webRootDir, "merchant", "index.html");
+  } else if (pathname === "/app" || pathname === "/app/") {
+    filePath = path.resolve(webDir, "index.html");
   } else {
     const routePath = pathname === "/" ? "/index.html" : pathname;
     filePath = path.resolve(webDir, `.${routePath}`);
@@ -1086,7 +1253,7 @@ function serveStatic(req, res, pathname) {
   if (!filePath.startsWith(webDir) && !filePath.startsWith(webRootDir)) return false;
   if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) return false;
   const ext = path.extname(filePath);
-  const types = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "application/javascript; charset=utf-8", ".json": "application/json; charset=utf-8" };
+  const types = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "application/javascript; charset=utf-8", ".json": "application/json; charset=utf-8", ".svg": "image/svg+xml; charset=utf-8" };
   res.writeHead(200, { "content-type": types[ext] || "application/octet-stream", "x-content-type-options": "nosniff" });
   fs.createReadStream(filePath).pipe(res);
   return true;
@@ -1180,6 +1347,21 @@ async function handleApi(req, res, url) {
 
   if (req.method === "GET" && url.pathname === "/api/v1/countries") return send(res, 200, { countries: store.countries });
   if (req.method === "GET" && url.pathname.endsWith("/cities")) return send(res, 200, { cities: store.cities.filter((city) => city.country_id === countryId) });
+  if (req.method === "GET" && url.pathname.endsWith("/search/suggestions")) {
+    const results = searchResults({ query: url.searchParams.get("q") || "" });
+    return send(res, 200, {
+      suggestions: [...results.merchants, ...results.products, ...results.categories, ...results.neighborhoods]
+        .map((item) => ({ label: item.name, url: item.url }))
+        .slice(0, 10)
+    });
+  }
+  if (req.method === "GET" && url.pathname.endsWith("/search")) {
+    return send(res, 200, searchResults({
+      query: url.searchParams.get("q") || "",
+      cityId: url.searchParams.get("city_id") || "",
+      category: url.searchParams.get("category") || ""
+    }));
+  }
   if (req.method === "GET" && url.pathname.endsWith("/payments/methods")) return send(res, 200, { providers: country.payments, currency: country.currency, abstraction_ready: true });
   if (req.method === "GET" && url.pathname.endsWith("/feature-flags")) return send(res, 200, { flags: store.feature_flags });
   if (req.method === "GET" && url.pathname.endsWith("/compliance/reviews")) return send(res, 200, { reviews: store.compliance_reviews, regulated_features_blocked: store.compliance_reviews.filter((item) => item.legal_hold).length });
@@ -2294,6 +2476,63 @@ async function handleApi(req, res, url) {
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
   if (req.method === "OPTIONS") return send(res, 200, {});
+  if (req.method === "GET" && url.pathname === "/sitemap.xml") {
+    res.writeHead(200, { "content-type": "application/xml; charset=utf-8" });
+    return res.end(sitemapXml());
+  }
+  if (req.method === "GET" && url.pathname === "/robots.txt") {
+    res.writeHead(200, { "content-type": "text/plain; charset=utf-8" });
+    return res.end([
+      "User-agent: *",
+      "Allow: /",
+      "Disallow: /admin",
+      "Disallow: /merchant/dashboard",
+      "Disallow: /driver/dashboard",
+      "Disallow: /user",
+      "Disallow: /checkout",
+      "Disallow: /wallet",
+      "Disallow: /api",
+      "",
+      `Sitemap: ${PUBLIC_BASE_URL}/sitemap.xml`
+    ].join("\n"));
+  }
+  if (req.method === "GET" && url.pathname === "/manifest.json") {
+    return send(res, 200, {
+      name: "HabeshaGo",
+      short_name: "HabeshaGo",
+      icons: [
+        { src: "/assets/icon.svg", sizes: "any", type: "image/svg+xml" }
+      ],
+      theme_color: "#19324a",
+      background_color: "#f7f9fb",
+      display: "standalone",
+      start_url: "/"
+    }, { "content-type": "application/manifest+json; charset=utf-8" });
+  }
+  if (req.method === "GET" && url.pathname === "/service-worker.js") {
+    res.writeHead(200, { "content-type": "application/javascript; charset=utf-8" });
+    return res.end("const CACHE='habeshago-public-v1';self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(['/','/manifest.json','/sitemap.xml']))));self.addEventListener('fetch',e=>{if(e.request.method==='GET')e.respondWith(fetch(e.request).catch(()=>caches.match(e.request)))})");
+  }
+  if (req.method === "GET" && url.pathname === "/assets/icon.svg") {
+    res.writeHead(200, { "content-type": "image/svg+xml; charset=utf-8" });
+    return res.end('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192"><rect width="192" height="192" rx="36" fill="#19324a"/><text x="96" y="112" text-anchor="middle" font-size="54" font-family="Arial" font-weight="700" fill="#fff">HG</text></svg>');
+  }
+  if (req.method === "GET" && url.pathname === "/") return sendHtml(res, 200, renderPublicHome());
+  const cityPage = SEO_CITY_PAGES.find((city) => url.pathname === `/${city.slug}`);
+  if (req.method === "GET" && cityPage) return sendHtml(res, 200, renderCityPage(cityPage));
+  const categoryMatch = url.pathname.match(/^\/category\/([^/]+)$/);
+  if (req.method === "GET" && categoryMatch && SEO_CATEGORY_PAGES.includes(categoryMatch[1])) return sendHtml(res, 200, renderCategoryPage(categoryMatch[1]));
+  const merchantMatch = url.pathname.match(/^\/merchant\/([^/]+)$/);
+  if (req.method === "GET" && merchantMatch) {
+    const html = renderMerchantPage(merchantMatch[1]);
+    if (html) return sendHtml(res, 200, html);
+  }
+  const productMatch = url.pathname.match(/^\/product\/([^/]+)$/);
+  if (req.method === "GET" && productMatch) {
+    const html = renderProductPage(productMatch[1]);
+    if (html) return sendHtml(res, 200, html);
+  }
+  if (req.method === "GET" && url.pathname === "/search") return sendHtml(res, 200, renderSearchPage(url));
   if (url.pathname.startsWith("/api/") || url.pathname === "/health" || url.pathname === "/ready") {
     try {
       return await handleApi(req, res, url);
