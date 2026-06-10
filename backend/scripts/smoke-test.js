@@ -612,6 +612,16 @@ async function main() {
       body: JSON.stringify({ request_id: requestForOrder.id })
     });
     assert(accept.response.ok && accept.data.order.status === "driver_accepted", "Driver accept failed");
+    const acceptAgain = await request("/api/ET/v1/drivers/accept-request", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${driverToken}` },
+      body: JSON.stringify({ request_id: requestForOrder.id })
+    });
+    assert(acceptAgain.response.ok && acceptAgain.data.already_accepted, "Driver accept should be idempotent for the assigned driver");
+    const refreshedRequests = await request("/api/ET/v1/drivers/available-requests", {
+      headers: { Authorization: `Bearer ${driverToken}` }
+    });
+    assert(!(refreshedRequests.data.requests || []).some((item) => item.id === requestForOrder.id), "Accepted driver request should not remain available");
     const activeOrders = await request("/api/ET/v1/drivers/me/orders", {
       headers: { Authorization: `Bearer ${driverToken}` }
     });

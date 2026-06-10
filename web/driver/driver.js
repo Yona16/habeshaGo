@@ -389,9 +389,18 @@ function renderMap() {
 }
 
 async function acceptRequest(requestId) {
-  await api("/drivers/accept-request", { method: "POST", body: JSON.stringify({ request_id: requestId }) });
-  addActivity(`Accepted request ${String(requestId).slice(0, 8)}`);
-  await refreshAll();
+  try {
+    const result = await api("/drivers/accept-request", { method: "POST", body: JSON.stringify({ request_id: requestId }) });
+    addActivity(result.already_accepted ? `Request ${String(requestId).slice(0, 8)} is already assigned to you` : `Accepted request ${String(requestId).slice(0, 8)}`);
+    await refreshAll();
+  } catch (error) {
+    if (state.lastApi?.status === 409) {
+      addActivity(`Request ${String(requestId).slice(0, 8)} was already taken. Refreshing requests.`);
+      await refreshAll();
+      throw new Error("That request was already accepted by another driver or is no longer available. The list has been refreshed.");
+    }
+    throw error;
+  }
 }
 
 async function rejectRequest(requestId) {

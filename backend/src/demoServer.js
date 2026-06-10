@@ -880,6 +880,13 @@ function createDriverRequestForOrder(order, actor, pickupNote = "Ready at mercha
   return request;
 }
 
+function isDriverRequestAvailable(request, countryId) {
+  if (!request || request.country_id !== countryId || !["requested", "offered"].includes(request.status)) return false;
+  const order = store.orders.find((item) => item.id === request.order_id && item.country_id === countryId);
+  if (!order || order.driver_id) return false;
+  return ["ready_for_pickup", "driver_requested"].includes(String(order.status || "").toLowerCase());
+}
+
 function logSms({ to, template, body, country_id, user_id, order_id }) {
   const message = {
     id: randomUUID(),
@@ -2299,7 +2306,7 @@ async function handleApi(req, res, url) {
   if (req.method === "GET" && (url.pathname.endsWith("/drivers/requests") || url.pathname.endsWith("/drivers/available-requests"))) {
     const user = requireUser(req, res, ["driver", "admin"]);
     if (!user) return;
-    return send(res, 200, { requests: store.dispatch_requests.filter((request) => request.country_id === countryId && ["requested", "offered"].includes(request.status)) });
+    return send(res, 200, { requests: store.dispatch_requests.filter((request) => isDriverRequestAvailable(request, countryId)) });
   }
 
   if (req.method === "GET" && url.pathname.endsWith("/drivers/me/orders")) {
@@ -2333,8 +2340,12 @@ async function handleApi(req, res, url) {
     const driver = store.drivers.find((item) => item.user_id === user.id || user.role === "admin");
     const request = store.dispatch_requests.find((item) => item.id === requestId && item.country_id === countryId);
     if (!driver || !request) return sendError(res, 404, "Driver request not found");
-    if (!["requested", "offered"].includes(request.status)) return sendError(res, 409, "Driver request is no longer available");
     const order = store.orders.find((item) => item.id === request.order_id);
+    if (!order) return sendError(res, 404, "Order not found for driver request");
+    if ((request.status === "accepted" && request.driver_id === driver.id) || order.driver_id === driver.id) {
+      return send(res, 200, { request, order: enrichOrder(order), already_accepted: true, message: "Driver request is already assigned to you." });
+    }
+    if (!isDriverRequestAvailable(request, countryId)) return sendError(res, 409, "Driver request is no longer available");
     request.status = "accepted";
     request.driver_id = driver.id;
     request.accepted_at = new Date().toISOString();
