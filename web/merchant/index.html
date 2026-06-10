@@ -6,138 +6,723 @@
     <meta name="robots" content="noindex, nofollow" />
     <title>HabeshaGo Merchant Portal</title>
     <style>
-      :root { --green:#0f5132; --ink:#172026; --muted:#60717d; --line:#d9e0e4; --gold:#c58a21; --bg:#f6f8f9; }
-      * { box-sizing: border-box; }
-      body { margin: 0; font-family: Arial, sans-serif; background: var(--bg); color: var(--ink); }
-      header { background: var(--green); color: white; padding: 18px 28px; display:flex; justify-content:space-between; gap:16px; align-items:center; }
-      main { max-width: 1220px; margin: 22px auto; padding: 0 18px; display: grid; gap: 16px; }
-      section { background: white; border: 1px solid var(--line); border-radius: 8px; padding: 16px; }
-      .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
-      .metric, .card { border: 1px solid var(--line); border-radius: 8px; padding: 12px; background:#fff; }
-      .metric strong { display:block; font-size:24px; }
-      .metric span, small, p { color: var(--muted); }
-      label { display:grid; gap:5px; font-size:13px; color:var(--muted); }
-      input, select { width:100%; border:1px solid var(--line); border-radius:6px; padding:9px; color:var(--ink); }
-      button { border:0; border-radius:6px; background:var(--green); color:white; padding:9px 12px; cursor:pointer; }
-      button.secondary { background:#24435f; }
-      button.warn { background:#8a4b07; }
-      button.danger { background:#9b1c1c; }
-      table { width:100%; border-collapse: collapse; font-size:14px; }
-      th, td { text-align:left; border-bottom:1px solid #e7ecef; padding:9px; vertical-align:top; }
-      th { color:var(--muted); font-size:12px; text-transform:uppercase; }
-      .actions { display:flex; flex-wrap:wrap; gap:6px; }
-      .bar { display:flex; flex-wrap:wrap; gap:10px; align-items:end; }
-      .product-editor { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:8px; min-width:520px; }
-      .product-editor button { align-self:end; }
-      #toast { position:fixed; right:16px; bottom:16px; background:#172026; color:white; padding:10px 12px; border-radius:8px; opacity:0; transition:.2s; }
-      #toast.show { opacity:1; }
-      .action-status { position:fixed; left:16px; right:16px; bottom:16px; z-index:30; max-height:220px; overflow:auto; border:1px solid var(--line); border-radius:8px; background:white; box-shadow:0 12px 30px rgba(23,32,38,.18); padding:12px; font-size:13px; }
+      :root {
+        --primary:#0b7a3b;
+        --primary-dark:#064d2a;
+        --dark:#061512;
+        --dark-2:#0b211c;
+        --background:#f7f8fa;
+        --card:#ffffff;
+        --border:#e5e7eb;
+        --text:#111827;
+        --muted:#6b7280;
+        --danger:#ef4444;
+        --warning:#f59e0b;
+        --success:#16a34a;
+        --blue:#2563eb;
+        --shadow:0 18px 45px rgba(15, 23, 42, .08);
+        --shadow-soft:0 10px 25px rgba(15, 23, 42, .06);
+        --radius:18px;
+      }
+
+      * { box-sizing:border-box; }
+      html { scroll-behavior:smooth; }
+      body {
+        margin:0;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+        background:var(--background);
+        color:var(--text);
+      }
+
+      a { color:inherit; text-decoration:none; }
+      button, input, select, textarea { font:inherit; }
+      button {
+        border:0;
+        border-radius:12px;
+        background:var(--primary);
+        color:#fff;
+        min-height:42px;
+        padding:10px 14px;
+        font-weight:700;
+        cursor:pointer;
+        box-shadow:0 10px 18px rgba(11,122,59,.16);
+        transition:.18s ease;
+      }
+      button:hover { transform:translateY(-1px); filter:brightness(1.02); }
+      button:disabled { opacity:.55; cursor:not-allowed; transform:none; }
+      button.secondary { background:#18364f; box-shadow:0 10px 18px rgba(24,54,79,.14); }
+      button.warn { background:var(--warning); color:#1f2937; box-shadow:0 10px 18px rgba(245,158,11,.16); }
+      button.danger { background:var(--danger); box-shadow:0 10px 18px rgba(239,68,68,.14); }
+      button.ghost {
+        background:#f3f4f6;
+        color:var(--text);
+        box-shadow:none;
+        border:1px solid var(--border);
+      }
+
+      input, select, textarea {
+        width:100%;
+        border:1px solid var(--border);
+        border-radius:12px;
+        padding:11px 12px;
+        min-height:42px;
+        background:#fff;
+        color:var(--text);
+        outline:none;
+        transition:.18s ease;
+      }
+      input:focus, select:focus, textarea:focus {
+        border-color:rgba(11,122,59,.55);
+        box-shadow:0 0 0 4px rgba(11,122,59,.10);
+      }
+      label { display:grid; gap:7px; color:var(--muted); font-size:12px; font-weight:700; }
+      p { color:var(--muted); line-height:1.55; margin:0; }
+      h1, h2, h3 { margin:0; letter-spacing:-.03em; }
+      h1 { font-size:clamp(28px, 4vw, 44px); }
+      h2 { font-size:22px; }
+      h3 { font-size:16px; }
+
+      .app-shell {
+        display:grid;
+        grid-template-columns:280px 1fr;
+        min-height:100vh;
+      }
+
+      .sidebar {
+        position:sticky;
+        top:0;
+        height:100vh;
+        padding:24px 18px;
+        background:
+          radial-gradient(circle at 20% 10%, rgba(22,163,74,.22), transparent 28%),
+          linear-gradient(180deg, var(--dark), var(--dark-2));
+        color:#fff;
+        display:grid;
+        align-content:start;
+        gap:22px;
+      }
+      .brand {
+        display:flex;
+        gap:12px;
+        align-items:center;
+        padding:8px;
+      }
+      .brand-mark {
+        width:46px;
+        height:46px;
+        border-radius:16px;
+        display:grid;
+        place-items:center;
+        background:linear-gradient(135deg, #0db35a, #0b7a3b);
+        box-shadow:0 14px 28px rgba(0,0,0,.22);
+        font-size:22px;
+      }
+      .brand strong { display:block; font-size:19px; letter-spacing:-.02em; }
+      .brand span { display:block; color:rgba(255,255,255,.66); font-size:12px; margin-top:2px; }
+
+      .nav {
+        display:grid;
+        gap:8px;
+      }
+      .nav a, .nav button {
+        display:flex;
+        align-items:center;
+        gap:10px;
+        color:rgba(255,255,255,.82);
+        background:transparent;
+        border:0;
+        box-shadow:none;
+        width:100%;
+        min-height:44px;
+        border-radius:14px;
+        padding:11px 12px;
+        text-align:left;
+        font-weight:750;
+      }
+      .nav a:hover, .nav button:hover, .nav a.active {
+        background:rgba(255,255,255,.10);
+        color:#fff;
+        transform:none;
+      }
+
+      .sidebar-card {
+        border:1px solid rgba(255,255,255,.12);
+        background:rgba(255,255,255,.07);
+        border-radius:18px;
+        padding:14px;
+        display:grid;
+        gap:8px;
+      }
+      .sidebar-card small { color:rgba(255,255,255,.68); line-height:1.5; }
+
+      .content {
+        display:grid;
+        gap:22px;
+        padding:24px;
+      }
+
+      .hero {
+        position:relative;
+        overflow:hidden;
+        display:grid;
+        grid-template-columns:1.1fr .9fr;
+        gap:22px;
+        min-height:240px;
+        padding:28px;
+        background:
+          linear-gradient(135deg, rgba(11,122,59,.95), rgba(6,77,42,.92)),
+          url("https://images.unsplash.com/photo-1600891964599-f61ba0e24092?auto=format&fit=crop&w=1400&q=80");
+        background-size:cover;
+        background-position:center;
+        color:#fff;
+        border-radius:28px;
+        box-shadow:var(--shadow);
+      }
+      .hero::after {
+        content:"";
+        position:absolute;
+        inset:auto -70px -140px auto;
+        width:360px;
+        height:360px;
+        border-radius:50%;
+        background:rgba(255,255,255,.10);
+      }
+      .hero > * { position:relative; z-index:1; }
+      .hero p { color:rgba(255,255,255,.82); max-width:680px; }
+      .hero-actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:18px; }
+      .hero-actions button.ghost { background:rgba(255,255,255,.15); color:#fff; border-color:rgba(255,255,255,.25); }
+      .hero-panel {
+        align-self:stretch;
+        border-radius:22px;
+        background:rgba(255,255,255,.14);
+        border:1px solid rgba(255,255,255,.18);
+        backdrop-filter:blur(10px);
+        padding:18px;
+        display:grid;
+        gap:12px;
+      }
+      .session-pill {
+        display:inline-flex;
+        align-items:center;
+        width:max-content;
+        gap:8px;
+        border:1px solid rgba(255,255,255,.20);
+        background:rgba(255,255,255,.12);
+        border-radius:999px;
+        padding:8px 11px;
+        color:#fff;
+        font-weight:800;
+      }
+      .session-dot {
+        width:9px; height:9px; border-radius:50%;
+        background:var(--warning);
+      }
+      .session-dot.online { background:#4ade80; }
+
+      .section {
+        background:var(--card);
+        border:1px solid var(--border);
+        border-radius:var(--radius);
+        padding:18px;
+        box-shadow:var(--shadow-soft);
+      }
+      .section-head {
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        gap:14px;
+        margin-bottom:14px;
+      }
+      .section-head p { font-size:13px; margin-top:4px; }
+      .grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(210px, 1fr)); gap:12px; }
+      .grid.tight { grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); }
+
+      .metric {
+        position:relative;
+        overflow:hidden;
+        border:1px solid var(--border);
+        border-radius:18px;
+        padding:16px;
+        background:#fff;
+        box-shadow:0 10px 25px rgba(15,23,42,.04);
+      }
+      .metric::after {
+        content:"";
+        position:absolute;
+        right:-28px;
+        top:-28px;
+        width:90px;
+        height:90px;
+        border-radius:50%;
+        background:rgba(11,122,59,.08);
+      }
+      .metric strong { display:block; font-size:28px; letter-spacing:-.04em; }
+      .metric span { display:block; color:var(--muted); margin-top:4px; font-size:13px; font-weight:700; }
+
+      .card {
+        border:1px solid var(--border);
+        border-radius:18px;
+        padding:16px;
+        background:#fff;
+        box-shadow:0 10px 25px rgba(15,23,42,.04);
+      }
+
+      .login-card {
+        display:grid;
+        grid-template-columns:repeat(4, minmax(140px, 1fr));
+        gap:12px;
+        align-items:end;
+      }
+      .login-card .span-2 { grid-column:span 2; }
+      .login-card .session-area { align-self:center; }
+
+      .tabs {
+        display:flex;
+        gap:8px;
+        flex-wrap:wrap;
+        margin-bottom:14px;
+      }
+      .status-tab {
+        min-height:36px;
+        padding:8px 12px;
+        border-radius:999px;
+        border:1px solid var(--border);
+        background:#fff;
+        color:var(--muted);
+        box-shadow:none;
+      }
+      .status-tab.active {
+        background:var(--primary);
+        color:#fff;
+        border-color:var(--primary);
+      }
+
+      .table-wrap {
+        overflow:auto;
+        border:1px solid var(--border);
+        border-radius:18px;
+        background:#fff;
+      }
+      table { width:100%; border-collapse:collapse; min-width:850px; font-size:14px; }
+      th, td { text-align:left; border-bottom:1px solid #edf0f3; padding:13px; vertical-align:top; }
+      th { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.08em; }
+      tr:hover td { background:#fbfdfc; }
+
+      .actions { display:flex; flex-wrap:wrap; gap:7px; }
+      .status-badge {
+        display:inline-flex;
+        align-items:center;
+        gap:6px;
+        width:max-content;
+        border-radius:999px;
+        padding:6px 10px;
+        font-size:12px;
+        font-weight:800;
+        background:#f3f4f6;
+        color:#374151;
+      }
+      .status-badge.placed { background:#eff6ff; color:#1d4ed8; }
+      .status-badge.accepted, .status-badge.ready_for_pickup { background:#ecfdf5; color:#047857; }
+      .status-badge.preparing { background:#fff7ed; color:#c2410c; }
+      .status-badge.rejected, .status-badge.cancelled { background:#fef2f2; color:#b91c1c; }
+      .status-badge.delivered { background:#f0fdf4; color:#166534; }
+
+      .product-editor {
+        display:grid;
+        grid-template-columns:repeat(auto-fit,minmax(130px,1fr));
+        gap:8px;
+        min-width:560px;
+      }
+      .product-thumb {
+        width:48px;
+        height:48px;
+        border-radius:14px;
+        object-fit:cover;
+        background:#f3f4f6;
+        margin-right:8px;
+        vertical-align:middle;
+      }
+
+      .split {
+        display:grid;
+        grid-template-columns:1.15fr .85fr;
+        gap:16px;
+      }
+
+      .activity-feed {
+        display:grid;
+        gap:9px;
+        max-height:320px;
+        overflow:auto;
+      }
+      .activity-item {
+        display:flex;
+        gap:10px;
+        align-items:flex-start;
+        padding:10px;
+        border:1px solid var(--border);
+        border-radius:14px;
+        background:#fbfdfc;
+      }
+      .activity-icon {
+        width:32px; height:32px; border-radius:12px;
+        display:grid; place-items:center;
+        background:#eaf7ef;
+        color:var(--primary);
+      }
+      .activity-item strong { display:block; font-size:13px; }
+      .activity-item span { color:var(--muted); font-size:12px; }
+
+      .empty {
+        display:grid;
+        place-items:center;
+        text-align:center;
+        min-height:130px;
+        border:1px dashed var(--border);
+        border-radius:18px;
+        padding:18px;
+        color:var(--muted);
+        background:#fbfbfc;
+      }
+      .empty strong { display:block; color:var(--text); margin-bottom:5px; }
+
+      #toast {
+        position:fixed;
+        right:18px;
+        bottom:18px;
+        z-index:50;
+        background:#111827;
+        color:#fff;
+        padding:12px 14px;
+        border-radius:16px;
+        box-shadow:0 20px 50px rgba(15,23,42,.25);
+        opacity:0;
+        transform:translateY(10px);
+        transition:.22s ease;
+        max-width:min(420px, calc(100vw - 28px));
+      }
+      #toast.show { opacity:1; transform:translateY(0); }
+
+      .action-status {
+        position:fixed;
+        left:18px;
+        right:18px;
+        bottom:18px;
+        z-index:45;
+        max-height:260px;
+        overflow:auto;
+        border:1px solid var(--border);
+        border-radius:18px;
+        background:white;
+        box-shadow:0 18px 48px rgba(15,23,42,.18);
+        padding:14px;
+        font-size:13px;
+      }
       .action-status strong { display:block; margin-bottom:4px; }
-      .action-status pre { white-space:pre-wrap; margin:6px 0 0; color:var(--muted); }
-      .action-status.success { border-color:rgba(15,81,50,.35); }
-      .action-status.error { border-color:rgba(155,28,28,.4); background:#fff7f7; }
+      .action-status pre { white-space:pre-wrap; margin:8px 0 0; color:var(--muted); }
+      .action-status.success { border-color:rgba(22,163,74,.35); }
+      .action-status.error { border-color:rgba(239,68,68,.4); background:#fff7f7; }
+
+      details.debug {
+        border:1px solid var(--border);
+        border-radius:18px;
+        background:#fff;
+        padding:14px;
+      }
+      details.debug summary { cursor:pointer; font-weight:800; }
+      #debugOutput { white-space:pre-wrap; color:var(--muted); font-size:12px; }
+
+      @media (max-width:1050px) {
+        .app-shell { grid-template-columns:1fr; }
+        .sidebar { position:relative; height:auto; }
+        .nav { grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); }
+        .hero, .split { grid-template-columns:1fr; }
+        .login-card { grid-template-columns:1fr 1fr; }
+      }
+
+      @media (max-width:680px) {
+        .content { padding:14px; }
+        .hero { padding:22px; border-radius:22px; }
+        .section { padding:14px; }
+        .login-card { grid-template-columns:1fr; }
+        .login-card .span-2 { grid-column:auto; }
+        .section-head { align-items:flex-start; flex-direction:column; }
+      }
     </style>
   </head>
+
   <body>
-    <header>
-      <div>
-        <h1>HabeshaGo Merchant Portal</h1>
-        <p>Profile, menu, incoming orders, preparation, payout, and support operations.</p>
-      </div>
-      <div class="actions">
-        <button id="loginBtn">Demo Merchant Login</button>
-        <a href="/" style="color:white">Customer app</a>
-        <a href="/admin" style="color:white">Admin portal</a>
-      </div>
-    </header>
-    <main>
-      <section class="bar">
-        <label>Email <input id="email" value="merchant@habeshago.local" /></label>
-        <label>Password <input id="password" type="password" value="Merchant123!" /></label>
-        <button id="manualLoginBtn">Login</button>
-        <button id="refreshBtn" class="secondary">Refresh</button>
-        <span id="session">Not signed in</span>
-      </section>
-
-      <section>
-        <h2>Merchant Signup</h2>
-        <div class="grid">
-          <label>Owner name <input id="signupName" value="New Merchant Owner" /></label>
-          <label>Email <input id="signupEmail" value="new-merchant@test.com" /></label>
-          <label>Phone <input id="signupPhone" value="+251900001234" /></label>
-          <label>Password <input id="signupPassword" type="password" value="Merchant123!" /></label>
-          <label>Business name <input id="signupBusiness" value="New Merchant Kitchen" /></label>
-          <label>Category <input id="signupCategory" value="restaurant" /></label>
-          <label>Manager <input id="signupManager" value="Store Manager" /></label>
-          <label>Merchant phone <input id="signupMerchantPhone" value="+251911222333" /></label>
-          <label>Address <input id="signupAddress" value="Bole, near main road" /></label>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">HG</div>
+          <div>
+            <strong>HabeshaGo</strong>
+            <span>Merchant Operations</span>
+          </div>
         </div>
-        <button id="signupBtn" class="secondary">Create merchant account</button>
-      </section>
 
-      <section id="metrics" class="grid"></section>
+        <nav class="nav" aria-label="Merchant navigation">
+          <a class="active" href="#dashboard">🏠 Dashboard</a>
+          <a href="#orders">🧾 Orders</a>
+          <a href="#menu">🍽️ Menu</a>
+          <a href="#profile">🏪 Store profile</a>
+          <a href="#wallet">💳 Wallet</a>
+          <a href="#support">🎧 Support</a>
+          <button id="logoutBtn" type="button">🚪 Logout</button>
+        </nav>
 
-      <section>
-        <h2>Restaurant/store Profile Setup</h2>
-        <div class="grid">
-          <label>Business name <input id="merchantName" /></label>
-          <label>Category <input id="merchantCategory" /></label>
-          <label>Manager <input id="managerName" /></label>
-          <label>Phone <input id="contactPhone" /></label>
-          <label>Opening hours <input id="openingHours" /></label>
-          <label>Address <input id="addressNote" /></label>
-          <label>Prep minutes <input id="prepTime" type="number" /></label>
-          <label>Delivery radius km <input id="deliveryRadius" type="number" /></label>
+        <div class="sidebar-card">
+          <strong>Live merchant queue</strong>
+          <small>Incoming customer requests, preparation status, driver handoff, wallet summary, and support actions are connected to the local backend.</small>
         </div>
-        <p id="profileMeta"></p>
-        <button id="saveProfileBtn">Save profile</button>
-      </section>
+      </aside>
 
-      <section>
-        <h2>Menu/Product Management</h2>
-        <div class="bar">
-          <label>Name <input id="newProductName" value="New lunch special" /></label>
-          <label>Category <input id="newProductCategory" value="food" /></label>
-          <label>Description <input id="newProductDescription" value="Merchant-created local demo product." /></label>
-          <label>Image URL <input id="newProductImage" value="/assets/icon.svg" /></label>
-          <label>Price <input id="newProductPrice" type="number" value="250" /></label>
-          <label>Stock <input id="newProductStock" type="number" value="10" /></label>
-          <label>Prep minutes <input id="newProductPrep" type="number" value="15" /></label>
+      <main class="content">
+        <section class="hero">
+          <div>
+            <span class="session-pill"><span id="sessionDot" class="session-dot"></span><span id="session">Not signed in</span></span>
+            <h1>Run your restaurant like a pro.</h1>
+            <p>Accept orders, manage menu items, update preparation status, track wallet payouts, and support customers from one polished HabeshaGo merchant dashboard.</p>
+            <div class="hero-actions">
+              <button id="loginBtn">Demo Merchant Login</button>
+              <button id="refreshBtn" class="ghost">Refresh Dashboard</button>
+              <a class="session-pill" href="../app/index.html">Open Customer App</a>
+            </div>
+          </div>
+
+          <div class="hero-panel">
+            <h3>Today’s merchant checklist</h3>
+            <p>1. Sign in as merchant</p>
+            <p>2. Add or update products</p>
+            <p>3. Accept incoming orders</p>
+            <p>4. Mark food ready</p>
+            <p>5. Request driver handoff</p>
+          </div>
+        </section>
+
+        <section class="section" id="dashboard">
+          <div class="section-head">
+            <div>
+              <h2>Merchant Login</h2>
+              <p>Use demo credentials or create a new merchant account for local testing.</p>
+            </div>
+          </div>
+          <div class="login-card">
+            <label>Email <input id="email" value="merchant@habeshago.local" /></label>
+            <label>Password <input id="password" type="password" value="Merchant123!" /></label>
+            <button id="manualLoginBtn">Login</button>
+            <button id="signupScrollBtn" class="secondary">Create Merchant</button>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="section-head">
+            <div>
+              <h2>Performance Overview</h2>
+              <p>Live metrics from merchant dashboard and wallet APIs.</p>
+            </div>
+          </div>
+          <div id="metrics" class="grid tight"></div>
+        </section>
+
+        <section class="split" id="orders">
+          <div class="section">
+            <div class="section-head">
+              <div>
+                <h2>Incoming Order Dashboard</h2>
+                <p>Accept, reject, prepare, mark ready, and request a driver.</p>
+              </div>
+              <button id="ordersRefreshBtn" class="secondary">Refresh Orders</button>
+            </div>
+            <div class="tabs" id="orderTabs"></div>
+            <div id="orders"></div>
+          </div>
+
+          <div class="section">
+            <div class="section-head">
+              <div>
+                <h2>Live Activity Feed</h2>
+                <p>Merchant-side activity from your actions.</p>
+              </div>
+            </div>
+            <div id="activityFeed" class="activity-feed"></div>
+          </div>
+        </section>
+
+        <section class="section" id="menu">
+          <div class="section-head">
+            <div>
+              <h2>Menu / Product Management</h2>
+              <p>Add, edit, delete, and toggle product availability.</p>
+            </div>
+          </div>
+          <div class="grid">
+            <label>Name <input id="newProductName" value="New lunch special" /></label>
+            <label>Category <input id="newProductCategory" value="food" /></label>
+            <label>Description <input id="newProductDescription" value="Merchant-created local demo product." /></label>
+            <label>Image URL <input id="newProductImage" value="https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=600&q=80" /></label>
+            <label>Price <input id="newProductPrice" type="number" value="250" /></label>
+            <label>Stock <input id="newProductStock" type="number" value="10" /></label>
+            <label>Prep minutes <input id="newProductPrep" type="number" value="15" /></label>
+          </div>
+          <br />
           <button id="addProductBtn">Add product</button>
-        </div>
-        <div id="products"></div>
-      </section>
+          <br /><br />
+          <div id="products"></div>
+        </section>
 
-      <section>
-        <h2>Incoming Order Dashboard</h2>
-        <div id="orders"></div>
-      </section>
+        <section class="section" id="profile">
+          <div class="section-head">
+            <div>
+              <h2>Restaurant / Store Profile</h2>
+              <p>Keep customer-facing store information accurate.</p>
+            </div>
+          </div>
+          <div class="grid">
+            <label>Business name <input id="merchantName" /></label>
+            <label>Category <input id="merchantCategory" /></label>
+            <label>Manager <input id="managerName" /></label>
+            <label>Phone <input id="contactPhone" /></label>
+            <label>Opening hours <input id="openingHours" /></label>
+            <label>Address <input id="addressNote" /></label>
+            <label>Prep minutes <input id="prepTime" type="number" /></label>
+            <label>Delivery radius km <input id="deliveryRadius" type="number" /></label>
+          </div>
+          <br />
+          <p id="profileMeta"></p>
+          <br />
+          <button id="saveProfileBtn">Save profile</button>
+        </section>
 
-      <section class="grid">
-        <div class="card">
-          <h2>Payout/Wallet Summary</h2>
-          <div id="payout"></div>
-        </div>
-        <div class="card">
-          <h2>Support/contact Admin</h2>
-          <label>Subject <input id="supportSubject" value="Merchant support request" /></label>
-          <button id="supportBtn" class="secondary">Create support ticket</button>
-          <div id="supportTickets"></div>
-        </div>
-      </section>
-    </main>
+        <section class="split" id="wallet">
+          <div class="section">
+            <div class="section-head">
+              <div>
+                <h2>Payout / Wallet Summary</h2>
+                <p>Local demo ledger. No real money is moved.</p>
+              </div>
+            </div>
+            <div id="payout"></div>
+          </div>
+
+          <div class="section" id="support">
+            <div class="section-head">
+              <div>
+                <h2>Support / Contact Admin</h2>
+                <p>Create support tickets for operational issues.</p>
+              </div>
+            </div>
+            <label>Subject <input id="supportSubject" value="Merchant support request" /></label>
+            <br />
+            <button id="supportBtn" class="secondary">Create support ticket</button>
+            <br /><br />
+            <div id="supportTickets"></div>
+          </div>
+        </section>
+
+        <section class="section" id="signupSection">
+          <div class="section-head">
+            <div>
+              <h2>Merchant Signup</h2>
+              <p>Create a new local merchant account with store profile information.</p>
+            </div>
+          </div>
+          <div class="grid">
+            <label>Owner name <input id="signupName" value="New Merchant Owner" /></label>
+            <label>Email <input id="signupEmail" value="new-merchant@test.com" /></label>
+            <label>Phone <input id="signupPhone" value="+251900001234" /></label>
+            <label>Password <input id="signupPassword" type="password" value="Merchant123!" /></label>
+            <label>Business name <input id="signupBusiness" value="New Merchant Kitchen" /></label>
+            <label>Category <input id="signupCategory" value="restaurant" /></label>
+            <label>Manager <input id="signupManager" value="Store Manager" /></label>
+            <label>Merchant phone <input id="signupMerchantPhone" value="+251911222333" /></label>
+            <label>Address <input id="signupAddress" value="Bole, near main road" /></label>
+          </div>
+          <br />
+          <button id="signupBtn" class="secondary">Create merchant account</button>
+        </section>
+
+        <details class="debug">
+          <summary>Debug panel</summary>
+          <pre id="debugOutput">No backend request yet.</pre>
+        </details>
+      </main>
+    </div>
+
     <div id="toast"></div>
+
     <script>
       function resolveApiBaseUrl() {
         const host = window.location.hostname;
         if (host === "localhost" || host === "127.0.0.1") return "http://localhost:4000/api/ET/v1";
         return "https://api.habeshago.com/api/ET/v1";
       }
+
       const API_BASE_URL = resolveApiBaseUrl();
-      const state = { country: "ET", token: localStorage.getItem("hg_merchant_token") || "", user: JSON.parse(localStorage.getItem("hg_merchant_user") || "null"), merchant: null, data: null, lastApi: null };
-      const $ = (id) => document.querySelector(id);
+      const state = {
+        country: "ET",
+        token: localStorage.getItem("hg_merchant_token") || localStorage.getItem("habeshago_token") || "",
+        user: JSON.parse(localStorage.getItem("hg_merchant_user") || localStorage.getItem("habeshago_user") || "null"),
+        merchant: null,
+        data: null,
+        wallet: null,
+        lastApi: null,
+        orderFilter: "all",
+        activity: []
+      };
+
+      const $ = (selector) => document.querySelector(selector);
       const money = (n, c = "ETB") => `${Number(n || 0).toLocaleString()} ${c}`;
-      function toast(message) { const el = $("#toast"); el.textContent = message; el.classList.add("show"); setTimeout(() => el.classList.remove("show"), 2200); }
+
+      function esc(value = "") {
+        return String(value ?? "").replace(/[&<>"']/g, (ch) => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[ch]));
+      }
+
+      function normalizeStatus(status = "") {
+        return String(status || "").toLowerCase();
+      }
+
+      function formatStatus(status = "") {
+        return String(status || "").replace(/_/g, " ").toUpperCase();
+      }
+
+      function statusBadge(status = "") {
+        const s = normalizeStatus(status);
+        return `<span class="status-badge ${esc(s)}">${formatStatus(s)}</span>`;
+      }
+
+      function toast(message) {
+        const el = $("#toast");
+        el.textContent = message;
+        el.classList.add("show");
+        setTimeout(() => el.classList.remove("show"), 2600);
+      }
+
+      function addActivity(title, detail = "") {
+        state.activity.unshift({ title, detail, at: new Date() });
+        state.activity = state.activity.slice(0, 18);
+        renderActivity();
+      }
+
+      function renderActivity() {
+        const feed = $("#activityFeed");
+        if (!feed) return;
+        if (!state.activity.length) {
+          feed.innerHTML = `<div class="empty"><div><strong>No activity yet</strong><span>Login and perform merchant actions to see updates.</span></div></div>`;
+          return;
+        }
+        feed.innerHTML = state.activity.map((item) => `
+          <div class="activity-item">
+            <div class="activity-icon">✓</div>
+            <div>
+              <strong>${esc(item.title)}</strong>
+              <span>${esc(item.detail)} • ${item.at.toLocaleTimeString()}</span>
+            </div>
+          </div>
+        `).join("");
+      }
+
       function apiUrl(path) {
         if (path.startsWith(API_BASE_URL)) return path;
         if (path.startsWith("http")) return path;
@@ -147,21 +732,29 @@
         if (!normalized.startsWith("/")) normalized = `/${normalized}`;
         return `${API_BASE_URL}${normalized}`;
       }
+
       async function api(path, options = {}) {
         const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
         if (state.token) headers.Authorization = `Bearer ${state.token}`;
         const url = apiUrl(path);
         const payload = options.body ? JSON.parse(options.body) : null;
+
         console.log("API URL:", url);
         console.log("Payload:", payload);
+
         const response = await fetch(url, { ...options, headers });
         const data = await response.json().catch(() => ({}));
+
         state.lastApi = { status: response.status, body: data, url };
+        $("#debugOutput").textContent = JSON.stringify(state.lastApi, null, 2);
+
         console.log("Status:", response.status);
         console.log("Response:", data);
-        if (!response.ok) throw new Error(`Status ${response.status}: ${data.error || "Request failed"}`);
+
+        if (!response.ok) throw new Error(`Status ${response.status}: ${data.error || data.message || "Request failed"}`);
         return data;
       }
+
       function actionPanel() {
         let panel = $("#actionStatus");
         if (!panel) {
@@ -173,73 +766,151 @@
         }
         return panel;
       }
+
       function showActionStatus({ title, message, type = "", response = state.lastApi }) {
         const panel = actionPanel();
         panel.hidden = false;
         panel.className = `action-status ${type}`.trim();
-        panel.innerHTML = `<strong>${title}</strong><div>${message}</div><div>Backend response status: ${response?.status ?? "No backend request yet"}</div><pre>Backend response body: ${JSON.stringify(response?.body ?? {}, null, 2)}</pre>`;
+        panel.innerHTML = `
+          <strong>${esc(title)}</strong>
+          <div>${esc(message)}</div>
+          <div>Backend response status: ${response?.status ?? "No backend request yet"}</div>
+          <pre>Backend response body: ${JSON.stringify(response?.body ?? {}, null, 2)}</pre>
+        `;
       }
+
       async function runButtonAction(button, label, action) {
         const originalText = button?.textContent;
         try {
-          if (button) { button.disabled = true; button.textContent = "Loading..."; }
+          if (button) {
+            button.disabled = true;
+            button.textContent = "Loading...";
+          }
           showActionStatus({ title: label, message: "Loading...", response: null });
           const result = await action();
           showActionStatus({ title: label, message: "Success", type: "success" });
           toast(`${label}: success`);
+          addActivity(label, "Completed successfully");
           return result;
         } catch (error) {
           showActionStatus({ title: label, message: `Error: ${error.message}`, type: "error" });
           toast(error.message);
+          addActivity(`${label} failed`, error.message);
           throw error;
         } finally {
-          if (button) { button.disabled = false; button.textContent = originalText; }
+          if (button) {
+            button.disabled = false;
+            button.textContent = originalText;
+          }
         }
       }
+
       function table(rows, columns, actions) {
-        if (!rows.length) return "<div class='card'>No records yet.</div>";
-        return `<table><thead><tr>${columns.map(c => `<th>${c.label}</th>`).join("")}<th>Actions</th></tr></thead><tbody>${rows.map(row => `<tr>${columns.map(c => `<td>${c.render ? c.render(row) : row[c.key]}</td>`).join("")}<td><div class="actions">${actions ? actions(row) : ""}</div></td></tr>`).join("")}</tbody></table>`;
+        if (!rows.length) {
+          return `<div class="empty"><div><strong>No records yet</strong><span>Once live backend data exists, it will appear here.</span></div></div>`;
+        }
+        return `
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>${columns.map(c => `<th>${c.label}</th>`).join("")}<th>Actions</th></tr>
+              </thead>
+              <tbody>
+                ${rows.map(row => `
+                  <tr>
+                    ${columns.map(c => `<td>${c.render ? c.render(row) : esc(row[c.key])}</td>`).join("")}
+                    <td><div class="actions">${actions ? actions(row) : ""}</div></td>
+                  </tr>
+                `).join("")}
+              </tbody>
+            </table>
+          </div>
+        `;
       }
-      function esc(value = "") {
-        return String(value ?? "").replace(/[&<>"']/g, (ch) => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[ch]));
+
+      function renderSession() {
+        const label = $("#session");
+        const dot = $("#sessionDot");
+        if (state.user) {
+          label.textContent = `${state.user.name} (${state.user.role})`;
+          dot.classList.add("online");
+        } else {
+          label.textContent = "Not signed in";
+          dot.classList.remove("online");
+        }
       }
-      async function login() {
-        const data = await api(`${API_BASE_URL}/auth/login`, { method:"POST", body: JSON.stringify({ email: $("#email").value, password: $("#password").value }) });
-        state.token = data.token;
-        state.user = data.user;
-        localStorage.setItem("hg_merchant_token", state.token);
-        localStorage.setItem("hg_merchant_user", JSON.stringify(state.user));
-        $("#session").textContent = `${data.user.name} (${data.user.role})`;
-        await load();
+
+      function setSession(token, user) {
+        state.token = token;
+        state.user = user;
+        localStorage.setItem("hg_merchant_token", token);
+        localStorage.setItem("hg_merchant_user", JSON.stringify(user));
+        localStorage.setItem("habeshago_token", token);
+        localStorage.setItem("habeshago_user", JSON.stringify(user));
+        renderSession();
       }
+
+      function clearSession() {
+        state.token = "";
+        state.user = null;
+        state.merchant = null;
+        state.data = null;
+        localStorage.removeItem("hg_merchant_token");
+        localStorage.removeItem("hg_merchant_user");
+        localStorage.removeItem("habeshago_token");
+        localStorage.removeItem("habeshago_user");
+        renderSession();
+        toast("Logged out");
+      }
+
       async function restoreSession() {
         if (!state.token) return;
         try {
           const data = await api(`${API_BASE_URL}/auth/me`);
           state.user = data.user;
           localStorage.setItem("hg_merchant_user", JSON.stringify(data.user));
-          $("#session").textContent = `${data.user.name} (${data.user.role})`;
+          localStorage.setItem("habeshago_user", JSON.stringify(data.user));
+          renderSession();
         } catch {
-          state.token = "";
-          state.user = null;
-          localStorage.removeItem("hg_merchant_token");
-          localStorage.removeItem("hg_merchant_user");
-          $("#session").textContent = "Session expired";
+          clearSession();
         }
       }
+
+      async function login() {
+        const data = await api(`${API_BASE_URL}/auth/login`, {
+          method:"POST",
+          body: JSON.stringify({ email: $("#email").value.trim().toLowerCase(), password: $("#password").value })
+        });
+        if (data.user.role !== "merchant") {
+          throw new Error(`Expected merchant role, received ${data.user.role}`);
+        }
+        setSession(data.token, data.user);
+        addActivity("Merchant logged in", data.user.email || data.user.name);
+        await load();
+      }
+
       async function load() {
-        if (!state.token) return;
+        if (!state.token) {
+          toast("Login as merchant first");
+          return;
+        }
+
         const [data, wallet] = await Promise.all([
           api(`/api/${state.country}/v1/merchant/dashboard`),
           api(`/api/${state.country}/v1/wallet`)
         ]);
+
         state.data = data;
         state.wallet = wallet;
         state.merchant = data.merchant;
+
         render(data);
+        addActivity("Merchant dashboard refreshed", "Profile, products, orders, wallet, and support tickets reloaded");
       }
+
       function render(data) {
-        const m = data.merchant;
+        const m = data.merchant || {};
+
         $("#merchantName").value = m.name || "";
         $("#merchantCategory").value = m.category || "";
         $("#managerName").value = m.manager_name || "";
@@ -248,16 +919,64 @@
         $("#addressNote").value = m.address_note || "";
         $("#prepTime").value = m.prep_time_minutes || 15;
         $("#deliveryRadius").value = m.delivery_radius_km || 3;
-        $("#profileMeta").textContent = `${m.verification_status} - ${m.status} - commission ${Math.round(Number(m.commission_rate || 0) * 100)}%`;
+
+        $("#profileMeta").innerHTML = `
+          ${statusBadge(m.verification_status || "pending")}
+          ${statusBadge(m.status || "pending")}
+          <span class="status-badge">COMMISSION ${Math.round(Number(m.commission_rate || 0) * 100)}%</span>
+        `;
+
+        const payout = data.payout || {};
         $("#metrics").innerHTML = [
-          ["Open orders", data.payout.open_orders],
-          ["Completed", data.payout.completed_orders],
-          ["Gross sales", money(data.payout.gross_sales, data.payout.currency)],
-          ["Payout pending", money(data.payout.payout_pending, data.payout.currency)]
-        ].map(([label, value]) => `<div class="metric"><strong>${value}</strong><span>${label}</span></div>`).join("");
-        $("#products").innerHTML = table(data.products, [
+          ["Open orders", payout.open_orders],
+          ["Completed", payout.completed_orders],
+          ["Gross sales", money(payout.gross_sales, payout.currency)],
+          ["Payout pending", money(payout.payout_pending, payout.currency)]
+        ].map(([label, value]) => `<div class="metric"><strong>${value ?? 0}</strong><span>${label}</span></div>`).join("");
+
+        renderOrderTabs(data.orders || []);
+        renderOrders(data.orders || []);
+        renderProducts(data.products || []);
+        renderWallet(data, m);
+        renderSupport(data.support_tickets || []);
+      }
+
+      function renderOrderTabs(orders) {
+        const statuses = ["all", "placed", "accepted", "preparing", "ready_for_pickup", "delivered", "rejected", "cancelled"];
+        $("#orderTabs").innerHTML = statuses.map((status) => {
+          const count = status === "all" ? orders.length : orders.filter(o => normalizeStatus(o.status) === status).length;
+          return `<button class="status-tab ${state.orderFilter === status ? "active" : ""}" data-filter="${status}">${formatStatus(status)} (${count})</button>`;
+        }).join("");
+
+        document.querySelectorAll("[data-filter]").forEach((button) => {
+          button.onclick = () => {
+            state.orderFilter = button.dataset.filter;
+            renderOrders(state.data?.orders || []);
+            renderOrderTabs(state.data?.orders || []);
+          };
+        });
+      }
+
+      function renderOrders(orders) {
+        const filtered = state.orderFilter === "all"
+          ? orders
+          : orders.filter(o => normalizeStatus(o.status) === state.orderFilter);
+
+        $("#orders").innerHTML = table(filtered, [
+          { label:"Order", render:o => esc(o.id || "").slice(0,8) },
+          { label:"Customer", render:o => `<strong>${esc(o.customer_name || "Customer")}</strong><br><small>${esc(o.customer_phone || "")}</small>` },
+          { label:"Status", render:o => statusBadge(o.status) },
+          { label:"Total", render:o => money(o.total, o.currency) },
+          { label:"Address", render:o => `${esc(o.address_note || "")}<br><small>${esc(o.delivery_address || "")}</small>` }
+        ], orderActions);
+
+        bindRows();
+      }
+
+      function renderProducts(products) {
+        $("#products").innerHTML = table(products, [
           { label:"Product editor", render:p => `
-            <div class="product-editor" data-product-row="${p.id}">
+            <div class="product-editor" data-product-row="${esc(p.id)}">
               <label>Name <input data-field="name" value="${esc(p.name)}" /></label>
               <label>Category <input data-field="category" value="${esc(p.category)}" /></label>
               <label>Description <input data-field="description" value="${esc(p.description || "")}" /></label>
@@ -267,83 +986,155 @@
               <label>Prep <input data-field="prep_time_minutes" type="number" value="${Number(p.prep_time_minutes || 15)}" /></label>
             </div>
           ` },
-          { label:"Available", render:p => p.available ? "Yes" : "No" },
-          { label:"Currency", key:"currency" }
-        ], p => `<button data-edit-product="${p.id}">Save edit</button><button class="secondary" data-toggle="${p.id}">${p.available ? "Disable" : "Enable"}</button><button class="danger" data-delete-product="${p.id}">Delete</button>`);
-        $("#orders").innerHTML = table(data.orders, [
-          { label:"Order", render:o => o.id.slice(0,8) },
-          { label:"Customer", key:"customer_name" },
-          { label:"Status", key:"status" },
-          { label:"Total", render:o => money(o.total, o.currency) },
-          { label:"Address", key:"address_note" }
-        ], orderActions);
+          { label:"Preview", render:p => `<img class="product-thumb" src="${esc(p.image_url || "https://images.unsplash.com/photo-1600891964599-f61ba0e24092?auto=format&fit=crop&w=300&q=80")}" alt="" />${money(p.price, p.currency)}` },
+          { label:"Available", render:p => p.available ? statusBadge("available") : statusBadge("disabled") }
+        ], p => `
+          <button data-edit-product="${esc(p.id)}">Save edit</button>
+          <button class="secondary" data-toggle="${esc(p.id)}">${p.available ? "Disable" : "Enable"}</button>
+          <button class="danger" data-delete-product="${esc(p.id)}">Delete</button>
+        `);
+      }
+
+      function renderWallet(data, m) {
         $("#payout").innerHTML = `
-          <p>Gross sales: ${money(data.payout.gross_sales, data.payout.currency)}</p>
-          <p>Commission due: ${money(data.payout.commission_due, data.payout.currency)}</p>
-          <p>Current wallet balance: ${money(state.wallet?.balance || 0, state.wallet?.currency || data.payout.currency)}</p>
-          <p>Pending payout: ${money(state.wallet?.pending_payout ?? data.payout.payout_pending, state.wallet?.currency || data.payout.currency)}</p>
-          <p>Completed payout: ${money(state.wallet?.completed_payout || 0, state.wallet?.currency || data.payout.currency)}</p>
-          <p>Open orders: ${data.payout.open_orders}</p>
-          <p>Completed orders: ${data.payout.completed_orders}</p>
-          <p>Payout schedule: ${m.payout_schedule || "weekly"}</p>
-          <p>Transactions: ${(state.wallet?.transactions || []).length}</p>
-          <p>Wallet ledger: loaded from backend; no real money moved in local demo.</p>
+          <div class="grid tight">
+            <div class="metric"><strong>${money(data.payout?.gross_sales, data.payout?.currency)}</strong><span>Gross sales</span></div>
+            <div class="metric"><strong>${money(data.payout?.commission_due, data.payout?.currency)}</strong><span>Commission due</span></div>
+            <div class="metric"><strong>${money(state.wallet?.balance || 0, state.wallet?.currency || data.payout?.currency)}</strong><span>Wallet balance</span></div>
+            <div class="metric"><strong>${money(state.wallet?.pending_payout ?? data.payout?.payout_pending, state.wallet?.currency || data.payout?.currency)}</strong><span>Pending payout</span></div>
+          </div>
+          <br />
+          <div class="card">
+            <p>Completed payout: ${money(state.wallet?.completed_payout || 0, state.wallet?.currency || data.payout?.currency)}</p>
+            <p>Open orders: ${data.payout?.open_orders || 0}</p>
+            <p>Completed orders: ${data.payout?.completed_orders || 0}</p>
+            <p>Payout schedule: ${esc(m.payout_schedule || "weekly")}</p>
+            <p>Transactions: ${(state.wallet?.transactions || []).length}</p>
+            <p>Wallet ledger is loaded from backend. No real money moved in local demo.</p>
+          </div>
         `;
-        $("#supportTickets").innerHTML = data.support_tickets.map(t => `<p>${t.subject} - ${t.status}</p>`).join("") || "<p>No support tickets yet.</p>";
-        bindRows();
       }
-      function orderActions(o) {
-        if (o.status === "placed") return `<button data-status="${o.id}|accepted">Accept</button><button class="warn" data-status="${o.id}|rejected">Reject</button>`;
-        if (o.status === "accepted") return `<button data-status="${o.id}|preparing">Start prep</button>`;
-        if (o.status === "preparing") return `<button data-status="${o.id}|ready_for_pickup">Food ready</button>`;
-        if (o.status === "ready_for_pickup") return `<button data-dispatch="${o.id}">Request driver</button>`;
-        return "";
+
+      function renderSupport(tickets) {
+        $("#supportTickets").innerHTML = tickets.length
+          ? tickets.map(t => `<div class="card"><strong>${esc(t.subject)}</strong><p>${statusBadge(t.status || "open")} ${esc(t.priority || "normal")}</p></div>`).join("")
+          : `<div class="empty"><div><strong>No support tickets yet</strong><span>Create a ticket when the store needs help.</span></div></div>`;
       }
+
+      function orderActions(order) {
+        const status = normalizeStatus(order.status);
+        if (status === "placed") return `<button data-status="${esc(order.id)}|accepted">Accept</button><button class="danger" data-status="${esc(order.id)}|rejected">Reject</button>`;
+        if (status === "accepted") return `<button data-status="${esc(order.id)}|preparing">Mark Preparing</button>`;
+        if (status === "preparing") return `<button data-status="${esc(order.id)}|ready_for_pickup">Mark Ready</button>`;
+        if (status === "ready_for_pickup") return `<button data-dispatch="${esc(order.id)}">Request Driver</button>`;
+        return `<button class="ghost" disabled>No action</button>`;
+      }
+
       function bindRows() {
-        document.querySelectorAll("[data-status]").forEach(btn => btn.onclick = () => runButtonAction(btn, "Update order status", async () => {
-          const [id, status] = btn.dataset.status.split("|");
-          await api(`/api/${state.country}/v1/orders/${id}/status`, { method:"PATCH", body: JSON.stringify({ status: status.toUpperCase() }) });
-          toast("Order updated");
-          await load();
-        }).catch(() => {}));
-        document.querySelectorAll("[data-dispatch]").forEach(btn => btn.onclick = () => runButtonAction(btn, "Request driver", async () => {
-          await api(`/api/${state.country}/v1/orders/${btn.dataset.dispatch}/request-driver`, { method:"POST", body:"{}" });
-          toast("Driver requested");
-          await load();
-        }).catch(() => {}));
-        document.querySelectorAll("[data-toggle]").forEach(btn => btn.onclick = () => runButtonAction(btn, "Toggle product availability", async () => {
-          const product = state.data.products.find(p => p.id === btn.dataset.toggle);
-          await api(`/api/${state.country}/v1/products/${product.id}`, { method:"PATCH", body: JSON.stringify({ available: !product.available }) });
-          await load();
-        }).catch(() => {}));
-        document.querySelectorAll("[data-edit-product]").forEach(btn => btn.onclick = () => runButtonAction(btn, "Edit product", async () => {
-          const row = document.querySelector(`[data-product-row="${btn.dataset.editProduct}"]`);
-          const body = {};
-          row.querySelectorAll("[data-field]").forEach((input) => {
-            body[input.dataset.field] = ["price", "stock_quantity", "prep_time_minutes"].includes(input.dataset.field) ? Number(input.value) : input.value;
-          });
-          await api(`/api/${state.country}/v1/products/${btn.dataset.editProduct}`, { method:"PATCH", body: JSON.stringify(body) });
-          await load();
-        }).catch(() => {}));
-        document.querySelectorAll("[data-delete-product]").forEach(btn => btn.onclick = () => runButtonAction(btn, "Delete product", async () => {
-          await api(`/api/${state.country}/v1/products/${btn.dataset.deleteProduct}`, { method:"DELETE" });
-          await load();
-        }).catch(() => {}));
+        document.querySelectorAll("[data-status]").forEach(btn => {
+          btn.onclick = () => runButtonAction(btn, "Update order status", async () => {
+            const [id, status] = btn.dataset.status.split("|");
+            await api(`/api/${state.country}/v1/orders/${id}/status`, {
+              method:"PATCH",
+              body: JSON.stringify({ status, reason: "merchant_portal_action" })
+            });
+            toast(`Order updated to ${formatStatus(status)}`);
+            await load();
+          }).catch(() => {});
+        });
+
+        document.querySelectorAll("[data-dispatch]").forEach(btn => {
+          btn.onclick = () => runButtonAction(btn, "Request driver", async () => {
+            await api(`/api/${state.country}/v1/orders/${btn.dataset.dispatch}/request-driver`, {
+              method:"POST",
+              body: JSON.stringify({ pickup_note: "Ready at merchant counter" })
+            });
+            toast("Driver requested");
+            await load();
+          }).catch(() => {});
+        });
+
+        document.querySelectorAll("[data-toggle]").forEach(btn => {
+          btn.onclick = () => runButtonAction(btn, "Toggle product availability", async () => {
+            const product = state.data.products.find(p => p.id === btn.dataset.toggle);
+            await api(`/api/${state.country}/v1/products/${product.id}`, {
+              method:"PATCH",
+              body: JSON.stringify({ available: !product.available })
+            });
+            await load();
+          }).catch(() => {});
+        });
+
+        document.querySelectorAll("[data-edit-product]").forEach(btn => {
+          btn.onclick = () => runButtonAction(btn, "Edit product", async () => {
+            const row = document.querySelector(`[data-product-row="${CSS.escape(btn.dataset.editProduct)}"]`);
+            const body = {};
+            row.querySelectorAll("[data-field]").forEach((input) => {
+              body[input.dataset.field] = ["price", "stock_quantity", "prep_time_minutes"].includes(input.dataset.field)
+                ? Number(input.value)
+                : input.value;
+            });
+            await api(`/api/${state.country}/v1/products/${btn.dataset.editProduct}`, {
+              method:"PATCH",
+              body: JSON.stringify(body)
+            });
+            await load();
+          }).catch(() => {});
+        });
+
+        document.querySelectorAll("[data-delete-product]").forEach(btn => {
+          btn.onclick = () => runButtonAction(btn, "Delete product", async () => {
+            await api(`/api/${state.country}/v1/products/${btn.dataset.deleteProduct}`, { method:"DELETE" });
+            await load();
+          }).catch(() => {});
+        });
       }
+
       $("#loginBtn").onclick = () => runButtonAction($("#loginBtn"), "Merchant demo login", login).catch(() => {});
       $("#manualLoginBtn").onclick = () => runButtonAction($("#manualLoginBtn"), "Merchant login", login).catch(() => {});
       $("#refreshBtn").onclick = () => runButtonAction($("#refreshBtn"), "Refresh merchant dashboard", load).catch(() => {});
+      $("#ordersRefreshBtn").onclick = () => runButtonAction($("#ordersRefreshBtn"), "Refresh orders", load).catch(() => {});
+      $("#logoutBtn").onclick = () => clearSession();
+      $("#signupScrollBtn").onclick = () => document.querySelector("#signupSection").scrollIntoView({ behavior:"smooth" });
+
       $("#saveProfileBtn").onclick = () => runButtonAction($("#saveProfileBtn"), "Save merchant profile", async () => {
-        const body = { name: $("#merchantName").value, category: $("#merchantCategory").value, manager_name: $("#managerName").value, contact_phone: $("#contactPhone").value, opening_hours: $("#openingHours").value, address_note: $("#addressNote").value, prep_time_minutes: Number($("#prepTime").value), delivery_radius_km: Number($("#deliveryRadius").value) };
-        await api(`/api/${state.country}/v1/merchants/${state.merchant.id}/profile`, { method:"PATCH", body: JSON.stringify(body) });
+        if (!state.merchant?.id) throw new Error("Merchant profile not loaded");
+        const body = {
+          name: $("#merchantName").value,
+          category: $("#merchantCategory").value,
+          manager_name: $("#managerName").value,
+          contact_phone: $("#contactPhone").value,
+          opening_hours: $("#openingHours").value,
+          address_note: $("#addressNote").value,
+          prep_time_minutes: Number($("#prepTime").value),
+          delivery_radius_km: Number($("#deliveryRadius").value)
+        };
+        await api(`/api/${state.country}/v1/merchants/${state.merchant.id}/profile`, {
+          method:"PATCH",
+          body: JSON.stringify(body)
+        });
         toast("Profile saved");
         await load();
       }).catch(() => {});
+
       $("#addProductBtn").onclick = () => runButtonAction($("#addProductBtn"), "Add product", async () => {
-        await api(`/api/${state.country}/v1/merchants/${state.merchant.id}/products`, { method:"POST", body: JSON.stringify({ name: $("#newProductName").value, category: $("#newProductCategory").value, description: $("#newProductDescription").value, image_url: $("#newProductImage").value, price: Number($("#newProductPrice").value), stock_quantity: Number($("#newProductStock").value), prep_time_minutes: Number($("#newProductPrep").value) }) });
+        if (!state.merchant?.id) throw new Error("Merchant profile not loaded");
+        await api(`/api/${state.country}/v1/merchants/${state.merchant.id}/products`, {
+          method:"POST",
+          body: JSON.stringify({
+            name: $("#newProductName").value,
+            category: $("#newProductCategory").value,
+            description: $("#newProductDescription").value,
+            image_url: $("#newProductImage").value,
+            price: Number($("#newProductPrice").value),
+            stock_quantity: Number($("#newProductStock").value),
+            prep_time_minutes: Number($("#newProductPrep").value)
+          })
+        });
         toast("Product added");
         await load();
       }).catch(() => {});
+
       $("#signupBtn").onclick = () => runButtonAction($("#signupBtn"), "Merchant signup", async () => {
         const payload = {
           name: $("#signupName").value,
@@ -358,20 +1149,25 @@
           merchant_phone: $("#signupMerchantPhone").value,
           merchant_address: $("#signupAddress").value
         };
-        const data = await api(`/api/${state.country}/v1/auth/signup`, { method:"POST", body: JSON.stringify(payload) });
-        state.token = data.token;
-        state.user = data.user;
-        localStorage.setItem("hg_merchant_token", state.token);
-        localStorage.setItem("hg_merchant_user", JSON.stringify(state.user));
-        $("#session").textContent = `${data.user.name} (${data.user.role})`;
+        const data = await api(`/api/${state.country}/v1/auth/signup`, {
+          method:"POST",
+          body: JSON.stringify(payload)
+        });
+        setSession(data.token, data.user);
         await load();
       }).catch(() => {});
+
       $("#supportBtn").onclick = () => runButtonAction($("#supportBtn"), "Create support ticket", async () => {
-        await api(`/api/${state.country}/v1/support/tickets`, { method:"POST", body: JSON.stringify({ subject: $("#supportSubject").value, priority:"normal" }) });
+        await api(`/api/${state.country}/v1/support/tickets`, {
+          method:"POST",
+          body: JSON.stringify({ subject: $("#supportSubject").value, priority:"normal" })
+        });
         toast("Support ticket created");
         await load();
       }).catch(() => {});
-      if (state.user) $("#session").textContent = `${state.user.name} (${state.user.role})`;
+
+      renderSession();
+      renderActivity();
       if (state.token) restoreSession().then(() => load()).catch(e => toast(e.message));
     </script>
   </body>
