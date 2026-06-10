@@ -176,8 +176,8 @@ async function refreshAll() {
   }
 
   const results = await Promise.allSettled([
-    api("/drivers/requests"),
-    api("/orders"),
+    api("/drivers/available-requests"),
+    api("/drivers/me/orders"),
     api("/wallet"),
     api("/profile/details")
   ]);
@@ -331,13 +331,12 @@ function clearMap() {
 }
 
 function safeMarker(item, label, color = "green") {
-  const lat = Number(item?.latitude ?? item?.lat);
-  const lng = Number(item?.longitude ?? item?.lng);
-  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+  const point = getLatLng(item);
+  if (!point) {
     console.warn("Skipping invalid coordinates", item);
     return null;
   }
-  const marker = L.circleMarker([lat, lng], {
+  const marker = L.circleMarker([point.lat, point.lng], {
     radius: 9,
     color,
     fillColor: color,
@@ -348,6 +347,13 @@ function safeMarker(item, label, color = "green") {
   return marker;
 }
 
+function getLatLng(item) {
+  const lat = Number(item?.latitude ?? item?.lat);
+  const lng = Number(item?.longitude ?? item?.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  return { lat, lng };
+}
+
 function renderMap() {
   initMap();
   if (!state.map) return;
@@ -355,24 +361,22 @@ function renderMap() {
 
   const defaultDriver = { latitude: 8.9925, longitude: 38.7852 };
   const driver = state.activeOrder?.driver_location || defaultDriver;
-  const merchant = {
+  const merchant = state.activeOrder?.merchant_location || {
     latitude: state.activeOrder?.merchant_latitude ?? 8.994,
     longitude: state.activeOrder?.merchant_longitude ?? 38.789
   };
-  const customer = {
+  const customer = state.activeOrder?.customer_location || state.activeOrder?.map_quote?.destination || {
     latitude: state.activeOrder?.destination?.lat ?? state.activeOrder?.destination_latitude ?? 8.997,
     longitude: state.activeOrder?.destination?.lng ?? state.activeOrder?.destination_longitude ?? 38.786
   };
 
+  console.log("Driver:", driver);
+  console.log("Merchant:", merchant);
   safeMarker(driver, "Driver", "#2563eb");
   safeMarker(merchant, "Pickup merchant", "#f59e0b");
   safeMarker(customer, "Customer drop-off", "#0b7a3b");
 
-  const points = [
-    [Number(driver.latitude), Number(driver.longitude)],
-    [Number(merchant.latitude), Number(merchant.longitude)],
-    [Number(customer.latitude), Number(customer.longitude)]
-  ].filter(([lat, lng]) => Number.isFinite(lat) && Number.isFinite(lng));
+  const points = [driver, merchant, customer].map(getLatLng).filter(Boolean).map((point) => [point.lat, point.lng]);
 
   if (points.length >= 2) {
     const line = L.polyline(points, { color: "#2563eb", weight: 5, opacity: .75 }).addTo(state.map);
@@ -382,7 +386,7 @@ function renderMap() {
 }
 
 async function acceptRequest(requestId) {
-  await api(`/drivers/requests/${requestId}/accept`, { method: "POST", body: "{}" });
+  await api("/drivers/accept-request", { method: "POST", body: JSON.stringify({ request_id: requestId }) });
   addActivity(`Accepted request ${String(requestId).slice(0, 8)}`);
   await refreshAll();
 }

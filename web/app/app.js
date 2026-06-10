@@ -74,7 +74,10 @@ function showActionStatus({ title, message, type = "", response = state.lastApi 
     <strong>${title}</strong>
     <div>${message}</div>
     <div>Backend response status: ${response?.status ?? "No backend request yet"}</div>
-    <pre>Backend response body: ${JSON.stringify(response?.body ?? {}, null, 2)}</pre>
+    <details>
+      <summary>Debug response</summary>
+      <pre>Backend response body: ${JSON.stringify(response?.body ?? {}, null, 2)}</pre>
+    </details>
   `;
 }
 
@@ -190,9 +193,38 @@ async function loadCatalog() {
 }
 
 function hasCoords(item) {
+  const point = getLatLng(item);
+  return Boolean(point);
+}
+
+function getLatLng(item) {
   const lat = Number(item?.latitude ?? item?.lat);
   const lng = Number(item?.longitude ?? item?.lng);
-  return Number.isFinite(lat) && Number.isFinite(lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  return { lat, lng };
+}
+
+function selectedMerchantOrThrow() {
+  const merchant = state.selectedMerchant || state.merchants.find((item) => item?.id) || null;
+  console.log("Selected merchant:", merchant);
+  if (!merchant || !merchant.id) {
+    throw new Error("Please choose a restaurant.");
+  }
+  return merchant;
+}
+
+function cartItemsOrThrow() {
+  if (!state.cart.length) {
+    throw new Error("Please select a restaurant and add items to cart before placing an order.");
+  }
+  const items = state.cart.map((item) => ({
+    product_id: item.product_id || item.id,
+    quantity: Number(item.quantity || 1)
+  }));
+  if (items.some((item) => !item.product_id || !Number.isFinite(item.quantity) || item.quantity < 1)) {
+    throw new Error("Please select a restaurant and add items to cart before placing an order.");
+  }
+  return items;
 }
 
 function merchantImage(index) {
@@ -268,6 +300,8 @@ function renderProducts() {
 
 async function addToCart(productId) {
   if (!state.user) throw new Error("Please login as customer first.");
+  selectedMerchantOrThrow();
+  if (!productId) throw new Error("Please choose a menu item.");
   await api("/cart/items", { method: "POST", body: JSON.stringify({ product_id: productId, quantity: 1 }) });
   addActivity("Item added to cart");
   await loadCart();
@@ -316,16 +350,25 @@ function renderCart() {
 
 async function placeOrder() {
   if (!state.user) throw new Error("Login as customer first.");
-  if (!state.cart.length) throw new Error("Cart is empty. Add items before checkout.");
-
+  const merchant = selectedMerchantOrThrow();
+  const items = cartItemsOrThrow();
+  const deliveryAddress = $("#addressNote").value.trim();
   const paymentMethod = $("#paymentMethod").value;
+  if (!deliveryAddress || !paymentMethod) {
+    throw new Error("Please enter a delivery address and payment method.");
+  }
   const data = await api("/orders", {
     method: "POST",
     body: JSON.stringify({
+      merchant_id: merchant.id,
+      items,
+      delivery_address: deliveryAddress,
+      landmark_note: deliveryAddress,
       payment_method: paymentMethod,
       promo_code: $("#promoCode").value.trim(),
       address_label: "Home - Bole",
-      address_note: $("#addressNote").value,
+      address_note: deliveryAddress,
+      customer_note: "Customer placed order from HabeshaGo customer app",
       safety_mode: "standard",
       community_delivery: false,
       destination: selectedLocation()
@@ -338,7 +381,10 @@ async function placeOrder() {
 
   addActivity(`Order ${data.order.id.slice(0, 8)} placed`);
   toast(`Order placed: ${data.order.id.slice(0, 8)}`);
+  state.cart = [];
+  $("#cartDrawer").hidden = true;
   await refreshAll();
+  document.querySelector("#ordersPanel").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 async function loadOrders() {
@@ -409,13 +455,12 @@ function clearMap() {
 }
 
 function safeMarker(item, label, color = "#0b7a3b") {
-  const lat = Number(item?.latitude ?? item?.lat);
-  const lng = Number(item?.longitude ?? item?.lng);
-  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+  const point = getLatLng(item);
+  if (!point) {
     console.warn("Skipping invalid coordinates", item);
     return null;
   }
-  const marker = L.circleMarker([lat, lng], {
+  const marker = L.circleMarker([point.lat, point.lng], {
     radius: 9,
     color,
     fillColor: color,
@@ -442,11 +487,17 @@ function renderMap() {
   const loc = selectedLocation();
   safeMarker({ latitude: loc.lat, longitude: loc.lng }, "You / delivery location", "#0b7a3b");
 
-  (state.merchants || []).forEach((merchant) => safeMarker(merchant, merchant.name, "#f59e0b"));
-  (state.nearby?.drivers || []).forEach((driver) => safeMarker(driver, `Driver ${driver.vehicle_plate || driver.id}`, "#2563eb"));
+  (state.merchants || []).forEach((merchant) => {
+    console.log("Merchant:", merchant);
+    safeMarker(merchant, merchant.name, "#f59e0b");
+  });
+  (state.nearby?.drivers || []).forEach((driver) => {
+    console.log("Driver:", driver);
+    safeMarker(driver, `Driver ${driver.vehicle_plate || driver.id}`, "#2563eb");
+  });
 
   const points = [{ latitude: loc.lat, longitude: loc.lng }, ...(state.merchants || []).filter(hasCoords), ...(state.nearby?.drivers || []).filter(hasCoords)];
-  const latlngs = points.map((p) => [Number(p.latitude), Number(p.longitude)]).filter(([lat, lng]) => Number.isFinite(lat) && Number.isFinite(lng));
+  const latlngs = points.map(getLatLng).filter(Boolean).map((point) => [point.lat, point.lng]);
   if (latlngs.length > 1) {
     const bounds = L.latLngBounds(latlngs);
     state.map.fitBounds(bounds, { padding: [30, 30], maxZoom: 15 });

@@ -64,16 +64,19 @@ async function main() {
     const response = await fetch(`${baseUrl}/app`);
     const html = await response.text();
     assert(response.ok, "Customer app did not load");
+    assert(html.includes("HabeshaGo Customer App"), "Polished customer app title is missing");
+    assert(html.includes("cartDrawer"), "Customer cart drawer is missing");
+    assert(html.includes("merchantGrid"), "Customer merchant grid is missing");
+    assert(html.includes("leafletMap"), "Customer map is missing");
     assert(html.includes("paymentMethod"), "Customer checkout payment method is missing");
-    assert(html.includes("savedAddressLabel"), "Customer saved address checkout field is missing");
     assert(html.includes('name="robots" content="noindex, nofollow"'), "Customer app should be noindex");
     assert(html.includes("Run Live End-To-End Demo"), "Live end-to-end demo button label is missing");
-    assert(html.includes("liveFlowSnapshot"), "Live flow snapshot panel is missing");
     const appJs = await fetch(`${baseUrl}/app.js`);
     const js = await appJs.text();
     assert(js.includes("habeshago_token") && js.includes("habeshago_user"), "Customer app must use standard session storage keys");
-    assert(js.includes("refreshCustomerDashboard") && js.includes("refreshMerchantDashboard") && js.includes("refreshAdminDashboard") && js.includes("refreshDriverDashboard"), "Role-specific refresh functions are missing");
-    assert(js.includes("apiRequest") && js.includes("Method:"), "Shared API helper logging is missing");
+    assert(js.includes("selectedMerchantOrThrow") && js.includes("Please choose a restaurant."), "Customer selected merchant validation is missing");
+    assert(js.includes("api(\"/orders\"") && !js.includes("api(\"/production-checklist\""), "Place order must use /orders, not production-checklist");
+    assert(js.includes("getLatLng") && js.includes("Skipping invalid coordinates") && js.includes("console.log(\"Merchant:\"") && js.includes("console.log(\"Driver:\""), "Map coordinate guard/debugging is missing");
   });
 
   await step("SEO pages, sitemap, robots, and PWA files work", async () => {
@@ -525,12 +528,15 @@ async function main() {
       });
       assert(update.response.ok && update.data.order.status === status, `Merchant status ${status} failed`);
     }
-    const dispatch = await request(`/api/ET/v1/orders/${flowOrderId}/request-driver`, {
+    const driverQueueLogin = await request("/api/ET/v1/auth/login", {
       method: "POST",
-      headers: { Authorization: `Bearer ${merchantToken}` },
-      body: "{}"
+      body: JSON.stringify({ email: "driver@habeshago.local", password: "Driver123!" })
     });
-    assert(dispatch.response.status === 201, "Merchant driver request failed");
+    assert(driverQueueLogin.response.ok, "Driver queue login failed");
+    const available = await request("/api/ET/v1/drivers/available-requests", {
+      headers: { Authorization: `Bearer ${driverQueueLogin.data.token}` }
+    });
+    assert((available.data.requests || []).some((request) => request.order_id === flowOrderId), "Ready order did not create available driver request");
   });
 
   await step("merchant can reject an incoming order", async () => {
@@ -561,17 +567,21 @@ async function main() {
     });
     assert(login.response.ok, "Driver login failed");
     driverToken = login.data.token;
-    const requests = await request("/api/ET/v1/drivers/requests", {
+    const requests = await request("/api/ET/v1/drivers/available-requests", {
       headers: { Authorization: `Bearer ${driverToken}` }
     });
     const requestForOrder = (requests.data.requests || []).find((item) => item.order_id === flowOrderId);
     assert(requestForOrder, "Driver request for smoke order not found");
-    const accept = await request(`/api/ET/v1/drivers/requests/${requestForOrder.id}/accept`, {
+    const accept = await request("/api/ET/v1/drivers/accept-request", {
       method: "POST",
       headers: { Authorization: `Bearer ${driverToken}` },
-      body: "{}"
+      body: JSON.stringify({ request_id: requestForOrder.id })
     });
     assert(accept.response.ok && accept.data.order.status === "driver_accepted", "Driver accept failed");
+    const activeOrders = await request("/api/ET/v1/drivers/me/orders", {
+      headers: { Authorization: `Bearer ${driverToken}` }
+    });
+    assert((activeOrders.data.orders || []).some((order) => order.id === flowOrderId && order.status === "driver_accepted"), "Accepted request did not move to active driver orders");
     for (const status of ["picked_up", "on_the_way", "delivered"]) {
       const update = await request(`/api/ET/v1/orders/${flowOrderId}/status`, {
         method: "PATCH",

@@ -844,6 +844,35 @@ function merchantSummary(merchant, countryId) {
   };
 }
 
+function createDriverRequestForOrder(order, actor, pickupNote = "Ready at merchant counter") {
+  const merchant = store.merchants.find((item) => item.id === order.merchant_id);
+  let request = store.dispatch_requests.find((item) => item.order_id === order.id && ["requested", "offered"].includes(item.status));
+  if (!request) {
+    request = {
+      id: randomUUID(),
+      country_id: order.country_id,
+      city_id: order.city_id,
+      currency: order.currency,
+      language: order.language,
+      timezone: order.timezone,
+      order_id: order.id,
+      merchant_id: order.merchant_id,
+      driver_id: null,
+      status: "requested",
+      pickup_note: pickupNote,
+      pickup_address: merchant ? merchant.address_note : "Merchant pickup",
+      delivery_address: order.address_note || "Customer delivery address",
+      delivery_fee: order.delivery_fee,
+      eta_minutes: order.map_quote ? order.map_quote.eta_minutes : 20,
+      created_at: new Date().toISOString()
+    };
+    store.dispatch_requests.push(request);
+    audit(actor, "dispatch.request_created", "dispatch_request", request.id, { order_id: order.id });
+  }
+  broadcast("dispatch.requested", { request_id: request.id, order_id: order.id, eta_minutes: request.eta_minutes });
+  return request;
+}
+
 function logSms({ to, template, body, country_id, user_id, order_id }) {
   const message = {
     id: randomUUID(),
@@ -891,6 +920,7 @@ function transitionOrder(order, nextStatus, actor, reason) {
   audit(actor, "order.status_changed", "order", order.id, { status: nextStatus, reason });
   broadcast("order.updated", { order_id: order.id, status: nextStatus, actor_role: actor.role });
   if (nextStatus === "ready_for_pickup") {
+    createDriverRequestForOrder(order, actor, "Auto-created when merchant marked order ready");
     notifyUser({
       user_id: order.customer_user_id,
       country_id: order.country_id,
@@ -2161,28 +2191,8 @@ async function handleApi(req, res, url) {
     const order = store.orders.find((item) => item.id === requestDriverMatch[1] && item.country_id === countryId);
     if (!order) return sendError(res, 404, "Order not found");
     if (!["ready_for_pickup", "driver_requested"].includes(order.status)) return sendError(res, 409, "Order must be ready for pickup before requesting a driver");
-    let request = store.dispatch_requests.find((item) => item.order_id === order.id && ["requested", "offered"].includes(item.status));
-    if (!request) {
-      request = {
-        id: randomUUID(),
-        country_id: countryId,
-        city_id: order.city_id,
-        currency: order.currency,
-        language: order.language,
-        timezone: order.timezone,
-        order_id: order.id,
-        merchant_id: order.merchant_id,
-        driver_id: null,
-        status: "requested",
-        pickup_note: body.pickup_note || "Ready at merchant counter",
-        delivery_fee: order.delivery_fee,
-        eta_minutes: order.map_quote ? order.map_quote.eta_minutes : 20,
-        created_at: new Date().toISOString()
-      };
-      store.dispatch_requests.push(request);
-    }
+    const request = createDriverRequestForOrder(order, user, body.pickup_note || "Ready at merchant counter");
     transitionOrder(order, "driver_requested", user, "driver_requested");
-    broadcast("dispatch.requested", { request_id: request.id, order_id: order.id, eta_minutes: request.eta_minutes });
     saveStore();
     return send(res, 201, { request, order });
   }
@@ -2240,18 +2250,42 @@ async function handleApi(req, res, url) {
     return send(res, 200, { drivers });
   }
 
-  if (req.method === "GET" && url.pathname.endsWith("/drivers/requests")) {
+  if (req.method === "GET" && (url.pathname.endsWith("/drivers/requests") || url.pathname.endsWith("/drivers/available-requests"))) {
     const user = requireUser(req, res, ["driver", "admin"]);
     if (!user) return;
     return send(res, 200, { requests: store.dispatch_requests.filter((request) => request.country_id === countryId && ["requested", "offered"].includes(request.status)) });
   }
 
-  const acceptDispatchMatch = url.pathname.match(/^\/api\/[^/]+\/v1\/drivers\/requests\/([^/]+)\/accept$/);
-  if (req.method === "POST" && acceptDispatchMatch) {
+  if (req.method === "GET" && url.pathname.endsWith("/drivers/me/orders")) {
     const user = requireUser(req, res, ["driver", "admin"]);
     if (!user) return;
     const driver = store.drivers.find((item) => item.user_id === user.id || user.role === "admin");
-    const request = store.dispatch_requests.find((item) => item.id === acceptDispatchMatch[1] && item.country_id === countryId);
+    const orders = store.orders.filter((order) => order.country_id === countryId && driver && order.driver_id === driver.id);
+    return send(res, 200, { orders: orders.map(enrichOrder) });
+  }
+
+  if (req.method === "PATCH" && (url.pathname.endsWith("/drivers/me/status") || url.pathname.endsWith("/drivers/status"))) {
+    const user = requireUser(req, res, ["driver", "admin"]);
+    if (!user) return;
+    const body = await readBody(req);
+    const driver = store.drivers.find((item) => item.user_id === user.id || (user.role === "admin" && item.id === body.driver_id));
+    if (!driver) return sendError(res, 404, "Driver profile not found");
+    driver.online = Boolean(body.online);
+    driver.frozen = Boolean(body.frozen ?? driver.frozen);
+    driver.location_updated_at = new Date().toISOString();
+    audit(user, "driver.status_updated", "driver", driver.id, { online: driver.online });
+    saveStore();
+    return send(res, 200, { driver });
+  }
+
+  const acceptDispatchMatch = url.pathname.match(/^\/api\/[^/]+\/v1\/drivers\/requests\/([^/]+)\/accept$/);
+  if (req.method === "POST" && (acceptDispatchMatch || url.pathname.endsWith("/drivers/accept-request"))) {
+    const user = requireUser(req, res, ["driver", "admin"]);
+    if (!user) return;
+    const body = acceptDispatchMatch ? {} : await readBody(req);
+    const requestId = acceptDispatchMatch ? acceptDispatchMatch[1] : body.request_id;
+    const driver = store.drivers.find((item) => item.user_id === user.id || user.role === "admin");
+    const request = store.dispatch_requests.find((item) => item.id === requestId && item.country_id === countryId);
     if (!driver || !request) return sendError(res, 404, "Driver request not found");
     if (!["requested", "offered"].includes(request.status)) return sendError(res, 409, "Driver request is no longer available");
     const order = store.orders.find((item) => item.id === request.order_id);
