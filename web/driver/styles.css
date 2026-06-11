@@ -316,6 +316,31 @@ nav { display: grid; gap: 8px; align-content: start; }
 .timeline-item.active { color: var(--primary-dark); }
 .timeline-item.active .timeline-dot { background: var(--primary); border-color: #bce8cc; }
 
+.profile-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.profile-grid div {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: #fbfcfd;
+}
+
+.profile-grid span {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.profile-grid strong { overflow-wrap: anywhere; }
+
 .table-card { padding: 16px; overflow-x: auto; }
 
 table {
@@ -407,7 +432,7 @@ th {
 @media (max-width: 980px) {
   body { grid-template-columns: 1fr; padding-bottom: 78px; }
   .sidebar { position: static; min-height: auto; }
-  .auth-panel, .auth-grid, .grid-two, .trip-layout, .metric-grid { grid-template-columns: 1fr; }
+  .auth-panel, .auth-grid, .grid-two, .trip-layout, .metric-grid, .profile-grid { grid-template-columns: 1fr; }
   .app-shell { padding: 16px; }
   .hero-card { flex-direction: column; align-items: stretch; }
   .online-card { width: 100%; }

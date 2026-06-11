@@ -204,8 +204,10 @@ function renderEmpty() {
   $("#requestsList").innerHTML = "<div class='request-card'>Login as driver to view requests.</div>";
   $("#requestsTable").innerHTML = "<div class='request-card'>Login as driver to view requests.</div>";
   $("#activeTrip").innerHTML = "<div class='request-card'>No active trip.</div>";
+  $("#earningsPanel").innerHTML = "";
   $("#walletPanel").innerHTML = "";
   $("#historyTable").innerHTML = "";
+  $("#profilePanel").innerHTML = "";
 }
 
 function render() {
@@ -226,8 +228,10 @@ function render() {
 
   renderRequests();
   renderTrip();
+  renderEarnings();
   renderWallet();
   renderHistory();
+  renderProfile();
   renderMap();
 }
 
@@ -298,6 +302,26 @@ function driverActionButtons(order) {
   return "";
 }
 
+function renderEarnings() {
+  const driver = state.profile?.driver || {};
+  const delivered = state.orders.filter((o) => String(o.status).toLowerCase() === "delivered");
+  const active = state.orders.filter((o) => !["delivered", "cancelled", "rejected"].includes(String(o.status).toLowerCase()));
+  const tx = state.wallet?.transactions || state.wallet?.wallet?.transactions || [];
+  const deliveryEarnings = Number(driver.earnings || 0) || delivered.length * 45;
+  const cashCollected = Number(driver.cash_collected || 0);
+  $("#earningsPanel").innerHTML = `
+    <article class="card"><h3>Today</h3><div class="metric"><strong>${money(deliveryEarnings)}</strong><span>Estimated delivery earnings</span></div></article>
+    <article class="card"><h3>Trip Summary</h3>
+      <div class="profile-grid">
+        <div><span>Active trips</span><strong>${active.length}</strong></div>
+        <div><span>Delivered</span><strong>${delivered.length}</strong></div>
+        <div><span>Cash collected</span><strong>${money(cashCollected)}</strong></div>
+        <div><span>Ledger entries</span><strong>${tx.length}</strong></div>
+      </div>
+    </article>
+  `;
+}
+
 function renderWallet() {
   const tx = state.wallet?.transactions || state.wallet?.wallet?.transactions || [];
   const balance = state.wallet?.balance ?? state.wallet?.wallet?.balance ?? 0;
@@ -315,6 +339,31 @@ function renderHistory() {
     { label: "Total", render: (o) => money(o.total, o.currency) },
     { label: "Address", key: "address_note" }
   ]);
+}
+
+function renderProfile() {
+  const user = state.profile?.user || state.user || {};
+  const driver = state.profile?.driver || {};
+  $("#profilePanel").innerHTML = `
+    <article class="card"><h3>Account</h3>
+      <div class="profile-grid">
+        <div><span>Name</span><strong>${user.name || "Driver"}</strong></div>
+        <div><span>Email</span><strong>${user.email || ""}</strong></div>
+        <div><span>Phone</span><strong>${user.phone || ""}</strong></div>
+        <div><span>Role</span><strong>${user.role || "driver"}</strong></div>
+      </div>
+    </article>
+    <article class="card"><h3>Vehicle & Safety</h3>
+      <div class="profile-grid">
+        <div><span>Vehicle</span><strong>${driver.vehicle_type || "motorbike"}</strong></div>
+        <div><span>Plate</span><strong>${driver.vehicle_plate || "Not set"}</strong></div>
+        <div><span>License</span><strong>${driver.license_number || "Not set"}</strong></div>
+        <div><span>Zone</span><strong>${driver.assigned_zone || "Bole"}</strong></div>
+        <div><span>Verification</span><strong>${driver.verification_status || "pending"}</strong></div>
+        <div><span>Safety score</span><strong>${driver.safety_score || 95}</strong></div>
+      </div>
+    </article>
+  `;
 }
 
 function initMap() {
@@ -495,6 +544,8 @@ function simulateMovement() {
 }
 
 function switchSection(section) {
+  if (!section) return;
+  if (history.replaceState) history.replaceState(null, "", `#${section}`);
   document.querySelectorAll(".nav-link").forEach((link) => link.classList.toggle("active", link.dataset.section === section));
   document.querySelectorAll(".bottom-link").forEach((link) => link.classList.toggle("active", link.dataset.section === section));
   document.querySelectorAll(".section").forEach((panel) => panel.classList.toggle("active", panel.dataset.view === section));
@@ -535,6 +586,7 @@ document.querySelectorAll("[data-refresh-all]").forEach((button) => {
 
 renderSession();
 renderEmpty();
+switchSection((location.hash || "#dashboard").replace("#", ""));
 restoreSession().then(() => refreshAll()).catch(() => {});
 setTimeout(() => {
   initMap();

@@ -91,13 +91,17 @@ async function main() {
     assert(response.ok, "Driver portal did not load");
     assert(html.includes("HabeshaGo Driver Portal"), "Driver portal title is missing");
     assert(html.includes("Available Delivery Requests"), "Driver available requests view is missing");
-    assert(html.includes("Earnings & Wallet"), "Driver earnings/wallet view is missing");
+    assert(html.includes("Driver Earnings") && html.includes("Wallet Ledger"), "Driver earnings/wallet views are missing");
     assert(html.includes("bottom-nav"), "Driver mobile bottom navigation is missing");
+    assert(html.includes('data-view="earnings"') && html.includes('data-view="wallet"') && html.includes('data-view="profile"'), "Driver earnings/wallet/profile sections are missing");
+    assert(html.includes('data-section="requests"') && html.includes('data-section="earnings"') && html.includes('data-section="wallet"') && html.includes('data-section="profile"'), "Driver navigation buttons are missing");
     assert(html.includes('/driver/driver.js') && html.includes('/driver/styles.css'), "Driver portal must use routed driver assets");
     const driverJs = await fetch(`${baseUrl}/driver/driver.js`);
     const driverScript = await driverJs.text();
     assert(driverJs.ok, "Driver portal JavaScript did not load");
     assert(driverScript.includes("loginBtn") && driverScript.includes("acceptRequest"), "Driver button handlers are missing");
+    assert(driverScript.includes("renderEarnings") && driverScript.includes("renderWallet") && driverScript.includes("renderProfile"), "Driver earnings, wallet, or profile renderers are missing");
+    assert(driverScript.includes("switchSection((location.hash"), "Driver hash navigation is missing");
     assert(driverScript.includes('api("/drivers/location", {') && driverScript.includes('method: "POST"'), "Driver movement must call POST /drivers/location");
   });
 

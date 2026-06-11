@@ -22,7 +22,9 @@
         <a href="#requests" class="nav-link" data-section="requests">Requests</a>
         <a href="#trip" class="nav-link" data-section="trip">Active Trip</a>
         <a href="#earnings" class="nav-link" data-section="earnings">Earnings</a>
+        <a href="#wallet" class="nav-link" data-section="wallet">Wallet</a>
         <a href="#history" class="nav-link" data-section="history">History</a>
+        <a href="#profile" class="nav-link" data-section="profile">Profile</a>
       </nav>
       <div class="sidebar-footer">
         <a href="../app/index.html">Customer</a>
@@ -122,8 +124,19 @@
       <section class="section" data-view="earnings">
         <div class="section-head">
           <div>
+            <p class="eyebrow">Earnings</p>
+            <h2>Driver Earnings</h2>
+          </div>
+          <button data-refresh-all class="secondary">Refresh Earnings</button>
+        </div>
+        <div id="earningsPanel" class="grid-two"></div>
+      </section>
+
+      <section class="section" data-view="wallet">
+        <div class="section-head">
+          <div>
             <p class="eyebrow">Wallet</p>
-            <h2>Earnings & Wallet</h2>
+            <h2>Wallet Ledger</h2>
           </div>
           <button data-refresh-all class="secondary">Refresh Wallet</button>
         </div>
@@ -140,6 +153,17 @@
         </div>
         <div id="historyTable" class="table-card"></div>
       </section>
+
+      <section class="section" data-view="profile">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Profile</p>
+            <h2>Driver Profile</h2>
+          </div>
+          <button data-refresh-all class="secondary">Refresh Profile</button>
+        </div>
+        <div id="profilePanel" class="grid-two"></div>
+      </section>
     </main>
 
     <div id="toast"></div>
@@ -148,8 +172,8 @@
       <a href="#dashboard" class="bottom-link" data-section="dashboard">Home</a>
       <a href="#earnings" class="bottom-link" data-section="earnings">Earnings</a>
       <a href="#requests" class="bottom-link" data-section="requests">Orders</a>
-      <a href="#earnings" class="bottom-link" data-section="earnings">Wallet</a>
-      <a href="#history" class="bottom-link" data-section="history">Profile</a>
+      <a href="#wallet" class="bottom-link" data-section="wallet">Wallet</a>
+      <a href="#profile" class="bottom-link" data-section="profile">Profile</a>
     </nav>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="/driver/driver.js"></script>
