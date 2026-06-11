@@ -145,6 +145,8 @@ async function main() {
     const admin = await fetch(`${baseUrl}/admin`);
     const adminHtml = await admin.text();
     assert(adminHtml.includes('name="robots" content="noindex, nofollow"'), "Admin portal should be noindex");
+    assert(adminHtml.includes("Driver signup") && adminHtml.includes("merchantDetails") && adminHtml.includes("driverDetails"), "Admin portal missing driver signup link or detail sections");
+    assert(adminHtml.includes("allowStatuses: [409]") && adminHtml.includes("Production gate is blocked"), "Admin portal must treat launch-gate 409 as a non-blocking warning");
   });
 
   await step("health endpoint is ok", async () => {
