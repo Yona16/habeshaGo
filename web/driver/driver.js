@@ -144,6 +144,47 @@ async function login() {
   await refreshAll();
 }
 
+async function signupDriver() {
+  const timestamp = Date.now();
+  const demoEmail = "new-driver.demo@habeshago.local";
+  const demoPhone = "+251922123456";
+  const emailInput = $("#driverSignupEmail").value.trim().toLowerCase();
+  const phoneInput = $("#driverSignupPhone").value.trim();
+  const payload = {
+    name: $("#driverSignupName").value.trim(),
+    email: emailInput === demoEmail ? `new-driver.${timestamp}@habeshago.local` : emailInput,
+    phone: phoneInput === demoPhone ? `+2519${String(timestamp).slice(-8)}` : phoneInput,
+    password: $("#driverSignupPassword").value,
+    role: "driver",
+    city_id: $("#driverSignupCity").value.trim() || "addis-ababa",
+    vehicle_type: $("#driverVehicleType").value,
+    vehicle_plate: $("#driverVehiclePlate").value.trim(),
+    license_number: $("#driverLicenseNumber").value.trim(),
+    assigned_zone: $("#driverAssignedZone").value,
+    latitude: Number($("#driverLatitude").value || 8.993),
+    longitude: Number($("#driverLongitude").value || 38.788),
+    emergency_contact_name: $("#driverEmergencyName").value.trim(),
+    emergency_contact_phone: $("#driverEmergencyPhone").value.trim()
+  };
+
+  if (!payload.name || !payload.email || !payload.phone || !payload.password || !payload.vehicle_plate || !payload.license_number) {
+    throw new Error("Please complete driver name, email, phone, password, vehicle plate, and license number.");
+  }
+
+  const data = await api("/auth/signup", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+  if (data.user.role !== "driver") {
+    throw new Error(`Expected driver role, received ${data.user.role}`);
+  }
+  setSession(data.token, data.user);
+  $("#email").value = payload.email;
+  $("#password").value = payload.password;
+  addActivity(`Driver account created for ${data.user.name}`);
+  await refreshAll();
+}
+
 async function restoreSession() {
   if (!state.token) return;
   try {
@@ -570,6 +611,7 @@ document.querySelectorAll(".bottom-link").forEach((link) => {
 });
 
 $("#loginBtn").onclick = () => runButtonAction($("#loginBtn"), "Driver login", login).catch(() => {});
+$("#driverSignupBtn").onclick = () => runButtonAction($("#driverSignupBtn"), "Driver signup", signupDriver).catch(() => {});
 $("#refreshBtn").onclick = () => runButtonAction($("#refreshBtn"), "Refresh driver dashboard", refreshAll).catch(() => {});
 $("#requestsRefreshBtn").onclick = () => runButtonAction($("#requestsRefreshBtn"), "Refresh requests", refreshAll).catch(() => {});
 $("#onlineToggleBtn").onclick = () => runButtonAction($("#onlineToggleBtn"), "Toggle driver status", toggleOnline).catch(() => {});

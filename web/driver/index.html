@@ -58,6 +58,45 @@
         </div>
       </section>
 
+      <section class="auth-panel glass driver-signup-panel" id="driverSignupPanel">
+        <div>
+          <p class="eyebrow">New driver onboarding</p>
+          <h3>Driver Signup</h3>
+          <p>Create a driver account with license, vehicle, assigned zone, live map coordinates, and emergency contact details.</p>
+        </div>
+        <div class="auth-grid signup-grid">
+          <label>Full name <input id="driverSignupName" value="New HabeshaGo Driver" /></label>
+          <label>Email <input id="driverSignupEmail" value="new-driver.demo@habeshago.local" /></label>
+          <label>Phone <input id="driverSignupPhone" value="+251922123456" /></label>
+          <label>Password <input id="driverSignupPassword" type="password" value="Driver123!" /></label>
+          <label>City ID <input id="driverSignupCity" value="addis-ababa" /></label>
+          <label>Vehicle type
+            <select id="driverVehicleType">
+              <option value="motorbike">Motorbike</option>
+              <option value="bicycle">Bicycle</option>
+              <option value="car">Car</option>
+              <option value="van">Van</option>
+            </select>
+          </label>
+          <label>Vehicle plate <input id="driverVehiclePlate" value="AA-2-DEMO" /></label>
+          <label>License number <input id="driverLicenseNumber" value="DL-ADDIS-DEMO-001" /></label>
+          <label>Assigned zone
+            <select id="driverAssignedZone">
+              <option value="Bole">Bole</option>
+              <option value="Piassa">Piassa</option>
+              <option value="CMC">CMC</option>
+              <option value="Megenagna">Megenagna</option>
+              <option value="Kazanchis">Kazanchis</option>
+            </select>
+          </label>
+          <label>Latitude <input id="driverLatitude" value="8.993" /></label>
+          <label>Longitude <input id="driverLongitude" value="38.788" /></label>
+          <label>Emergency contact <input id="driverEmergencyName" value="Dispatch Support" /></label>
+          <label>Emergency phone <input id="driverEmergencyPhone" value="+251911000111" /></label>
+          <button id="driverSignupBtn">Create Driver Account</button>
+        </div>
+      </section>
+
       <section class="section active" data-view="dashboard">
         <div class="hero-card">
           <div>
