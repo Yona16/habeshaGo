@@ -146,6 +146,7 @@ async function main() {
     const adminHtml = await admin.text();
     assert(adminHtml.includes('name="robots" content="noindex, nofollow"'), "Admin portal should be noindex");
     assert(adminHtml.includes("Driver signup") && adminHtml.includes("merchantDetails") && adminHtml.includes("driverDetails"), "Admin portal missing driver signup link or detail sections");
+    assert(adminHtml.includes("executive-kpi") && adminHtml.includes("Total revenue") && adminHtml.includes("Active customers") && adminHtml.includes("Pending approvals") && adminHtml.includes("Failed payments") && adminHtml.includes("Wallet transactions"), "Admin executive KPI dashboard is incomplete");
     assert(adminHtml.includes('href="/app"') && adminHtml.includes('href="/merchant"') && adminHtml.includes('href="/driver"'), "Admin portal must link to same-server app, merchant, and driver routes");
     assert(!adminHtml.includes("localhost:8085") && !adminHtml.includes("localhost:8082"), "Admin portal should not link to old static ports");
     assert(adminHtml.includes("grid-template-columns:minmax(220px, 260px) minmax(0, 1fr)") && adminHtml.includes("position:sticky") && adminHtml.includes("height:calc(100vh - 36px)"), "Admin layout must use responsive grid sidebar, not fixed overlay");

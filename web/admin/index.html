@@ -181,6 +181,19 @@
       }
       .metric strong { display:block; font-size:28px; letter-spacing:-.05em; color:var(--dark); }
       .metric span,p,small { color:var(--muted); }
+      .executive-kpi {
+        min-height:132px;
+        display:grid;
+        align-content:start;
+        gap:4px;
+      }
+      .executive-kpi small {
+        display:block;
+        line-height:1.35;
+        font-size:12px;
+        position:relative;
+        z-index:1;
+      }
       .bar,.actions { display:flex; flex-wrap:wrap; gap:10px; align-items:end; min-width:0; }
       .bar label { flex:1 1 190px; }
       .bar button { flex:0 0 auto; }
@@ -578,16 +591,29 @@
       }
       function render() {
         const d = state.data;
-        $("#metrics").innerHTML = [
-          ["Orders", d.reports.orders_total],
-          ["Gross value", money(d.reports.gross_value)],
-          ["Active merchants", d.reports.active_merchants],
-          ["Open support", d.reports.support_open],
-          ["Dummy payments", d.reports.simulated_payments],
-          ["SMS logs", d.reports.simulated_sms]
-        ].map(([label,value]) => `<div class="metric"><strong>${value}</strong><span>${label}</span></div>`).join("");
-        $("#launchGate").innerHTML = `<p>${d.gate.launch_allowed ? "Allowed" : "Blocked"} - mode ${d.gate.mode}</p><small>${(d.gate.missing_environment || []).join(", ")}</small>`;
         const orderRows = d.orders.orders || [];
+        const paymentRows = d.payments.transactions || [];
+        const walletRows = d.wallets.transactions || [];
+        const supportRows = d.support.tickets || [];
+        const driverRows = d.drivers.drivers || [];
+        const merchantRows = d.merchants.merchants || [];
+        const customerRows = d.details.customers || [];
+        const activeOrders = orderRows.filter(o => !["delivered","cancelled","rejected"].includes(o.status)).length;
+        const failedPayments = paymentRows.filter((payment) => ["failed", "refund_requested"].includes(String(payment.status || "").toLowerCase())).length;
+        const pendingApprovals = (d.pendingMerchants.merchants || []).length + (d.pendingDrivers.drivers || []).length;
+        $("#metrics").innerHTML = [
+          ["Total revenue", money(d.reports.gross_value), "Gross order value recorded by backend"],
+          ["Total orders", d.reports.orders_total, `${activeOrders} currently active`],
+          ["Active merchants", merchantRows.filter((merchant) => merchant.status === "open" || merchant.verified).length, `${(d.pendingMerchants.merchants || []).length} pending approval`],
+          ["Active drivers", driverRows.filter((driver) => driver.online && !driver.frozen).length, `${(d.pendingDrivers.drivers || []).length} pending approval`],
+          ["Active customers", customerRows.length, "Customer profiles loaded from backend"],
+          ["Pending approvals", pendingApprovals, "Merchants plus drivers"],
+          ["Failed payments", failedPayments, "Failed or refund-review transactions"],
+          ["Wallet transactions", walletRows.length, "Immutable local ledger records"],
+          ["Support tickets", supportRows.length, `${supportRows.filter((ticket) => ticket.status === "open").length} open`],
+          ["Audit events", (d.audit.logs || []).length, "Recent admin and workflow actions"]
+        ].map(([label,value,detail]) => `<div class="metric executive-kpi"><strong>${value}</strong><span>${label}</span><small>${detail}</small></div>`).join("");
+        $("#launchGate").innerHTML = `<p>${d.gate.launch_allowed ? "Allowed" : "Blocked"} - mode ${d.gate.mode}</p><small>${(d.gate.missing_environment || []).join(", ")}</small>`;
         const totalOrders = Math.max(1, orderRows.length);
         const statuses = orderRows.reduce((acc, order) => {
           const status = String(order.status || "unknown").replace(/_/g, " ");
