@@ -283,6 +283,33 @@
         display:block;
         overflow-wrap:anywhere;
       }
+      .chart-bars { display:grid; gap:10px; }
+      .chart-row {
+        display:grid;
+        grid-template-columns:110px 1fr auto;
+        gap:10px;
+        align-items:center;
+      }
+      .chart-track {
+        min-height:12px;
+        border-radius:999px;
+        background:#eef2f7;
+        overflow:hidden;
+      }
+      .chart-fill {
+        height:12px;
+        border-radius:999px;
+        background:linear-gradient(135deg, var(--primary), var(--primary-dark));
+      }
+      .review-card {
+        border:1px solid var(--border);
+        border-radius:16px;
+        padding:12px;
+        background:#fbfcfd;
+        display:grid;
+        gap:5px;
+      }
+      .tool-row { display:flex; flex-wrap:wrap; gap:8px; }
 
       .card {
         border:1px solid var(--border);
@@ -491,6 +518,7 @@
           <a class="active" href="#dashboard">🏠 Dashboard</a>
           <a href="#orders">🧾 Orders</a>
           <a href="#menu">🍽️ Menu</a>
+          <a href="#growth">📈 Growth</a>
           <a href="#profile">🏪 Store profile</a>
           <a href="#wallet">💳 Wallet</a>
           <a href="#support">🎧 Support</a>
@@ -597,6 +625,51 @@
           <button id="addProductBtn">Add product</button>
           <br /><br />
           <div id="products"></div>
+        </section>
+
+        <section class="section" id="growth">
+          <div class="section-head">
+            <div>
+              <h2>Revenue, Reviews & Promotions</h2>
+              <p>Daily/weekly/monthly revenue, top sellers, inventory alerts, customer reviews, and campaign tools.</p>
+            </div>
+            <div class="tool-row">
+              <button id="exportProductsBtn" class="secondary">Export Products CSV</button>
+              <button id="importProductsBtn" class="ghost">Import Template</button>
+            </div>
+          </div>
+          <div class="split">
+            <div class="card">
+              <h3>Revenue dashboard</h3>
+              <br />
+              <div id="revenueChart"></div>
+            </div>
+            <div class="card">
+              <h3>Top-selling products</h3>
+              <br />
+              <div id="topProducts"></div>
+            </div>
+          </div>
+          <br />
+          <div class="split">
+            <div class="card">
+              <h3>Inventory alerts</h3>
+              <br />
+              <div id="inventoryAlerts"></div>
+            </div>
+            <div class="card">
+              <h3>Customer reviews</h3>
+              <br />
+              <div id="reviewPanel"></div>
+            </div>
+          </div>
+          <br />
+          <div class="card">
+            <h3>Promotions & coupons</h3>
+            <p>Local MVP shows active platform demo campaigns. Production should add merchant-owned campaigns, coupon budgets, usage caps, and approval controls.</p>
+            <br />
+            <div id="promoPanel" class="grid tight"></div>
+          </div>
         </section>
 
         <section class="section" id="profile">
@@ -1026,6 +1099,7 @@
         renderOrderTabs(data.orders || []);
         renderOrders(data.orders || []);
         renderProducts(data.products || []);
+        renderGrowth(data.analytics || {}, data.products || []);
         renderWallet(data, m);
         renderSupport(data.support_tickets || []);
       }
@@ -1082,6 +1156,48 @@
           <button class="secondary" data-toggle="${esc(p.id)}">${p.available ? "Disable" : "Enable"}</button>
           <button class="danger" data-delete-product="${esc(p.id)}">Delete</button>
         `);
+      }
+
+      function chartRows(rows, currency) {
+        const max = Math.max(1, ...rows.map((row) => Number(row.value || 0)));
+        return `<div class="chart-bars">${rows.map((row) => `
+          <div class="chart-row">
+            <span>${esc(row.label)}</span>
+            <div class="chart-track"><div class="chart-fill" style="width:${Math.max(4, Math.round((Number(row.value || 0) / max) * 100))}%"></div></div>
+            <strong>${money(row.value, currency)}</strong>
+          </div>
+        `).join("")}</div>`;
+      }
+
+      function renderGrowth(analytics, products) {
+        const revenue = analytics.revenue || {};
+        $("#revenueChart").innerHTML = chartRows([
+          { label:"Today", value: revenue.today || 0 },
+          { label:"Weekly", value: revenue.weekly || 0 },
+          { label:"Monthly", value: revenue.monthly || 0 }
+        ], revenue.currency || state.merchant?.currency || "ETB");
+
+        $("#topProducts").innerHTML = (analytics.top_products || []).length
+          ? (analytics.top_products || []).map((product) => `<div class="detail-card"><span>${esc(product.quantity)} sold</span><strong>${esc(product.name)}</strong><p>${money(product.revenue, revenue.currency || "ETB")}</p></div>`).join("")
+          : `<div class="empty"><div><strong>No top sellers yet</strong><span>Accepted customer orders will populate this chart.</span></div></div>`;
+
+        $("#inventoryAlerts").innerHTML = (analytics.inventory_alerts || []).length
+          ? (analytics.inventory_alerts || []).map((item) => `<div class="detail-card"><span>${esc(item.severity)}</span><strong>${esc(item.name)}</strong><p>Stock: ${Number(item.stock_quantity || 0)} • ${item.available ? "Available" : "Unavailable"}</p></div>`).join("")
+          : `<div class="empty"><div><strong>No inventory alerts</strong><span>Products with low stock or disabled availability appear here.</span></div></div>`;
+
+        const summary = analytics.review_summary || {};
+        $("#reviewPanel").innerHTML = `
+          <div class="metric"><strong>${summary.average_rating || 0}</strong><span>Average rating from ${summary.total_reviews || 0} reviews</span></div>
+          <br />
+          ${(analytics.reviews || []).map((review) => `<div class="review-card"><strong>${"★".repeat(Number(review.rating || 0))}${"☆".repeat(Math.max(0, 5 - Number(review.rating || 0)))}</strong><span>${esc(review.comment || "No comment")}</span></div>`).join("") || "<p>No customer reviews yet.</p>"}
+        `;
+
+        $("#promoPanel").innerHTML = (analytics.promotions || []).map((promo) => `<div class="detail-card"><span>${esc(promo.type || "promo")}</span><strong>${esc(promo.code)}</strong><p>${promo.type === "percent" ? `${promo.value}% off` : money(promo.value, promo.currency || "ETB")} • ${promo.active ? "Active" : "Disabled"}</p></div>`).join("") || `<div class="empty"><div><strong>No promotions</strong><span>Create a campaign after Phase 1 campaign approvals.</span></div></div>`;
+
+        state.exportProductsCsv = [
+          ["id", "name", "category", "price", "available", "stock_quantity", "prep_time_minutes"].join(","),
+          ...products.map((product) => [product.id, product.name, product.category, product.price, product.available, product.stock_quantity, product.prep_time_minutes].map((value) => `"${String(value ?? "").replace(/"/g, '""')}"`).join(","))
+        ].join("\n");
       }
 
       function renderWallet(data, m) {
@@ -1187,6 +1303,26 @@
       $("#ordersRefreshBtn").onclick = () => runButtonAction($("#ordersRefreshBtn"), "Refresh orders", load).catch(() => {});
       $("#logoutBtn").onclick = () => clearSession();
       $("#signupScrollBtn").onclick = () => document.querySelector("#signupSection").scrollIntoView({ behavior:"smooth" });
+      $("#exportProductsBtn").onclick = () => {
+        const blob = new Blob([state.exportProductsCsv || "id,name,category,price,available,stock_quantity,prep_time_minutes\n"], { type:"text/csv" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "habeshago-merchant-products.csv";
+        link.click();
+        URL.revokeObjectURL(url);
+        toast("Products CSV exported");
+      };
+      $("#importProductsBtn").onclick = () => {
+        const template = "name,category,description,price,stock_quantity,prep_time_minutes\\nNew item,food,Describe item,250,10,15";
+        showActionStatus({
+          title:"Bulk import template",
+          message:"CSV template ready. Production upload/storage is planned for the next phase.",
+          type:"success",
+          response:{ status:"template", body:{ template } }
+        });
+        toast("Import template shown in Debug panel");
+      };
 
       $("#saveProfileBtn").onclick = () => runButtonAction($("#saveProfileBtn"), "Save merchant profile", async () => {
         if (!state.merchant?.id) throw new Error("Merchant profile not loaded");

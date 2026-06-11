@@ -861,6 +861,59 @@ function merchantSummary(merchant, countryId) {
   };
 }
 
+function merchantAnalytics(merchant, countryId) {
+  const orders = store.orders.filter((order) => order.country_id === countryId && order.merchant_id === merchant.id);
+  const products = store.products.filter((product) => product.country_id === countryId && product.merchant_id === merchant.id);
+  const reviews = store.reviews.filter((review) => review.country_id === countryId && review.merchant_id === merchant.id);
+  const now = Date.now();
+  const dayMs = 24 * 60 * 60 * 1000;
+  const revenueFor = (days) => orders
+    .filter((order) => now - new Date(order.created_at || now).getTime() <= days * dayMs)
+    .reduce((sum, order) => sum + Number(order.total || 0), 0);
+  const itemSales = new Map();
+  for (const order of orders) {
+    for (const item of order.items || []) {
+      const current = itemSales.get(item.product_id) || { product_id: item.product_id, name: item.name || "Product", quantity: 0, revenue: 0 };
+      current.quantity += Number(item.quantity || 0);
+      current.revenue += Number(item.line_total || (Number(item.quantity || 0) * Number(item.unit_price || 0)));
+      itemSales.set(item.product_id, current);
+    }
+  }
+  return {
+    revenue: {
+      today: revenueFor(1),
+      weekly: revenueFor(7),
+      monthly: revenueFor(30),
+      currency: merchant.currency
+    },
+    top_products: [...itemSales.values()].sort((a, b) => b.revenue - a.revenue).slice(0, 8),
+    inventory_alerts: products
+      .filter((product) => Number(product.stock_quantity || 0) <= 10 || product.available === false)
+      .map((product) => ({
+        product_id: product.id,
+        name: product.name,
+        stock_quantity: Number(product.stock_quantity || 0),
+        available: product.available,
+        severity: product.available === false ? "unavailable" : Number(product.stock_quantity || 0) <= 3 ? "critical" : "low_stock"
+      })),
+    reviews: reviews.slice(-10).reverse(),
+    review_summary: {
+      average_rating: reviews.length ? Number((reviews.reduce((sum, review) => sum + Number(review.rating || 0), 0) / reviews.length).toFixed(1)) : Number(merchant.rating || 0),
+      total_reviews: reviews.length || Number(merchant.review_count || 0)
+    },
+    promotions: store.promo_codes.filter((promo) => promo.country_id === countryId).map((promo) => ({
+      ...promo,
+      scope: "platform_demo",
+      merchant_editable: false
+    })),
+    export_ready: {
+      products: products.length,
+      orders: orders.length,
+      reviews: reviews.length
+    }
+  };
+}
+
 function createDriverRequestForOrder(order, actor, pickupNote = "Ready at merchant counter") {
   const merchant = store.merchants.find((item) => item.id === order.merchant_id);
   let request = store.dispatch_requests.find((item) => item.order_id === order.id && ["requested", "offered"].includes(item.status));
@@ -1747,6 +1800,7 @@ async function handleApi(req, res, url) {
       orders,
       menu_requests: store.menu_requests.filter((request) => request.country_id === countryId && request.merchant_id === merchant.id),
       payout: merchantSummary(merchant, countryId),
+      analytics: merchantAnalytics(merchant, countryId),
       support_tickets: store.support_tickets.filter((ticket) => ticket.country_id === countryId && ticket.user_id === user.id),
       payment_providers: ["Telebirr", "CBE Birr", "Chapa", "SantimPay"].map((provider) => ({ provider, mode: "integration_placeholder", real_money_moved: false }))
     });

@@ -109,7 +109,7 @@ async function main() {
     const response = await fetch(`${baseUrl}/merchant`);
     const html = await response.text();
     assert(response.ok, "Merchant portal did not load");
-    for (const marker of ["merchantDetailsSummary", "businessLicense", "taxId", "bankName", "payoutSchedule", "pickupInstructions", "customerPolicy"]) {
+    for (const marker of ["merchantDetailsSummary", "businessLicense", "taxId", "bankName", "payoutSchedule", "pickupInstructions", "customerPolicy", "growth", "revenueChart", "topProducts", "inventoryAlerts", "reviewPanel", "promoPanel", "exportProductsBtn", "importProductsBtn"]) {
       assert(html.includes(marker), `Merchant portal missing ${marker}`);
     }
   });
@@ -456,6 +456,7 @@ async function main() {
     assert(dashboard.data.merchant, "Merchant dashboard missing profile");
     assert((dashboard.data.products || []).length > 0, "Merchant dashboard missing products");
     assert(dashboard.data.payout && typeof dashboard.data.payout.payout_pending === "number", "Merchant dashboard missing payout summary");
+    assert(dashboard.data.analytics && dashboard.data.analytics.revenue && Array.isArray(dashboard.data.analytics.inventory_alerts) && Array.isArray(dashboard.data.analytics.promotions), "Merchant dashboard missing analytics");
     const wallet = await request("/api/ET/v1/wallet", {
       headers: { Authorization: `Bearer ${merchantToken}` }
     });
