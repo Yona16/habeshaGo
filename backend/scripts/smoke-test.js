@@ -112,7 +112,7 @@ async function main() {
     const response = await fetch(`${baseUrl}/merchant`);
     const html = await response.text();
     assert(response.ok, "Merchant portal did not load");
-    for (const marker of ["merchantDetailsSummary", "businessLicense", "taxId", "bankName", "payoutSchedule", "pickupInstructions", "customerPolicy", "growth", "revenueChart", "topProducts", "inventoryAlerts", "reviewPanel", "promoPanel", "exportProductsBtn", "importProductsBtn"]) {
+    for (const marker of ["merchantDetailsSummary", "businessLicense", "taxId", "bankName", "payoutSchedule", "pickupInstructions", "customerPolicy", "growth", "revenueChart", "topProducts", "inventoryAlerts", "reviewPanel", "promoPanel", "exportProductsBtn", "importProductsBtn", "order-board", "order-card", "image-upload-placeholder", "Transaction history", "Driver assigned"]) {
       assert(html.includes(marker), `Merchant portal missing ${marker}`);
     }
   });

@@ -376,8 +376,92 @@
       .status-badge.placed { background:#eff6ff; color:#1d4ed8; }
       .status-badge.accepted, .status-badge.ready_for_pickup { background:#ecfdf5; color:#047857; }
       .status-badge.preparing { background:#fff7ed; color:#c2410c; }
+      .status-badge.driver_accepted, .status-badge.picked_up, .status-badge.on_the_way { background:#eef2ff; color:#3730a3; }
       .status-badge.rejected, .status-badge.cancelled { background:#fef2f2; color:#b91c1c; }
       .status-badge.delivered { background:#f0fdf4; color:#166534; }
+
+      .order-board {
+        display:grid;
+        gap:14px;
+      }
+      .order-card {
+        border:1px solid var(--border);
+        border-radius:20px;
+        background:#fff;
+        box-shadow:0 12px 28px rgba(15,23,42,.05);
+        overflow:hidden;
+      }
+      .order-card-head {
+        display:flex;
+        align-items:flex-start;
+        justify-content:space-between;
+        gap:14px;
+        padding:16px;
+        border-bottom:1px solid var(--border);
+        background:linear-gradient(180deg,#fff,#fbfdfc);
+      }
+      .order-card-head strong { display:block; font-size:18px; }
+      .order-card-body {
+        display:grid;
+        grid-template-columns:1.1fr .9fr;
+        gap:14px;
+        padding:16px;
+      }
+      .order-detail-grid {
+        display:grid;
+        grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+        gap:10px;
+      }
+      .mini-detail {
+        border:1px solid var(--border);
+        border-radius:14px;
+        padding:10px;
+        background:#fbfcfd;
+      }
+      .mini-detail span {
+        display:block;
+        color:var(--muted);
+        font-size:11px;
+        font-weight:900;
+        text-transform:uppercase;
+        letter-spacing:.04em;
+        margin-bottom:3px;
+      }
+      .item-list, .timeline {
+        display:grid;
+        gap:8px;
+      }
+      .item-row, .timeline-row {
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        gap:10px;
+        border:1px solid var(--border);
+        border-radius:14px;
+        padding:9px 10px;
+        background:#fbfcfd;
+      }
+      .timeline-row::before {
+        content:"";
+        flex:0 0 9px;
+        width:9px;
+        height:9px;
+        border-radius:50%;
+        background:var(--primary);
+      }
+      .image-upload-placeholder {
+        border:1px dashed rgba(11,122,59,.45);
+        border-radius:14px;
+        min-height:48px;
+        padding:10px;
+        color:var(--primary-dark);
+        background:#f0fdf4;
+        font-size:12px;
+        font-weight:800;
+        display:grid;
+        place-items:center;
+        text-align:center;
+      }
 
       .product-editor {
         display:grid;
@@ -488,7 +572,7 @@
         .app-shell { grid-template-columns:1fr; }
         .sidebar { position:relative; height:auto; }
         .nav { grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); }
-        .hero, .split { grid-template-columns:1fr; }
+        .hero, .split, .order-card-body { grid-template-columns:1fr; }
         .login-card { grid-template-columns:1fr 1fr; }
       }
 
@@ -820,9 +904,22 @@
         return String(status || "").replace(/_/g, " ").toUpperCase();
       }
 
+      function displayStatus(status = "") {
+        const labels = {
+          placed: "New",
+          ready_for_pickup: "Ready",
+          driver_accepted: "Driver assigned",
+          picked_up: "Picked up",
+          on_the_way: "On the way",
+          delivered: "Completed"
+        };
+        const normalized = normalizeStatus(status);
+        return labels[normalized] || formatStatus(normalized || status);
+      }
+
       function statusBadge(status = "") {
         const s = normalizeStatus(status);
-        return `<span class="status-badge ${esc(s)}">${formatStatus(s)}</span>`;
+        return `<span class="status-badge ${esc(s)}">${displayStatus(s)}</span>`;
       }
 
       function toast(message) {
@@ -1105,10 +1202,10 @@
       }
 
       function renderOrderTabs(orders) {
-        const statuses = ["all", "placed", "accepted", "preparing", "ready_for_pickup", "delivered", "rejected", "cancelled"];
+        const statuses = ["all", "placed", "accepted", "preparing", "ready_for_pickup", "driver_accepted", "picked_up", "on_the_way", "delivered", "rejected", "cancelled"];
         $("#orderTabs").innerHTML = statuses.map((status) => {
           const count = status === "all" ? orders.length : orders.filter(o => normalizeStatus(o.status) === status).length;
-          return `<button class="status-tab ${state.orderFilter === status ? "active" : ""}" data-filter="${status}">${formatStatus(status)} (${count})</button>`;
+          return `<button class="status-tab ${state.orderFilter === status ? "active" : ""}" data-filter="${status}">${displayStatus(status)} (${count})</button>`;
         }).join("");
 
         document.querySelectorAll("[data-filter]").forEach((button) => {
@@ -1125,15 +1222,72 @@
           ? orders
           : orders.filter(o => normalizeStatus(o.status) === state.orderFilter);
 
-        $("#orders").innerHTML = table(filtered, [
-          { label:"Order", render:o => esc(o.id || "").slice(0,8) },
-          { label:"Customer", render:o => `<strong>${esc(o.customer_name || "Customer")}</strong><br><small>${esc(o.customer_phone || "")}</small>` },
-          { label:"Status", render:o => statusBadge(o.status) },
-          { label:"Total", render:o => money(o.total, o.currency) },
-          { label:"Address", render:o => `${esc(o.address_note || "")}<br><small>${esc(o.delivery_address || "")}</small>` }
-        ], orderActions);
+        if (!filtered.length) {
+          $("#orders").innerHTML = `<div class="empty"><div><strong>No ${displayStatus(state.orderFilter).toLowerCase()} orders</strong><span>New customer orders will appear here with customer, item, payment, timeline, and dispatch details.</span></div></div>`;
+          return;
+        }
+
+        $("#orders").innerHTML = `<div class="order-board">${filtered.map(orderCard).join("")}</div>`;
 
         bindRows();
+      }
+
+      function orderCard(order) {
+        const items = orderItems(order);
+        const timeline = orderTimeline(order);
+        return `
+          <article class="order-card">
+            <div class="order-card-head">
+              <div>
+                <strong>Order #${esc(order.id || "").slice(0, 8)}</strong>
+                <p>${esc(order.customer_name || "Customer")} â€¢ ${esc(order.customer_phone || "No phone")}</p>
+              </div>
+              <div class="actions">
+                ${statusBadge(order.status)}
+                ${orderActions(order)}
+              </div>
+            </div>
+            <div class="order-card-body">
+              <div class="order-detail-grid">
+                <div class="mini-detail"><span>Delivery address</span><strong>${esc(order.delivery_address || order.address_note || "Address not provided")}</strong><p>${esc(order.address_note || order.landmark_note || "")}</p></div>
+                <div class="mini-detail"><span>Total</span><strong>${money(order.total, order.currency)}</strong><p>Subtotal ${money(order.subtotal, order.currency)} â€¢ Delivery ${money(order.delivery_fee, order.currency)}</p></div>
+                <div class="mini-detail"><span>Payment</span><strong>${esc(order.payment_method || "cash")}</strong><p>${order.cash_on_delivery ? "Cash on delivery" : esc(order.payment_status || order.payment_detail?.status || "Simulated payment")}</p></div>
+                <div class="mini-detail"><span>Driver</span><strong>${esc(order.driver_name || "Not assigned")}</strong><p>${esc(order.driver_phone || "")} ${esc(order.driver_vehicle || "")}</p></div>
+                <div class="mini-detail"><span>Customer note</span><strong>${esc(order.customer_note || order.note || "No note")}</strong><p>${esc(order.safety_mode || "standard")} delivery</p></div>
+                <div class="mini-detail"><span>Dispatch</span><strong>${esc(order.dispatch_request?.status || "Not requested")}</strong><p>${esc(order.dispatch_request?.id || "Mark ready to create request")}</p></div>
+              </div>
+              <div class="split">
+                <div>
+                  <h3>Items</h3>
+                  <br />
+                  <div class="item-list">${items}</div>
+                </div>
+                <div>
+                  <h3>Timeline</h3>
+                  <br />
+                  <div class="timeline">${timeline}</div>
+                </div>
+              </div>
+            </div>
+          </article>
+        `;
+      }
+
+      function orderItems(order) {
+        const items = order.items || [];
+        if (!items.length) return `<div class="item-row"><span>No item detail</span><strong>${money(order.subtotal, order.currency)}</strong></div>`;
+        return items.map((item) => {
+          const name = item.product_name || item.name || item.product_id || "Menu item";
+          const qty = Number(item.quantity || 1);
+          const price = Number(item.unit_price || item.price || 0);
+          return `<div class="item-row"><span>${qty}x ${esc(name)}</span><strong>${money(qty * price, order.currency)}</strong></div>`;
+        }).join("");
+      }
+
+      function orderTimeline(order) {
+        const timeline = order.status_history || [];
+        if (!timeline.length) return `<div class="timeline-row"><span>${displayStatus(order.status)}</span><strong>Current</strong></div>`;
+        return timeline.slice(-6).map((event) => `<div class="timeline-row"><span>${displayStatus(event.status)}</span><strong>${event.at ? new Date(event.at).toLocaleTimeString() : "Now"}</strong></div>`).join("");
       }
 
       function renderProducts(products) {
@@ -1147,10 +1301,11 @@
               <label>Price <input data-field="price" type="number" value="${Number(p.price || 0)}" /></label>
               <label>Stock <input data-field="stock_quantity" type="number" value="${Number(p.stock_quantity || 0)}" /></label>
               <label>Prep <input data-field="prep_time_minutes" type="number" value="${Number(p.prep_time_minutes || 15)}" /></label>
+              <div class="image-upload-placeholder">Image upload placeholder<br />Paste hosted URL for local MVP</div>
             </div>
           ` },
-          { label:"Preview", render:p => `<img class="product-thumb" src="${esc(p.image_url || "https://images.unsplash.com/photo-1600891964599-f61ba0e24092?auto=format&fit=crop&w=300&q=80")}" alt="" />${money(p.price, p.currency)}` },
-          { label:"Available", render:p => p.available ? statusBadge("available") : statusBadge("disabled") }
+          { label:"Preview", render:p => `<img class="product-thumb" src="${esc(p.image_url || "https://images.unsplash.com/photo-1600891964599-f61ba0e24092?auto=format&fit=crop&w=300&q=80")}" alt="" />${money(p.price, p.currency)}<br><small>${Number(p.prep_time_minutes || 15)} min prep â€¢ stock ${Number(p.stock_quantity || 0)}</small>` },
+          { label:"Status", render:p => `${p.available ? statusBadge("available") : statusBadge("disabled")} ${p.popular ? statusBadge("popular") : ""}` }
         ], p => `
           <button data-edit-product="${esc(p.id)}">Save edit</button>
           <button class="secondary" data-toggle="${esc(p.id)}">${p.available ? "Disable" : "Enable"}</button>
@@ -1218,6 +1373,17 @@
             <p>License/TIN: ${esc(m.business_license_number || "missing")} / ${esc(m.tax_id || "missing")}</p>
             <p>Transactions: ${(state.wallet?.transactions || []).length}</p>
             <p>Wallet ledger is loaded from backend. No real money moved in local demo.</p>
+          </div>
+          <br />
+          <div class="card">
+            <h3>Transaction history</h3>
+            <br />
+            ${(state.wallet?.transactions || []).slice(-8).reverse().map((tx) => `
+              <div class="item-row">
+                <span>${esc(tx.type || "wallet_transaction")}<br><small>${esc(tx.reason || "")} ${tx.order_id ? `â€¢ order ${esc(tx.order_id).slice(0, 8)}` : ""}</small></span>
+                <strong>${money(tx.amount, tx.currency || state.wallet?.currency || data.payout?.currency)}</strong>
+              </div>
+            `).join("") || `<div class="empty"><div><strong>No wallet transactions yet</strong><span>Completed orders and payouts will appear here.</span></div></div>`}
           </div>
         `;
       }
