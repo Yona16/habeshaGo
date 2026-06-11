@@ -356,6 +356,16 @@ function normalizeDetails(data) {
     merchant.trust_score = merchant.trust_score || fallback.trust_score || 75;
     merchant.verification_status = merchant.verification_status || fallback.verification_status || (merchant.verified ? "verified" : "pending");
     merchant.support_notes = merchant.support_notes || fallback.support_notes || "No support notes yet.";
+    merchant.business_license_number = merchant.business_license_number || fallback.business_license_number || "";
+    merchant.tax_id = merchant.tax_id || fallback.tax_id || "";
+    merchant.bank_name = merchant.bank_name || fallback.bank_name || "CBE";
+    merchant.bank_account_last4 = merchant.bank_account_last4 || fallback.bank_account_last4 || "";
+    merchant.pickup_instructions = merchant.pickup_instructions || fallback.pickup_instructions || "Use front counter pickup.";
+    merchant.customer_policy = merchant.customer_policy || fallback.customer_policy || "Call customer for unavailable substitutions.";
+    merchant.minimum_order_amount = merchant.minimum_order_amount ?? fallback.minimum_order_amount ?? 0;
+    merchant.packaging_fee = merchant.packaging_fee ?? fallback.packaging_fee ?? 0;
+    merchant.prep_buffer_minutes = merchant.prep_buffer_minutes ?? fallback.prep_buffer_minutes ?? 5;
+    merchant.cuisine_tags = merchant.cuisine_tags || fallback.cuisine_tags || [merchant.category].filter(Boolean);
     merchant.review_count = merchant.review_count ?? fallback.review_count ?? 0;
     merchant.latitude = merchant.latitude ?? fallback.latitude ?? 8.994;
     merchant.longitude = merchant.longitude ?? fallback.longitude ?? 38.789;
@@ -1650,7 +1660,17 @@ async function handleApi(req, res, url) {
         opening_hours: body.opening_hours || "Hours not set",
         prep_time_minutes: Number(body.prep_time_minutes || 20),
         delivery_radius_km: Number(body.delivery_radius_km || 3),
-        payout_schedule: "weekly",
+        payout_schedule: body.payout_schedule || "weekly",
+        business_license_number: body.business_license_number || "",
+        tax_id: body.tax_id || "",
+        bank_name: body.bank_name || "CBE",
+        bank_account_last4: body.bank_account_last4 || "",
+        pickup_instructions: body.pickup_instructions || "Use front counter pickup.",
+        customer_policy: body.customer_policy || "Call customer for unavailable substitutions.",
+        minimum_order_amount: Number(body.minimum_order_amount || 0),
+        packaging_fee: Number(body.packaging_fee || 0),
+        prep_buffer_minutes: Number(body.prep_buffer_minutes || 5),
+        cuisine_tags: Array.isArray(body.cuisine_tags) ? body.cuisine_tags : String(body.cuisine_tags || body.category || "restaurant").split(",").map((tag) => tag.trim()).filter(Boolean),
         trust_score: 50,
         verification_status: "pending",
         support_notes: "New merchant signup. Verify address, phone, menu, and payout details before production launch."
@@ -1739,8 +1759,8 @@ async function handleApi(req, res, url) {
     const merchant = merchantForUser(user, merchantProfileMatch[1], countryId);
     if (!merchant || merchant.id !== merchantProfileMatch[1]) return sendError(res, 404, "Merchant profile not found");
     const body = await readBody(req);
-    for (const key of ["name", "category", "manager_name", "contact_phone", "opening_hours", "address_note", "prep_time_minutes", "delivery_radius_km", "status"]) {
-      if (body[key] !== undefined) merchant[key] = ["prep_time_minutes", "delivery_radius_km"].includes(key) ? Number(body[key]) : body[key];
+    for (const key of ["name", "category", "manager_name", "contact_phone", "opening_hours", "address_note", "prep_time_minutes", "delivery_radius_km", "status", "payout_schedule", "business_license_number", "tax_id", "bank_name", "bank_account_last4", "pickup_instructions", "customer_policy", "minimum_order_amount", "packaging_fee", "prep_buffer_minutes", "cuisine_tags"]) {
+      if (body[key] !== undefined) merchant[key] = ["prep_time_minutes", "delivery_radius_km", "minimum_order_amount", "packaging_fee", "prep_buffer_minutes"].includes(key) ? Number(body[key]) : body[key];
     }
     audit(user, "merchant.profile_updated", "merchant", merchant.id);
     saveStore();

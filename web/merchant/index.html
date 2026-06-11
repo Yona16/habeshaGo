@@ -259,6 +259,31 @@
       .metric strong { display:block; font-size:28px; letter-spacing:-.04em; }
       .metric span { display:block; color:var(--muted); margin-top:4px; font-size:13px; font-weight:700; }
 
+      .detail-grid {
+        display:grid;
+        grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+        gap:10px;
+      }
+      .detail-card {
+        border:1px solid var(--border);
+        border-radius:16px;
+        padding:13px;
+        background:#fbfcfd;
+      }
+      .detail-card span {
+        display:block;
+        margin-bottom:4px;
+        color:var(--muted);
+        font-size:11px;
+        font-weight:900;
+        text-transform:uppercase;
+        letter-spacing:.04em;
+      }
+      .detail-card strong {
+        display:block;
+        overflow-wrap:anywhere;
+      }
+
       .card {
         border:1px solid var(--border);
         border-radius:18px;
@@ -524,6 +549,8 @@
             </div>
           </div>
           <div id="metrics" class="grid tight"></div>
+          <br />
+          <div id="merchantDetailsSummary" class="detail-grid"></div>
         </section>
 
         <section class="split" id="orders">
@@ -588,6 +615,24 @@
             <label>Address <input id="addressNote" /></label>
             <label>Prep minutes <input id="prepTime" type="number" /></label>
             <label>Delivery radius km <input id="deliveryRadius" type="number" /></label>
+            <label>Minimum order ETB <input id="minimumOrder" type="number" /></label>
+            <label>Packaging fee ETB <input id="packagingFee" type="number" /></label>
+            <label>Prep buffer minutes <input id="prepBuffer" type="number" /></label>
+            <label>Cuisine / tags <input id="cuisineTags" /></label>
+            <label>Business license <input id="businessLicense" /></label>
+            <label>Tax ID / TIN <input id="taxId" /></label>
+            <label>Bank name <input id="bankName" /></label>
+            <label>Bank account last 4 <input id="bankLast4" /></label>
+            <label>Payout schedule
+              <select id="payoutSchedule">
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+                <option value="biweekly">Biweekly</option>
+                <option value="monthly">Monthly</option>
+              </select>
+            </label>
+            <label>Pickup instructions <input id="pickupInstructions" /></label>
+            <label>Customer policy <input id="customerPolicy" /></label>
           </div>
           <br />
           <p id="profileMeta"></p>
@@ -638,6 +683,21 @@
             <label>Manager <input id="signupManager" value="Store Manager" /></label>
             <label>Merchant phone <input id="signupMerchantPhone" value="+251911222333" /></label>
             <label>Address <input id="signupAddress" value="Bole, near main road" /></label>
+            <label>Opening hours <input id="signupOpeningHours" value="Mon-Sun 8:00 AM - 10:00 PM" /></label>
+            <label>Business license <input id="signupBusinessLicense" value="ET-MER-001" /></label>
+            <label>Tax ID / TIN <input id="signupTaxId" value="TIN-LOCAL-DEMO" /></label>
+            <label>Bank name <input id="signupBankName" value="CBE" /></label>
+            <label>Bank account last 4 <input id="signupBankLast4" value="1234" /></label>
+            <label>Payout schedule
+              <select id="signupPayoutSchedule">
+                <option value="weekly">Weekly</option>
+                <option value="daily">Daily</option>
+                <option value="biweekly">Biweekly</option>
+                <option value="monthly">Monthly</option>
+              </select>
+            </label>
+            <label>Pickup instructions <input id="signupPickupInstructions" value="Use front counter pickup." /></label>
+            <label>Customer policy <input id="signupCustomerPolicy" value="Call customer for substitutions." /></label>
           </div>
           <br />
           <button id="signupBtn" class="secondary">Create merchant account</button>
@@ -922,6 +982,17 @@
         $("#addressNote").value = m.address_note || "";
         $("#prepTime").value = m.prep_time_minutes || 15;
         $("#deliveryRadius").value = m.delivery_radius_km || 3;
+        $("#minimumOrder").value = m.minimum_order_amount || 0;
+        $("#packagingFee").value = m.packaging_fee || 0;
+        $("#prepBuffer").value = m.prep_buffer_minutes || 5;
+        $("#cuisineTags").value = Array.isArray(m.cuisine_tags) ? m.cuisine_tags.join(", ") : (m.cuisine_tags || m.category || "");
+        $("#businessLicense").value = m.business_license_number || "";
+        $("#taxId").value = m.tax_id || "";
+        $("#bankName").value = m.bank_name || "CBE";
+        $("#bankLast4").value = m.bank_account_last4 || "";
+        $("#payoutSchedule").value = m.payout_schedule || "weekly";
+        $("#pickupInstructions").value = m.pickup_instructions || "";
+        $("#customerPolicy").value = m.customer_policy || "";
 
         $("#profileMeta").innerHTML = `
           ${statusBadge(m.verification_status || "pending")}
@@ -936,6 +1007,21 @@
           ["Gross sales", money(payout.gross_sales, payout.currency)],
           ["Payout pending", money(payout.payout_pending, payout.currency)]
         ].map(([label, value]) => `<div class="metric"><strong>${value ?? 0}</strong><span>${label}</span></div>`).join("");
+
+        $("#merchantDetailsSummary").innerHTML = [
+          ["Manager", m.manager_name || "Not set"],
+          ["Phone", m.contact_phone || "Not set"],
+          ["Hours", m.opening_hours || "Not set"],
+          ["Address", m.address_note || "Not set"],
+          ["Prep SLA", `${m.prep_time_minutes || 15}+${m.prep_buffer_minutes || 5} min`],
+          ["Delivery radius", `${m.delivery_radius_km || 3} km`],
+          ["Minimum order", money(m.minimum_order_amount || 0, m.currency)],
+          ["Packaging fee", money(m.packaging_fee || 0, m.currency)],
+          ["Payout", `${m.payout_schedule || "weekly"} via ${m.bank_name || "bank"} ${m.bank_account_last4 ? `••••${m.bank_account_last4}` : ""}`],
+          ["License / TIN", `${m.business_license_number || "missing"} / ${m.tax_id || "missing"}`],
+          ["Pickup", m.pickup_instructions || "Not set"],
+          ["Policy", m.customer_policy || "Not set"]
+        ].map(([label, value]) => `<div class="detail-card"><span>${esc(label)}</span><strong>${esc(value)}</strong></div>`).join("");
 
         renderOrderTabs(data.orders || []);
         renderOrders(data.orders || []);
@@ -1012,6 +1098,8 @@
             <p>Open orders: ${data.payout?.open_orders || 0}</p>
             <p>Completed orders: ${data.payout?.completed_orders || 0}</p>
             <p>Payout schedule: ${esc(m.payout_schedule || "weekly")}</p>
+            <p>Payout destination: ${esc(m.bank_name || "Bank")} ${m.bank_account_last4 ? `••••${esc(m.bank_account_last4)}` : "(not set)"}</p>
+            <p>License/TIN: ${esc(m.business_license_number || "missing")} / ${esc(m.tax_id || "missing")}</p>
             <p>Transactions: ${(state.wallet?.transactions || []).length}</p>
             <p>Wallet ledger is loaded from backend. No real money moved in local demo.</p>
           </div>
@@ -1110,7 +1198,18 @@
           opening_hours: $("#openingHours").value,
           address_note: $("#addressNote").value,
           prep_time_minutes: Number($("#prepTime").value),
-          delivery_radius_km: Number($("#deliveryRadius").value)
+          delivery_radius_km: Number($("#deliveryRadius").value),
+          minimum_order_amount: Number($("#minimumOrder").value),
+          packaging_fee: Number($("#packagingFee").value),
+          prep_buffer_minutes: Number($("#prepBuffer").value),
+          cuisine_tags: $("#cuisineTags").value.split(",").map(tag => tag.trim()).filter(Boolean),
+          business_license_number: $("#businessLicense").value,
+          tax_id: $("#taxId").value,
+          bank_name: $("#bankName").value,
+          bank_account_last4: $("#bankLast4").value,
+          payout_schedule: $("#payoutSchedule").value,
+          pickup_instructions: $("#pickupInstructions").value,
+          customer_policy: $("#customerPolicy").value
         };
         await api(`/api/${state.country}/v1/merchants/${state.merchant.id}/profile`, {
           method:"PATCH",
@@ -1150,7 +1249,15 @@
           category: $("#signupCategory").value,
           manager_name: $("#signupManager").value,
           merchant_phone: $("#signupMerchantPhone").value,
-          merchant_address: $("#signupAddress").value
+          merchant_address: $("#signupAddress").value,
+          opening_hours: $("#signupOpeningHours").value,
+          business_license_number: $("#signupBusinessLicense").value,
+          tax_id: $("#signupTaxId").value,
+          bank_name: $("#signupBankName").value,
+          bank_account_last4: $("#signupBankLast4").value,
+          payout_schedule: $("#signupPayoutSchedule").value,
+          pickup_instructions: $("#signupPickupInstructions").value,
+          customer_policy: $("#signupCustomerPolicy").value
         };
         const data = await api(`/api/${state.country}/v1/auth/signup`, {
           method:"POST",

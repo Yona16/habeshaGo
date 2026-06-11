@@ -105,6 +105,15 @@ async function main() {
     assert(driverScript.includes('api("/drivers/location", {') && driverScript.includes('method: "POST"'), "Driver movement must call POST /drivers/location");
   });
 
+  await step("merchant portal includes production detail fields", async () => {
+    const response = await fetch(`${baseUrl}/merchant`);
+    const html = await response.text();
+    assert(response.ok, "Merchant portal did not load");
+    for (const marker of ["merchantDetailsSummary", "businessLicense", "taxId", "bankName", "payoutSchedule", "pickupInstructions", "customerPolicy"]) {
+      assert(html.includes(marker), `Merchant portal missing ${marker}`);
+    }
+  });
+
   await step("SEO pages, sitemap, robots, and PWA files work", async () => {
     const pages = ["/addis-ababa", "/bole", "/category/pizza", "/merchant/addis-chefs", "/product/kitfo", "/search?q=%E1%8D%92%E1%8B%9B"];
     for (const path of pages) {
@@ -468,7 +477,15 @@ async function main() {
         category: "restaurant",
         manager_name: "Smoke Manager",
         merchant_phone: "+251911555777",
-        merchant_address: "Bole smoke signup address"
+        merchant_address: "Bole smoke signup address",
+        opening_hours: "Mon-Sun 8:00 AM - 10:00 PM",
+        business_license_number: "SMOKE-LIC-001",
+        tax_id: "SMOKE-TIN-001",
+        bank_name: "CBE",
+        bank_account_last4: "7777",
+        payout_schedule: "weekly",
+        pickup_instructions: "Smoke pickup counter",
+        customer_policy: "Smoke substitution policy"
       })
     });
     assert(signup.response.status === 201 && signup.data.user.role === "merchant", "Merchant signup failed");
@@ -476,6 +493,7 @@ async function main() {
       headers: { Authorization: `Bearer ${signup.data.token}` }
     });
     assert(dashboard.response.ok && dashboard.data.merchant.name === "Smoke Signup Kitchen", "Signed-up merchant dashboard failed");
+    assert(dashboard.data.merchant.business_license_number === "SMOKE-LIC-001" && dashboard.data.merchant.bank_account_last4 === "7777", "Signed-up merchant details were not saved");
   });
 
   await step("merchant portal profile, product, payout, and support actions work", async () => {
@@ -494,10 +512,22 @@ async function main() {
         opening_hours: "Mon-Sun 8:00 AM - 10:00 PM",
         address_note: merchant.address_note || "Smoke merchant address",
         prep_time_minutes: Number(merchant.prep_time_minutes || 18),
-        delivery_radius_km: Number(merchant.delivery_radius_km || 4)
+        delivery_radius_km: Number(merchant.delivery_radius_km || 4),
+        minimum_order_amount: 150,
+        packaging_fee: 12,
+        prep_buffer_minutes: 6,
+        cuisine_tags: ["ethiopian", "lunch", "bole"],
+        business_license_number: "SMOKE-LIC-PROFILE",
+        tax_id: "SMOKE-TIN-PROFILE",
+        bank_name: "CBE",
+        bank_account_last4: "3456",
+        payout_schedule: "weekly",
+        pickup_instructions: "Use merchant smoke counter",
+        customer_policy: "Call customer for substitutions"
       })
     });
     assert(profile.response.ok && profile.data.merchant.id === merchant.id, "Merchant profile save failed");
+    assert(profile.data.merchant.business_license_number === "SMOKE-LIC-PROFILE" && profile.data.merchant.bank_account_last4 === "3456" && profile.data.merchant.minimum_order_amount === 150, "Merchant production details save failed");
     const stamp = Date.now();
     const created = await request(`/api/ET/v1/merchants/${merchant.id}/products`, {
       method: "POST",
