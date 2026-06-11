@@ -36,6 +36,10 @@
           radial-gradient(circle at top left, rgba(11,122,59,.12), transparent 34%),
           linear-gradient(135deg, #f8fafc 0%, #eef7f1 100%);
         color:var(--text);
+        display:grid;
+        grid-template-columns:minmax(220px, 260px) minmax(0, 1fr);
+        gap:18px;
+        padding:18px;
       }
       body::before {
         content:"";
@@ -46,11 +50,11 @@
         background-size:36px 36px;
       }
       header {
-        position:fixed;
-        left:18px;
+        position:sticky;
         top:18px;
-        bottom:18px;
-        width:280px;
+        width:auto;
+        min-width:0;
+        height:calc(100vh - 36px);
         z-index:20;
         display:flex;
         flex-direction:column;
@@ -123,19 +127,23 @@
       }
       nav a:hover, nav button:hover { background:rgba(255,255,255,.16); }
       main {
-        width:min(1280px, calc(100% - 340px));
-        margin:18px 22px 56px 320px;
+        width:100%;
+        min-width:0;
+        margin:0 0 38px;
         display:grid;
         gap:18px;
+        position:relative;
+        z-index:1;
       }
       main::before {
         content:"Operations Command Center";
         display:block;
         margin:4px 0 2px;
-        font-size:34px;
+        font-size:clamp(28px, 4vw, 44px);
         font-weight:850;
         letter-spacing:-.045em;
         color:var(--dark);
+        overflow-wrap:anywhere;
       }
       section {
         background:rgba(255,255,255,.92);
@@ -146,7 +154,7 @@
         backdrop-filter:blur(10px);
       }
       section h2 { margin:0 0 12px; font-size:18px; letter-spacing:-.02em; }
-      .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px; }
+      .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:14px; min-width:0; }
       .chart-bars { display:grid; gap:10px; }
       .chart-row { display:grid; grid-template-columns:130px 1fr auto; gap:10px; align-items:center; }
       .chart-track { min-height:12px; border-radius:999px; background:#eef2f7; overflow:hidden; }
@@ -173,7 +181,9 @@
       }
       .metric strong { display:block; font-size:28px; letter-spacing:-.05em; color:var(--dark); }
       .metric span,p,small { color:var(--muted); }
-      .bar,.actions { display:flex; flex-wrap:wrap; gap:10px; align-items:end; }
+      .bar,.actions { display:flex; flex-wrap:wrap; gap:10px; align-items:end; min-width:0; }
+      .bar label { flex:1 1 190px; }
+      .bar button { flex:0 0 auto; }
       label { display:grid; gap:6px; font-size:12px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.035em; }
       input, select {
         width:100%;
@@ -215,6 +225,7 @@
         padding:12px;
         background:rgba(255,255,255,.9);
         backdrop-filter:blur(16px);
+        overflow-x:auto;
       }
       .tab {
         background:#eef2f7;
@@ -265,7 +276,7 @@
       #toast.show { opacity:1; transform:translateY(0); }
       .action-status {
         position:fixed;
-        left:320px;
+        left:calc(278px + 18px);
         right:24px;
         bottom:22px;
         z-index:40;
@@ -309,8 +320,9 @@
         font-weight:800;
       }
       @media (max-width: 920px) {
-        header { position:relative; left:auto; top:auto; bottom:auto; width:auto; margin:12px; border-radius:24px; }
-        main { width:auto; margin:12px; }
+        body { display:block; padding:12px; }
+        header { position:relative; top:auto; height:auto; width:auto; margin:0 0 12px; border-radius:24px; }
+        main { width:auto; margin:0; }
         main::before { font-size:28px; }
         .action-status { left:12px; right:12px; }
         table { min-width:760px; }

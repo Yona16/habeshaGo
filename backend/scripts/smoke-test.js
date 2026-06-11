@@ -148,6 +148,7 @@ async function main() {
     assert(adminHtml.includes("Driver signup") && adminHtml.includes("merchantDetails") && adminHtml.includes("driverDetails"), "Admin portal missing driver signup link or detail sections");
     assert(adminHtml.includes('href="/app"') && adminHtml.includes('href="/merchant"') && adminHtml.includes('href="/driver"'), "Admin portal must link to same-server app, merchant, and driver routes");
     assert(!adminHtml.includes("localhost:8085") && !adminHtml.includes("localhost:8082"), "Admin portal should not link to old static ports");
+    assert(adminHtml.includes("grid-template-columns:minmax(220px, 260px) minmax(0, 1fr)") && adminHtml.includes("position:sticky") && adminHtml.includes("height:calc(100vh - 36px)"), "Admin layout must use responsive grid sidebar, not fixed overlay");
     assert(adminHtml.includes("allowStatuses: [409]") && adminHtml.includes("Production gate is blocked"), "Admin portal must treat launch-gate 409 as a non-blocking warning");
   });
 
