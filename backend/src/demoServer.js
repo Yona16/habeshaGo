@@ -1396,6 +1396,8 @@ function serveStatic(req, res, pathname) {
     filePath = path.resolve(webRootDir, "merchant", `.${pathname.replace(/^\/merchant/, "")}`);
   } else if (pathname.startsWith("/admin/")) {
     filePath = path.resolve(webRootDir, "admin", `.${pathname.replace(/^\/admin/, "")}`);
+  } else if (pathname.startsWith("/shared/")) {
+    filePath = path.resolve(webRootDir, "shared", `.${pathname.replace(/^\/shared/, "")}`);
   } else if (pathname === "/app" || pathname === "/app/") {
     filePath = path.resolve(webDir, "index.html");
   } else {

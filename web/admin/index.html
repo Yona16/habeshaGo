@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex, nofollow" />
     <title>HabeshaGo Admin Command Center</title>
+    <link rel="stylesheet" href="/shared/ui.css" />
     <style>
       :root {
         color-scheme: light;
@@ -432,6 +433,11 @@
       <section class="admin-section active" data-section="dashboard"><h2>Audit Logs</h2><div id="audit"></div></section>
     </main>
     <div id="toast"></div>
+    <script type="module" src="/shared/api.js"></script>
+    <script type="module" src="/shared/auth.js"></script>
+    <script type="module" src="/shared/toast.js"></script>
+    <script type="module" src="/shared/map.js"></script>
+    <script type="module" src="/shared/validation.js"></script>
     <script>
       function resolveApiBaseUrl() {
         const host = window.location.hostname;

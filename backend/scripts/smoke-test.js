@@ -64,6 +64,7 @@ async function main() {
     const response = await fetch(`${baseUrl}/app`);
     const html = await response.text();
     assert(response.ok, "Customer app did not load");
+    assert(html.includes('/shared/ui.css') && html.includes('/shared/api.js') && html.includes('/shared/auth.js') && html.includes('/shared/toast.js') && html.includes('/shared/map.js') && html.includes('/shared/validation.js'), "Customer app missing shared frontend foundation imports");
     assert(html.includes("HabeshaGo Customer App"), "Polished customer app title is missing");
     assert(html.includes("cartDrawer"), "Customer cart drawer is missing");
     assert(html.includes("merchantGrid"), "Customer merchant grid is missing");
@@ -89,6 +90,7 @@ async function main() {
     const response = await fetch(`${baseUrl}/driver`);
     const html = await response.text();
     assert(response.ok, "Driver portal did not load");
+    assert(html.includes('/shared/ui.css') && html.includes('/shared/api.js') && html.includes('/shared/auth.js') && html.includes('/shared/toast.js') && html.includes('/shared/map.js') && html.includes('/shared/validation.js'), "Driver portal missing shared frontend foundation imports");
     assert(html.includes("HabeshaGo Driver Portal"), "Driver portal title is missing");
     assert(html.includes("Available Delivery Requests"), "Driver available requests view is missing");
     assert(html.includes("Driver Earnings") && html.includes("Wallet Ledger"), "Driver earnings/wallet views are missing");
@@ -112,6 +114,7 @@ async function main() {
     const response = await fetch(`${baseUrl}/merchant`);
     const html = await response.text();
     assert(response.ok, "Merchant portal did not load");
+    assert(html.includes('/shared/ui.css') && html.includes('/shared/api.js') && html.includes('/shared/auth.js') && html.includes('/shared/toast.js') && html.includes('/shared/map.js') && html.includes('/shared/validation.js'), "Merchant portal missing shared frontend foundation imports");
     for (const marker of ["merchantDetailsSummary", "businessLicense", "taxId", "bankName", "payoutSchedule", "pickupInstructions", "customerPolicy", "growth", "revenueChart", "topProducts", "inventoryAlerts", "reviewPanel", "promoPanel", "exportProductsBtn", "importProductsBtn", "order-board", "order-card", "image-upload-placeholder", "Transaction history", "Driver assigned"]) {
       assert(html.includes(marker), `Merchant portal missing ${marker}`);
     }
@@ -145,12 +148,30 @@ async function main() {
     const admin = await fetch(`${baseUrl}/admin`);
     const adminHtml = await admin.text();
     assert(adminHtml.includes('name="robots" content="noindex, nofollow"'), "Admin portal should be noindex");
+    assert(adminHtml.includes('/shared/ui.css') && adminHtml.includes('/shared/api.js') && adminHtml.includes('/shared/auth.js') && adminHtml.includes('/shared/toast.js') && adminHtml.includes('/shared/map.js') && adminHtml.includes('/shared/validation.js'), "Admin portal missing shared frontend foundation imports");
     assert(adminHtml.includes("Driver signup") && adminHtml.includes("merchantDetails") && adminHtml.includes("driverDetails"), "Admin portal missing driver signup link or detail sections");
     assert(adminHtml.includes("executive-kpi") && adminHtml.includes("Total revenue") && adminHtml.includes("Active customers") && adminHtml.includes("Pending approvals") && adminHtml.includes("Failed payments") && adminHtml.includes("Wallet transactions"), "Admin executive KPI dashboard is incomplete");
     assert(adminHtml.includes('href="/app"') && adminHtml.includes('href="/merchant"') && adminHtml.includes('href="/driver"'), "Admin portal must link to same-server app, merchant, and driver routes");
     assert(!adminHtml.includes("localhost:8085") && !adminHtml.includes("localhost:8082"), "Admin portal should not link to old static ports");
     assert(adminHtml.includes("grid-template-columns:minmax(220px, 260px) minmax(0, 1fr)") && adminHtml.includes("position:sticky") && adminHtml.includes("height:calc(100vh - 36px)"), "Admin layout must use responsive grid sidebar, not fixed overlay");
     assert(adminHtml.includes("allowStatuses: [409]") && adminHtml.includes("Production gate is blocked"), "Admin portal must treat launch-gate 409 as a non-blocking warning");
+  });
+
+  await step("shared frontend foundation assets load", async () => {
+    const assets = [
+      ["/shared/api.js", "HabeshaGoApi"],
+      ["/shared/auth.js", "HabeshaGoAuth"],
+      ["/shared/toast.js", "HabeshaGoToast"],
+      ["/shared/map.js", "HabeshaGoMap"],
+      ["/shared/validation.js", "HabeshaGoValidation"],
+      ["/shared/ui.css", ".hg-card"]
+    ];
+    for (const [path, marker] of assets) {
+      const response = await fetch(`${baseUrl}${path}`);
+      const body = await response.text();
+      assert(response.ok, `${path} did not load`);
+      assert(body.includes(marker), `${path} missing marker ${marker}`);
+    }
   });
 
   await step("health endpoint is ok", async () => {
